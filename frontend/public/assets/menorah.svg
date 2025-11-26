@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500" width="400" height="500">
+  <!-- Menorah Base (segment-1) - First to illuminate -->
+  <g id="segment-1" class="menorah-segment">
+    <rect x="150" y="450" width="100" height="30" rx="5" fill="currentColor"/>
+    <rect x="175" y="420" width="50" height="35" fill="currentColor"/>
+  </g>
+
+  <!-- Lower Stem (segment-2) -->
+  <g id="segment-2" class="menorah-segment">
+    <rect x="190" y="350" width="20" height="75" fill="currentColor"/>
+  </g>
+
+  <!-- Middle Stem (segment-3) -->
+  <g id="segment-3" class="menorah-segment">
+    <rect x="190" y="280" width="20" height="75" fill="currentColor"/>
+  </g>
+
+  <!-- Upper Stem (segment-4) -->
+  <g id="segment-4" class="menorah-segment">
+    <rect x="190" y="210" width="20" height="75" fill="currentColor"/>
+  </g>
+
+  <!-- Left Branch 1 - Outer (segment-5) -->
+  <g id="segment-5" class="menorah-segment">
+    <path d="M 50 100 Q 50 250, 190 280" stroke="currentColor" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <circle cx="50" cy="95" r="15" fill="currentColor"/>
+  </g>
+
+  <!-- Left Branch 2 (segment-6) -->
+  <g id="segment-6" class="menorah-segment">
+    <path d="M 90 100 Q 90 230, 190 260" stroke="currentColor" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <circle cx="90" cy="95" r="15" fill="currentColor"/>
+  </g>
+
+  <!-- Left Branch 3 (segment-7) -->
+  <g id="segment-7" class="menorah-segment">
+    <path d="M 130 100 Q 130 210, 190 240" stroke="currentColor" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <circle cx="130" cy="95" r="15" fill="currentColor"/>
+  </g>
+
+  <!-- Center Branch - Shamash (segment-8) -->
+  <g id="segment-8" class="menorah-segment">
+    <rect x="190" y="60" width="20" height="155" fill="currentColor"/>
+    <circle cx="200" cy="55" r="18" fill="currentColor"/>
+  </g>
+
+  <!-- Right Branch 1 (segment-9) -->
+  <g id="segment-9" class="menorah-segment">
+    <path d="M 270 100 Q 270 210, 210 240" stroke="currentColor" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <circle cx="270" cy="95" r="15" fill="currentColor"/>
+  </g>
+
+  <!-- Right Branch 2 (segment-10) -->
+  <g id="segment-10" class="menorah-segment">
+    <path d="M 310 100 Q 310 230, 210 260" stroke="currentColor" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <circle cx="310" cy="95" r="15" fill="currentColor"/>
+  </g>
+
+  <!-- Right Branch 3 - Outer (segment-11) -->
+  <g id="segment-11" class="menorah-segment">
+    <path d="M 350 100 Q 350 250, 210 280" stroke="currentColor" stroke-width="12" fill="none" stroke-linecap="round"/>
+    <circle cx="350" cy="95" r="15" fill="currentColor"/>
+  </g>
+</svg>

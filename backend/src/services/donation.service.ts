@@ -1,0 +1,142 @@
+import { getDb, saveDatabase } from '../db/init';
+import { Donation, CreateDonationRequest, UpdateDonationRequest, DonationStats } from '../models/types';
+import { DonationRow, rowToDonation } from '../models/donation';
+import { buildStats } from '../models/stats';
+import { configService } from './config.service';
+
+class DonationService {
+  // Get all donations
+  getAll(): Donation[] {
+    const db = getDb();
+    const stmt = db.prepare(`SELECT * FROM donations ORDER BY created_at DESC`);
+    const rows: DonationRow[] = [];
+
+    while (stmt.step()) {
+      const row = stmt.getAsObject() as DonationRow;
+      rows.push(row);
+    }
+    stmt.free();
+
+    return rows.map(rowToDonation);
+  }
+
+  // Get donation by ID
+  getById(id: number): Donation | null {
+    const db = getDb();
+    const stmt = db.prepare(`SELECT * FROM donations WHERE id = ?`);
+    stmt.bind([id]);
+
+    if (stmt.step()) {
+      const row = stmt.getAsObject() as DonationRow;
+      stmt.free();
+      return rowToDonation(row);
+    }
+
+    stmt.free();
+    return null;
+  }
+
+  // Create new donation
+  create(data: CreateDonationRequest): Donation {
+    const db = getDb();
+    db.run(
+      `INSERT INTO donations (first_name, last_name, amount, reference) VALUES (?, ?, ?, ?)`,
+      [data.firstName, data.lastName, data.amount, data.reference || null]
+    );
+
+    const lastId = db.exec('SELECT last_insert_rowid() as id')[0].values[0][0] as number;
+    saveDatabase();
+
+    const donation = this.getById(lastId);
+    if (!donation) {
+      throw new Error('Failed to create donation');
+    }
+
+    return donation;
+  }
+
+  // Update existing donation
+  update(id: number, data: UpdateDonationRequest): Donation | null {
+    const existing = this.getById(id);
+    if (!existing) {
+      return null;
+    }
+
+    const updates: string[] = [];
+    const values: (string | number | null)[] = [];
+
+    if (data.firstName !== undefined) {
+      updates.push('first_name = ?');
+      values.push(data.firstName);
+    }
+    if (data.lastName !== undefined) {
+      updates.push('last_name = ?');
+      values.push(data.lastName);
+    }
+    if (data.amount !== undefined) {
+      updates.push('amount = ?');
+      values.push(data.amount);
+    }
+    if (data.reference !== undefined) {
+      updates.push('reference = ?');
+      values.push(data.reference || null);
+    }
+
+    if (updates.length === 0) {
+      return existing;
+    }
+
+    updates.push("updated_at = datetime('now')");
+    values.push(id);
+
+    const db = getDb();
+    db.run(`UPDATE donations SET ${updates.join(', ')} WHERE id = ?`, values);
+    saveDatabase();
+
+    return this.getById(id);
+  }
+
+  // Delete donation
+  delete(id: number): Donation | null {
+    const existing = this.getById(id);
+    if (!existing) {
+      return null;
+    }
+
+    const db = getDb();
+    db.run('DELETE FROM donations WHERE id = ?', [id]);
+    saveDatabase();
+
+    return existing;
+  }
+
+  // Get total amount and count
+  getTotals(): { totalAmount: number; donationCount: number } {
+    const db = getDb();
+    const result = db.exec(`SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM donations`);
+
+    if (result.length > 0 && result[0].values.length > 0) {
+      return {
+        totalAmount: result[0].values[0][0] as number,
+        donationCount: result[0].values[0][1] as number
+      };
+    }
+
+    return { totalAmount: 0, donationCount: 0 };
+  }
+
+  // Get current statistics
+  getStats(): DonationStats {
+    const { totalAmount, donationCount } = this.getTotals();
+    const config = configService.get();
+
+    return buildStats(
+      totalAmount,
+      donationCount,
+      config.goalAmount,
+      config.menorahSegments
+    );
+  }
+}
+
+export const donationService = new DonationService();

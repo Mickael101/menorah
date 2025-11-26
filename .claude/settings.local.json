@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -ExecutionPolicy Bypass -File \".specify/scripts/powershell/setup-plan.ps1\" -Json)",
+      "Bash(powershell -ExecutionPolicy Bypass -File:*)",
+      "SlashCommand(/speckit.implement)",
+      "Bash(npm install)",
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(npm run build:*)",
+      "Bash(ls -la \"C:\\Users\\Mickael\\Documents\\OHEL YEOCHOUA\\specs\\master\"\" 2>/dev/null || dir \"C:UsersMickaelDocumentsOHEL YEOCHOUAspecsmaster\"\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

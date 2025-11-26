@@ -1,0 +1,342 @@
+openapi: 3.0.3
+info:
+  title: OHEL YEOCHOUA - Donation Visualization API
+  description: API REST pour le système de visualisation des dons en temps réel
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+paths:
+  /donations:
+    get:
+      summary: Liste tous les dons
+      operationId: getDonations
+      tags: [Donations]
+      responses:
+        '200':
+          description: Liste des dons avec statistiques
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationsListResponse'
+
+    post:
+      summary: Créer un nouveau don
+      operationId: createDonation
+      tags: [Donations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDonationRequest'
+      responses:
+        '201':
+          description: Don créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationResponse'
+        '400':
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /donations/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+
+    get:
+      summary: Récupérer un don par ID
+      operationId: getDonation
+      tags: [Donations]
+      responses:
+        '200':
+          description: Don trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Donation'
+        '404':
+          description: Don non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Modifier un don
+      operationId: updateDonation
+      tags: [Donations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDonationRequest'
+      responses:
+        '200':
+          description: Don modifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationResponse'
+        '400':
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Don non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Supprimer un don
+      operationId: deleteDonation
+      tags: [Donations]
+      responses:
+        '200':
+          description: Don supprimé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationResponse'
+        '404':
+          description: Don non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /stats:
+    get:
+      summary: Récupérer les statistiques actuelles
+      operationId: getStats
+      tags: [Stats]
+      responses:
+        '200':
+          description: Statistiques des dons
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonationStats'
+
+  /config:
+    get:
+      summary: Récupérer la configuration
+      operationId: getConfig
+      tags: [Config]
+      responses:
+        '200':
+          description: Configuration actuelle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+
+    put:
+      summary: Modifier la configuration
+      operationId: updateConfig
+      tags: [Config]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConfigRequest'
+      responses:
+        '200':
+          description: Configuration modifiée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '400':
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Donation:
+      type: object
+      required: [id, firstName, lastName, amount, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          example: 1
+        firstName:
+          type: string
+          example: "David"
+        lastName:
+          type: string
+          example: "Cohen"
+        amount:
+          type: integer
+          description: Montant en centimes
+          example: 18000
+        reference:
+          type: string
+          nullable: true
+          example: "TXN-2025-001"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateDonationRequest:
+      type: object
+      required: [firstName, lastName, amount]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        amount:
+          type: integer
+          minimum: 1
+          description: Montant en centimes
+        reference:
+          type: string
+          maxLength: 100
+
+    UpdateDonationRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+        amount:
+          type: integer
+          minimum: 1
+        reference:
+          type: string
+          maxLength: 100
+
+    DonationStats:
+      type: object
+      required: [totalAmount, donationCount, percentComplete, litSegments]
+      properties:
+        totalAmount:
+          type: integer
+          description: Total en centimes
+          example: 2500000
+        donationCount:
+          type: integer
+          example: 45
+        percentComplete:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          example: 25.5
+        litSegments:
+          type: array
+          items:
+            type: string
+          example: ["segment-1", "segment-2"]
+
+    DonationResponse:
+      type: object
+      required: [donation, stats]
+      properties:
+        donation:
+          $ref: '#/components/schemas/Donation'
+        stats:
+          $ref: '#/components/schemas/DonationStats'
+
+    DonationsListResponse:
+      type: object
+      required: [donations, stats]
+      properties:
+        donations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Donation'
+        stats:
+          $ref: '#/components/schemas/DonationStats'
+
+    MenorahSegment:
+      type: object
+      required: [id, thresholdPercent, order]
+      properties:
+        id:
+          type: string
+          example: "segment-1"
+        thresholdPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          example: 10
+        order:
+          type: integer
+          minimum: 1
+          example: 1
+
+    Config:
+      type: object
+      required: [goalAmount, presetAmounts, menorahSegments]
+      properties:
+        goalAmount:
+          type: integer
+          minimum: 1
+          description: Objectif en centimes
+          example: 10000000
+        presetAmounts:
+          type: array
+          items:
+            type: integer
+          example: [1800, 3600, 18000, 36000]
+        menorahSegments:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenorahSegment'
+
+    UpdateConfigRequest:
+      type: object
+      properties:
+        goalAmount:
+          type: integer
+          minimum: 1
+        presetAmounts:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+        menorahSegments:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenorahSegment'
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: "Montant invalide"
