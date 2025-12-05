@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue';
+import { gsap } from 'gsap';
 import { useDonations } from '../../composables/useDonations';
 import { useSocket } from '../../composables/useSocket';
 
@@ -14,6 +15,11 @@ onMounted(async () => {
   try {
     const response = await fetch('/assets/menorah.svg');
     svgContent.value = await response.text();
+
+    // Animation d'entrée après chargement
+    setTimeout(() => {
+      animateEntrance();
+    }, 100);
   } catch (error) {
     console.error('Failed to load menorah SVG:', error);
   }
@@ -24,6 +30,7 @@ onMounted(async () => {
   // Listen for real-time events
   on('donation:new', (data: any) => {
     handleDonationNew(data.donation, data.stats);
+    animatePulse();
   });
 
   on('donation:updated', (data: any) => {
@@ -39,25 +46,41 @@ onMounted(async () => {
   });
 });
 
-// Update segment illumination when stats change
-watch(() => stats.value.litSegments, (litSegments) => {
+function animateEntrance(): void {
   if (!svgContainer.value) return;
-
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  // Get all segments
-  const segments = svg.querySelectorAll('.menorah-segment');
+  gsap.fromTo(svg,
+    { opacity: 0, scale: 0.9 },
+    { opacity: 1, scale: 1, duration: 1, ease: 'power2.out' }
+  );
+}
 
-  segments.forEach((segment) => {
-    const id = segment.getAttribute('id');
-    if (id && litSegments.includes(id)) {
-      segment.classList.add('lit');
-      segment.classList.remove('unlit');
-    } else {
-      segment.classList.add('unlit');
-      segment.classList.remove('lit');
-    }
+function animatePulse(): void {
+  if (!svgContainer.value) return;
+  const svg = svgContainer.value.querySelector('svg');
+  if (!svg) return;
+
+  gsap.to(svg, {
+    filter: 'drop-shadow(0 0 30px #FFD700)',
+    duration: 0.3,
+    yoyo: true,
+    repeat: 2,
+    ease: 'power2.inOut'
+  });
+}
+
+// Glow effect based on progress
+watch(() => stats.value.percentComplete, (percent) => {
+  if (!svgContainer.value) return;
+  const svg = svgContainer.value.querySelector('svg');
+  if (!svg) return;
+
+  const glowIntensity = Math.min(percent * 0.3, 30);
+  gsap.to(svg, {
+    filter: `drop-shadow(0 0 ${glowIntensity}px #D4AF37)`,
+    duration: 1
   });
 }, { immediate: true });
 </script>
@@ -95,22 +118,10 @@ watch(() => stats.value.litSegments, (litSegments) => {
   height: auto;
 }
 
-/* Unlit segments - dark gray */
-.menorah-svg :deep(.menorah-segment) {
-  color: #3a3a3a;
-  transition: color 1s ease-out, filter 1s ease-out;
-  will-change: color, filter;
-}
-
-.menorah-svg :deep(.menorah-segment.unlit) {
-  color: #3a3a3a;
-  filter: none;
-}
-
-/* Lit segments - golden glow */
-.menorah-svg :deep(.menorah-segment.lit) {
-  color: #ffd700;
-  filter: drop-shadow(0 0 10px #ffd700) drop-shadow(0 0 20px #ff8c00);
+/* Golden color for all paths */
+.menorah-svg :deep(path) {
+  fill: #EBD45C;
+  transition: fill 0.5s ease;
 }
 
 .menorah-info {
@@ -121,7 +132,7 @@ watch(() => stats.value.litSegments, (litSegments) => {
 .percent {
   font-size: 48px;
   font-weight: bold;
-  color: #ffd700;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  color: #D4AF37;
+  text-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
 }
 </style>
