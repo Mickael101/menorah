@@ -209,11 +209,11 @@ export function useDonations() {
     stats.value = newStats;
   }
 
-  // Format amount from cents to euros
+  // Format amount from agorot to shekels
   const formatAmount = (cents: number): string => {
-    return new Intl.NumberFormat('fr-FR', {
+    return new Intl.NumberFormat('he-IL', {
       style: 'currency',
-      currency: 'EUR'
+      currency: 'ILS'
     }).format(cents / 100);
   };
 

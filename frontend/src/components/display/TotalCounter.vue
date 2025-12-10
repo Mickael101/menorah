@@ -56,8 +56,8 @@ onUnmounted(() => {
 });
 
 function formatNumber(cents: number): string {
-  const euros = cents / 100;
-  return euros.toLocaleString('fr-FR', {
+  const shekels = cents / 100;
+  return shekels.toLocaleString('he-IL', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   });
@@ -82,7 +82,7 @@ function formatNumber(cents: number): string {
       </div>
 
       <div class="amount-row">
-        <span class="currency">€</span>
+        <span class="currency">₪</span>
         <span class="amount">{{ formatNumber(displayValue) }}</span>
       </div>
 
