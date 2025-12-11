@@ -44,7 +44,7 @@ function updateCustomAmount(value: string): void {
   customAmount.value = value;
   const parsed = parseFloat(value);
   if (!isNaN(parsed) && parsed > 0) {
-    // Convert euros to cents
+    // Convert shekels to agorot
     amount.value = Math.round(parsed * 100);
   }
 }
@@ -166,7 +166,7 @@ function cancel(): void {
         </div>
 
         <div class="custom-amount-wrapper">
-          <span class="currency-symbol">€</span>
+          <span class="currency-symbol">₪</span>
           <input
             type="number"
             v-model="customAmount"

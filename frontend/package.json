@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "gsap": "^3.13.0",
+    "gsap": "^3.14.1",
     "socket.io-client": "^4.7.2",
     "vue": "^3.3.11",
     "vue-router": "^4.2.5"

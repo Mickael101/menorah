@@ -24,7 +24,7 @@ watch(() => config.value, () => {
 }, { deep: true });
 
 function syncFormWithConfig(): void {
-  goalAmount.value = config.value.goalAmount / 100; // Convert cents to euros
+  goalAmount.value = config.value.goalAmount / 100; // Convert agorot to shekels
   presetAmounts.value = [...config.value.presetAmounts];
   segments.value = [...config.value.menorahSegments];
 }
@@ -32,7 +32,7 @@ function syncFormWithConfig(): void {
 // Save goal amount
 async function saveGoalAmount(): Promise<void> {
   await updateConfig({
-    goalAmount: Math.round(goalAmount.value * 100) // Convert euros to cents
+    goalAmount: Math.round(goalAmount.value * 100) // Convert shekels to agorot
   });
 }
 
@@ -105,9 +105,9 @@ async function saveSegments(): Promise<void> {
           v-model="goalAmount"
           min="1"
           step="100"
-          placeholder="Objectif en euros"
+          placeholder="Objectif en shekels"
         />
-        <span class="suffix">€</span>
+        <span class="suffix">₪</span>
         <button @click="saveGoalAmount" :disabled="isLoading">
           {{ isLoading ? 'Enregistrement...' : 'Enregistrer' }}
         </button>
@@ -134,7 +134,7 @@ async function saveSegments(): Promise<void> {
           v-model="newPreset"
           min="0.01"
           step="0.01"
-          placeholder="Nouveau montant (€)"
+          placeholder="Nouveau montant (₪)"
           @keyup.enter="addPreset"
         />
         <button @click="addPreset">Ajouter</button>
