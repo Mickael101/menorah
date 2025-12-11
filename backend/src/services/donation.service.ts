@@ -8,14 +8,20 @@ class DonationService {
   // Get all donations
   getAll(): Donation[] {
     const db = getDb();
-    const stmt = db.prepare(`SELECT * FROM donations ORDER BY created_at DESC`);
-    const rows: DonationRow[] = [];
+    const result = db.exec(`SELECT * FROM donations ORDER BY created_at DESC`);
 
-    while (stmt.step()) {
-      const row = stmt.getAsObject() as DonationRow;
-      rows.push(row);
+    if (result.length === 0) {
+      return [];
     }
-    stmt.free();
+
+    const columns = result[0].columns;
+    const rows = result[0].values.map(values => {
+      const row: Record<string, unknown> = {};
+      columns.forEach((col, i) => {
+        row[col] = values[i];
+      });
+      return row as unknown as DonationRow;
+    });
 
     return rows.map(rowToDonation);
   }
@@ -23,17 +29,20 @@ class DonationService {
   // Get donation by ID
   getById(id: number): Donation | null {
     const db = getDb();
-    const stmt = db.prepare(`SELECT * FROM donations WHERE id = ?`);
-    stmt.bind([id]);
+    const result = db.exec(`SELECT * FROM donations WHERE id = ?`, [id]);
 
-    if (stmt.step()) {
-      const row = stmt.getAsObject() as DonationRow;
-      stmt.free();
-      return rowToDonation(row);
+    if (result.length === 0 || result[0].values.length === 0) {
+      return null;
     }
 
-    stmt.free();
-    return null;
+    const columns = result[0].columns;
+    const values = result[0].values[0];
+    const row: Record<string, unknown> = {};
+    columns.forEach((col, i) => {
+      row[col] = values[i];
+    });
+
+    return rowToDonation(row as unknown as DonationRow);
   }
 
   // Create new donation
