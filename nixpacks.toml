@@ -1,6 +1,10 @@
 [phases.setup]
-# Force l'installation de Node même si package.json n'est pas à la racine
+# Force installation Node
 nixpkgs = ["nodejs_18"]
+
+# Désactive l'installation automatique (cause d'erreur)
+[phases.install]
+cmds = []
 
 [phases.build]
 cmds = [
