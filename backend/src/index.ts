@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
+import path from 'path';
 import { initDatabase } from './db/init';
 import { socketService } from './services/socket.service';
 import donationsRouter from './routes/donations';
@@ -11,33 +12,43 @@ import configRouter from './routes/config';
 const app = express();
 const server = createServer(app);
 
-// Middleware
+// CORS (autorise tout en prod + localhost en dev)
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE']
 }));
+
 app.use(express.json());
 
 // Initialize Socket.IO
 socketService.init(server);
 
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
+// Serve frontend static files
+const publicPath = path.join(__dirname, "../public");
+app.use(express.static(publicPath));
 
 // API Routes
 app.use('/api/donations', donationsRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/config', configRouter);
 
-// Start server with async database initialization
+// Health check
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// Catch-all to serve frontend
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(publicPath, "index.html"));
+});
+
 const PORT = process.env.PORT || 3000;
 
+// Start server with async DB init
 async function start() {
   await initDatabase();
   server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
