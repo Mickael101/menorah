@@ -1,0 +1,13 @@
+[phases.setup]
+# Force l'installation de Node même si package.json n'est pas à la racine
+nixpkgs = ["nodejs_18"]
+
+[phases.build]
+cmds = [
+  "cd frontend && npm install && npm run build",
+  "mkdir -p backend/public && cp -R frontend/dist/* backend/public",
+  "cd backend && npm install && npm run build"
+]
+
+[start]
+cmd = "cd backend && npm start"
