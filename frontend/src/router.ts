@@ -14,6 +14,7 @@ import ChartPage from './pages/ChartPage.vue';
 import MenorahAscension from './pages/MenorahAscension.vue';
 import MenorahRespiration from './pages/MenorahRespiration.vue';
 import MenorahSymphonie from './pages/MenorahSymphonie.vue';
+import MenorahJackpot from './pages/MenorahJackpot.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -96,6 +97,11 @@ const router = createRouter({
       path: '/menorah-symphonie',
       name: 'menorah-symphonie',
       component: MenorahSymphonie
+    },
+    {
+      path: '/menorah-jackpot',
+      name: 'menorah-jackpot',
+      component: MenorahJackpot
     }
   ]
 });

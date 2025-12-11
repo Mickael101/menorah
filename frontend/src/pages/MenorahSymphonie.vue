@@ -3,9 +3,11 @@ import { ref, watch, onMounted, onUnmounted, computed } from 'vue';
 import { gsap } from 'gsap';
 import { useDonations, type Donation, type DonationStats } from '../composables/useDonations';
 import { useSocket } from '../composables/useSocket';
+import { useSoundEffects } from '../composables/useSoundEffects';
 
 const { stats, fetchDonations, fetchConfig, handleDonationNew, handleDonationUpdated, handleDonationDeleted, handleConfigUpdated } = useDonations();
 const { on } = useSocket();
+const { playDonationSound, playStreakActivation, playTierTransition } = useSoundEffects();
 
 const svgContainer = ref<HTMLDivElement | null>(null);
 const svgContent = ref<string>('');
@@ -120,6 +122,9 @@ function activateStreak(): void {
 
   streakActive.value = true;
 
+  // Play streak activation sound
+  playStreakActivation();
+
   // Deactivate after 30 seconds
   setTimeout(() => {
     streakActive.value = false;
@@ -221,6 +226,9 @@ function updateLighting(): void {
 function animateDonationByTier(amount: number): void {
   const tier = getDonationTier(amount);
   const isRapid = hasRapidAccumulation();
+
+  // Play sound effect for the tier
+  playDonationSound(tier);
 
   switch (tier) {
     case 'petit':
@@ -735,8 +743,11 @@ onUnmounted(() => {
 
 <template>
   <div class="menorah-symphonie">
-    <!-- Background -->
+    <!-- Background - Style DisplayPage -->
     <div class="background">
+      <div class="bg-gradient"></div>
+      <div class="bg-stars"></div>
+      <div class="bg-glow-blue"></div>
       <div class="warm-glow"></div>
       <div class="pulsing-halo" :class="{ 'breathing-fast': streakActive }"></div>
       <div v-if="streakActive" class="streak-border"></div>
@@ -799,7 +810,7 @@ onUnmounted(() => {
 <style scoped>
 .menorah-symphonie {
   min-height: 100vh;
-  background: #050505;
+  background: #0a0a1a;
   position: relative;
   overflow: hidden;
   display: flex;
@@ -808,11 +819,56 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-/* Background */
+/* Background - Style DisplayPage */
 .background {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.bg-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 20% 100%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
+    linear-gradient(180deg, #0a0a1a 0%, #111827 50%, #0f172a 100%);
+}
+
+.bg-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.2), transparent),
+    radial-gradient(1px 1px at 90px 40px, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(2px 2px at 130px 80px, rgba(255, 255, 255, 0.2), transparent),
+    radial-gradient(1px 1px at 160px 30px, rgba(255, 255, 255, 0.3), transparent);
+  background-repeat: repeat;
+  background-size: 200px 100px;
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.bg-glow-blue {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.08) 0%, transparent 70%);
+  animation: pulse-glow 6s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
 }
 
 .warm-glow {
