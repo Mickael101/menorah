@@ -57,7 +57,7 @@ function formatAmount(amount: number): string {
 // Load SVG content
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorahshiviti.svg');
+    const response = await fetch('/assets/menorahshiviti2.svg');
     svgContent.value = await response.text();
 
     setTimeout(() => {

@@ -123,7 +123,7 @@ const glowConfig = computed(() => {
 // Load SVG and setup
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorahshiviti.svg');
+    const response = await fetch('/assets/menorahshiviti2.svg');
     svgContent.value = await response.text();
 
     await nextTick();
