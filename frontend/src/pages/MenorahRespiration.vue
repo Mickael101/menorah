@@ -30,7 +30,7 @@ let respirationTimelines: gsap.core.Timeline[] = [];
 // Load SVG content
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorahshiviti2.svg');
+    const response = await fetch('/assets/menorahshiviti3.svg');
     svgContent.value = await response.text();
 
     // Wait for DOM update then animate
@@ -168,7 +168,7 @@ function updateLighting(): void {
   if (!svg) return;
 
   // Get all animated elements
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   if (elements.length === 0) return;
 
   // Sort elements by Y position (bottom to top)
@@ -242,7 +242,7 @@ function animateNeuralPropagation(): void {
   if (!svg) return;
 
   // Get sorted elements
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   const sortedElements = elements.sort((a, b) => {
     const getY = (el: SVGGraphicsElement) => {
       const maskAttr = el.getAttribute('mask');

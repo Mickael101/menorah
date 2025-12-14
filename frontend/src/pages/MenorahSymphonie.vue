@@ -46,7 +46,7 @@ function getDonationTier(amount: number): 'petit' | 'moyen' | 'grand' | 'excepti
 // Load SVG content
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorahshiviti2.svg');
+    const response = await fetch('/assets/menorahshiviti3.svg');
     svgContent.value = await response.text();
 
     // Wait for DOM update then animate
@@ -180,7 +180,7 @@ function updateLighting(): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   if (elements.length === 0) return;
 
   // Sort elements by Y position (bottom to top)
@@ -476,7 +476,7 @@ function getNewlyLitElement(): SVGGraphicsElement | null {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return null;
 
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   const sortedElements = elements.sort((a, b) => {
     const getY = (el: SVGGraphicsElement) => {
       const maskAttr = el.getAttribute('mask');
@@ -508,7 +508,7 @@ function heatWaveToAdjacent(element: SVGGraphicsElement): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   const index = elements.indexOf(element);
 
   // Adjacent elements (prev and next)
@@ -531,7 +531,7 @@ function heatWaveToAll(): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   const sortedElements = elements.sort((a, b) => {
     const getY = (el: SVGGraphicsElement) => {
       const maskAttr = el.getAttribute('mask');
@@ -620,7 +620,7 @@ function olaLumineuse(): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   const sortedElements = elements.sort((a, b) => {
     const getY = (el: SVGGraphicsElement) => {
       const maskAttr = el.getAttribute('mask');

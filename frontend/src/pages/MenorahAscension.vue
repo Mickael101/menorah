@@ -117,7 +117,7 @@ const previousTier = ref(1);
 // Load SVG content
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorahshiviti2.svg');
+    const response = await fetch('/assets/menorahshiviti3.svg');
     svgContent.value = await response.text();
 
     // Wait for DOM update then animate
@@ -202,14 +202,15 @@ function startSubtlePulse(): void {
   });
 }
 
-// Progressive lighting from bottom to top
+// Progressive lighting from bottom to top, group by group (each word)
 function updateLighting(): void {
   if (!svgContainer.value) return;
 
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  // Get only direct child groups with mask (each represents a word/group)
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
 
   if (elements.length === 0) return;
 
@@ -219,9 +220,13 @@ function updateLighting(): void {
       const maskAttr = el.getAttribute('mask');
       if (maskAttr) {
         const id = maskAttr.match(/#([^)]+)/)?.[1];
-        const maskEl = id ? document.getElementById(id) : null;
-        const y = maskEl?.getAttribute('y');
-        if (y) return parseFloat(y);
+        const maskEl = id ? svg.querySelector(`#${id}`) : null;
+        if (maskEl) {
+          const rect = maskEl.querySelector('path, rect');
+          if (rect) {
+            try { return rect.getBBox().y; } catch (e) { return 0; }
+          }
+        }
       }
       try { return el.getBBox().y; } catch (e) { return 0; }
     };

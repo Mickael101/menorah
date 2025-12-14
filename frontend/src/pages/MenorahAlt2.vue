@@ -17,7 +17,7 @@ let nextEmberId = 0;
 // Load SVG content
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorahshiviti2.svg');
+    const response = await fetch('/assets/menorahshiviti3.svg');
     svgContent.value = await response.text();
 
     // Wait for DOM update then animate

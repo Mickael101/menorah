@@ -57,7 +57,7 @@ function formatAmount(amount: number): string {
 // Load SVG content
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorahshiviti2.svg');
+    const response = await fetch('/assets/menorahshiviti3.svg');
     svgContent.value = await response.text();
 
     setTimeout(() => {
@@ -150,7 +150,7 @@ function updateLighting(): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   if (elements.length === 0) return;
 
   const sortedElements = elements.sort((a, b) => {

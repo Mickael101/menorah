@@ -123,7 +123,7 @@ const glowConfig = computed(() => {
 // Load SVG and setup
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorahshiviti2.svg');
+    const response = await fetch('/assets/menorahshiviti3.svg');
     svgContent.value = await response.text();
 
     await nextTick();
@@ -324,7 +324,7 @@ function updateLighting(): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  const elements = Array.from(svg.querySelectorAll('g[mask], svg > path')) as SVGGraphicsElement[];
+  const elements = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGraphicsElement[];
   if (elements.length === 0) return;
 
   // Sort by Y (bottom to top)
