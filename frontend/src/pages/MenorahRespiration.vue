@@ -30,7 +30,7 @@ let respirationTimelines: gsap.core.Timeline[] = [];
 // Load SVG content
 onMounted(async () => {
   try {
-    const response = await fetch('/assets/menorah.svg');
+    const response = await fetch('/assets/menorahshiviti.svg');
     svgContent.value = await response.text();
 
     // Wait for DOM update then animate
