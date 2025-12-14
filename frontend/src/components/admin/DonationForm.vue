@@ -22,6 +22,18 @@ const showSuccess = ref(false);
 
 const isEditing = computed(() => !!props.donation);
 
+// Premium amounts for reserved word groups (in agorot)
+const PREMIUM_AMOUNTS = [
+  { amount: 2600000, label: '26,000', words: 7, tier: 'Niveau 1' },
+  { amount: 3600000, label: '36,000', words: 3, tier: 'Niveau 2' },
+  { amount: 7200000, label: '72,000', words: 1, tier: 'Niveau 3' }
+];
+
+// Check if selected amount is premium
+const selectedPremium = computed(() => {
+  return PREMIUM_AMOUNTS.find(p => p.amount === amount.value);
+});
+
 // Watch for donation prop changes (when editing)
 watch(() => props.donation, (newDonation) => {
   if (newDonation) {
@@ -153,20 +165,46 @@ function cancel(): void {
           </svg>
           Montant du don
         </label>
-        <div class="preset-grid">
-          <button
-            v-for="preset in config.presetAmounts"
-            :key="preset"
-            type="button"
-            :class="['preset-btn', { selected: amount === preset && !customAmount }]"
-            @click="selectPreset(preset)"
-          >
-            <span class="preset-amount">{{ formatAmount(preset) }}</span>
-          </button>
+
+        <!-- Premium amounts section -->
+        <div class="premium-section">
+          <div class="premium-header">
+            <span class="premium-badge">&#10017; Mots Premium</span>
+            <span class="premium-subtitle">Illuminez un mot sacré de la Menorah</span>
+          </div>
+          <div class="premium-grid">
+            <button
+              v-for="premium in PREMIUM_AMOUNTS"
+              :key="premium.amount"
+              type="button"
+              :class="['premium-btn', { selected: amount === premium.amount }]"
+              @click="selectPreset(premium.amount)"
+            >
+              <span class="premium-tier">{{ premium.tier }}</span>
+              <span class="premium-amount">{{ premium.label }} &#8362;</span>
+              <span class="premium-words">{{ premium.words }} mot{{ premium.words > 1 ? 's' : '' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Regular presets -->
+        <div class="regular-section">
+          <span class="regular-label">Autres montants</span>
+          <div class="preset-grid">
+            <button
+              v-for="preset in config.presetAmounts"
+              :key="preset"
+              type="button"
+              :class="['preset-btn', { selected: amount === preset && !customAmount }]"
+              @click="selectPreset(preset)"
+            >
+              <span class="preset-amount">{{ formatAmount(preset) }}</span>
+            </button>
+          </div>
         </div>
 
         <div class="custom-amount-wrapper">
-          <span class="currency-symbol">₪</span>
+          <span class="currency-symbol">&#8362;</span>
           <input
             type="number"
             v-model="customAmount"
@@ -178,12 +216,18 @@ function cancel(): void {
           />
         </div>
 
-        <div v-if="amount > 0" class="selected-amount">
+        <div v-if="amount > 0" class="selected-amount" :class="{ premium: selectedPremium }">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
-          Montant sélectionné: <strong>{{ formatAmount(amount) }}</strong>
+          <span v-if="selectedPremium">
+            Montant Premium: <strong>{{ formatAmount(amount) }}</strong>
+            <span class="premium-info">({{ selectedPremium.words }} mot{{ selectedPremium.words > 1 ? 's' : '' }} sacré{{ selectedPremium.words > 1 ? 's' : '' }})</span>
+          </span>
+          <span v-else>
+            Montant sélectionné: <strong>{{ formatAmount(amount) }}</strong>
+          </span>
         </div>
       </div>
 
@@ -372,6 +416,105 @@ label svg {
   box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.1);
 }
 
+/* Premium Section */
+.premium-section {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.premium-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.premium-badge {
+  color: #D4AF37;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.premium-subtitle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.premium-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.premium-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px;
+  border: 2px solid rgba(212, 175, 55, 0.3);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+.premium-btn:hover {
+  border-color: #D4AF37;
+  background: rgba(212, 175, 55, 0.1);
+  transform: translateY(-2px);
+}
+
+.premium-btn.selected {
+  border-color: #FFD700;
+  background: rgba(212, 175, 55, 0.2);
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.premium-tier {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 6px;
+}
+
+.premium-btn .premium-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #D4AF37;
+  margin-bottom: 4px;
+}
+
+.premium-btn.selected .premium-amount {
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.premium-words {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Regular Section */
+.regular-section {
+  margin-bottom: 16px;
+}
+
+.regular-label {
+  display: block;
+  font-size: 12px;
+  color: var(--gray-500);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* Preset Amounts */
 .preset-grid {
   display: grid;
@@ -441,6 +584,22 @@ label svg {
   border-radius: var(--radius);
   color: var(--success);
   font-size: 14px;
+}
+
+.selected-amount.premium {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: #D4AF37;
+}
+
+.selected-amount.premium strong {
+  color: #FFD700;
+}
+
+.selected-amount.premium .premium-info {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  margin-left: 4px;
 }
 
 .selected-amount svg {
@@ -557,13 +716,32 @@ label svg {
 }
 
 /* Responsive */
-@media (max-width: 500px) {
+@media (max-width: 600px) {
   .form-row {
     grid-template-columns: 1fr;
   }
 
   .preset-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .premium-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .premium-btn {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 12px 16px;
+  }
+
+  .premium-tier {
+    margin-bottom: 0;
+  }
+
+  .premium-btn .premium-amount {
+    margin-bottom: 0;
   }
 }
 </style>
