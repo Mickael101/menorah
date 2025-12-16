@@ -9,182 +9,307 @@ const props = defineProps<{
 
 const { formatAmount } = useDonations();
 
-const initials = computed(() => {
-  return `${props.donation.firstName.charAt(0)}${props.donation.lastName.charAt(0)}`.toUpperCase();
+// Seuils en centimes (shekels * 100)
+const THRESHOLDS = {
+  XL: 7200000,  // 72,000 ₪
+  L: 3600000,   // 36,000 ₪
+  M: 2600000,   // 26,000 ₪
+};
+
+// Déterminer la taille de la plaque selon le montant
+const plaqueSize = computed(() => {
+  const amount = props.donation.amount;
+  if (amount >= THRESHOLDS.XL) return 'xl';
+  if (amount >= THRESHOLDS.L) return 'l';
+  if (amount >= THRESHOLDS.M) return 'm';
+  return 's';
 });
 
-// Generate a consistent color based on donation ID
-const avatarHue = computed(() => {
-  return (props.donation.id * 47) % 360;
+// Nom complet du donateur
+const fullName = computed(() => {
+  return `${props.donation.firstName} ${props.donation.lastName}`.toUpperCase();
 });
 </script>
 
 <template>
-  <div class="donor-plate" :class="{ 'is-new': isNew }">
-    <!-- Glow effect for new donations -->
-    <div class="plate-glow"></div>
-
-    <!-- Main content -->
-    <div class="plate-content">
-      <div class="plate-avatar" :style="{ '--hue': avatarHue }">
-        {{ initials }}
-      </div>
-
-      <div class="plate-info">
-        <div class="plate-name">{{ donation.firstName }} {{ donation.lastName }}</div>
-        <div class="plate-amount">{{ formatAmount(donation.amount) }}</div>
-      </div>
+  <div
+    class="plaque"
+    :class="[plaqueSize, { 'is-new': isNew }]"
+  >
+    <div class="plaque-inner">
+      <div class="nom">{{ fullName }}</div>
+      <div class="montant">{{ formatAmount(donation.amount) }}</div>
     </div>
-
-    <!-- Decorative border -->
-    <div class="plate-border"></div>
+    <!-- Effet de brillance pour les nouveaux dons -->
+    <div v-if="isNew" class="plaque-shine"></div>
   </div>
 </template>
 
 <style scoped>
-.donor-plate {
+/* Base plaque styles - Style doré fidèle à l'inspiration */
+.plaque {
   position: relative;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 16px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.donor-plate:hover {
-  transform: translateY(-4px);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
-}
-
-/* Animated border */
-.plate-border {
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  padding: 1px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%, rgba(255, 255, 255, 0.05) 100%);
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* Glow effect */
-.plate-glow {
-  position: absolute;
-  inset: -50%;
-  background: radial-gradient(circle at center, rgba(100, 255, 218, 0.15) 0%, transparent 50%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
-
-.donor-plate:hover .plate-glow {
-  opacity: 1;
-}
-
-/* Content */
-.plate-content {
-  position: relative;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-/* Avatar */
-.plate-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: linear-gradient(
-    135deg,
-    hsl(var(--hue, 220), 70%, 55%) 0%,
-    hsl(calc(var(--hue, 220) + 40), 70%, 45%) 100%
-  );
+  background: linear-gradient(145deg,
+    #d4af37 0%,
+    #f5d67b 15%,
+    #c9a227 30%,
+    #f5d67b 45%,
+    #d4af37 60%,
+    #b8960c 75%,
+    #d4af37 90%,
+    #f5d67b 100%);
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    0 8px 16px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.4),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  color: white;
-  flex-shrink: 0;
-  box-shadow: 0 4px 15px hsla(var(--hue, 220), 70%, 50%, 0.3);
-}
-
-/* Info */
-.plate-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.plate-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.plaque:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.4),
+    0 16px 32px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+    0 0 40px rgba(212, 175, 55, 0.25);
+}
+
+/* Bordure intérieure */
+.plaque::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  border: 2px solid rgba(139, 109, 26, 0.5);
+  pointer-events: none;
+}
+
+.plaque-inner {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 10px;
+}
+
+.nom {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  color: #3d2e06;
+  letter-spacing: 2px;
+  text-shadow:
+    1px 1px 0 rgba(255, 255, 255, 0.3),
+    -1px -1px 0 rgba(0, 0, 0, 0.1);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.montant {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: italic;
+  color: #4a3b10;
+  line-height: 1.4;
+}
+
+/* ===================== */
+/* TAILLE XL - Niveau 3  */
+/* 72,000+ ₪            */
+/* ===================== */
+.plaque.xl {
+  width: 100%;
+  max-width: 450px;
+  height: 120px;
+  border-radius: 6px;
+  padding: 20px 30px;
+}
+
+.plaque.xl::before {
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  border-width: 3px;
+  border-radius: 4px;
+}
+
+.plaque.xl .nom {
+  font-size: 1.5rem;
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+}
+
+.plaque.xl .montant {
+  font-size: 1.15rem;
+}
+
+/* ===================== */
+/* TAILLE L - Niveau 2   */
+/* 36,000+ ₪            */
+/* ===================== */
+.plaque.l {
+  width: 100%;
+  max-width: 350px;
+  height: 90px;
+  border-radius: 5px;
+  padding: 15px 25px;
+}
+
+.plaque.l::before {
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border-radius: 3px;
+}
+
+.plaque.l .nom {
+  font-size: 1.2rem;
+  margin-bottom: 6px;
+}
+
+.plaque.l .montant {
+  font-size: 1rem;
+}
+
+/* ===================== */
+/* TAILLE M - Niveau 1   */
+/* 26,000+ ₪            */
+/* ===================== */
+.plaque.m {
+  width: 100%;
+  max-width: 280px;
+  height: 70px;
+  border-radius: 4px;
+  padding: 12px 20px;
+}
+
+.plaque.m::before {
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  border-width: 1.5px;
+  border-radius: 2px;
+}
+
+.plaque.m .nom {
+  font-size: 1rem;
+  letter-spacing: 1.5px;
   margin-bottom: 4px;
 }
 
-.plate-amount {
-  font-size: 16px;
-  font-weight: 700;
-  color: #64ffda;
-  text-shadow: 0 0 10px rgba(100, 255, 218, 0.3);
+.plaque.m .montant {
+  font-size: 0.9rem;
 }
 
-/* New plate animations */
-.donor-plate.is-new {
-  animation: plate-entrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* ===================== */
+/* TAILLE S - Niveau 0   */
+/* < 26,000 ₪           */
+/* ===================== */
+.plaque.s {
+  width: 100%;
+  max-width: 220px;
+  height: 55px;
+  border-radius: 3px;
+  padding: 10px 15px;
 }
 
-.donor-plate.is-new .plate-glow {
-  animation: halo-glow 2s ease-out forwards;
+.plaque.s::before {
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  border-width: 1px;
+  border-radius: 2px;
 }
 
-.donor-plate.is-new .plate-border {
-  animation: border-glow 2s ease-out;
+.plaque.s .nom {
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
 }
 
-@keyframes plate-entrance {
+.plaque.s .montant {
+  font-size: 0.8rem;
+}
+
+/* ===================== */
+/* Animation nouveau don */
+/* ===================== */
+.plaque.is-new {
+  animation: plaque-entrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.plaque-shine {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 70%
+  );
+  animation: shine 1.5s ease-out;
+  pointer-events: none;
+}
+
+@keyframes plaque-entrance {
   0% {
     opacity: 0;
-    transform: scale(0.8) translateY(20px);
+    transform: scale(0.8) rotateX(-15deg);
   }
   50% {
-    transform: scale(1.05) translateY(-5px);
+    transform: scale(1.05) rotateX(5deg);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: scale(1) rotateX(0);
   }
 }
 
-@keyframes halo-glow {
+@keyframes shine {
   0% {
-    opacity: 1;
-    transform: scale(0.8);
+    transform: translateX(-100%) rotate(45deg);
   }
   100% {
-    opacity: 0;
-    transform: scale(1.5);
+    transform: translateX(100%) rotate(45deg);
   }
 }
 
-@keyframes border-glow {
-  0%, 100% {
-    background: linear-gradient(135deg, rgba(100, 255, 218, 0.5) 0%, rgba(139, 92, 246, 0.5) 50%, rgba(100, 255, 218, 0.5) 100%);
+/* Responsive */
+@media (max-width: 768px) {
+  .plaque.xl {
+    max-width: 100%;
+    height: 100px;
   }
-  50% {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.5) 0%, rgba(100, 255, 218, 0.5) 50%, rgba(139, 92, 246, 0.5) 100%);
+
+  .plaque.xl .nom {
+    font-size: 1.2rem;
+  }
+
+  .plaque.l {
+    max-width: 100%;
+    height: 80px;
+  }
+
+  .plaque.m {
+    max-width: 100%;
+    height: 65px;
+  }
+
+  .plaque.s {
+    max-width: 100%;
+    height: 50px;
   }
 }
 </style>

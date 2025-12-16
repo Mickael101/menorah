@@ -1,48 +1,66 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from 'vue';
-import { useDonations } from '../../composables/useDonations';
+import { ref, computed, nextTick, onMounted } from 'vue';
+import { useDonations, type Donation } from '../../composables/useDonations';
 import { useSocket } from '../../composables/useSocket';
 import DonorPlate from './DonorPlate.vue';
 
-const { donations, fetchDonations, fetchConfig, handleDonationNew, handleDonationUpdated, handleDonationDeleted, handleConfigUpdated } = useDonations();
+// Données gérées par le parent (DisplayPage) via useDonations
+const { donations } = useDonations();
 const { on } = useSocket();
 
 const gridRef = ref<HTMLDivElement | null>(null);
 const newDonationIds = ref<Set<number>>(new Set());
 
-// Load initial data and setup socket listeners
-onMounted(async () => {
-  await Promise.all([fetchDonations(), fetchConfig()]);
+// Seuils en centimes (shekels * 100)
+const THRESHOLDS = {
+  XL: 7200000,  // 72,000 ₪
+  L: 3600000,   // 36,000 ₪
+  M: 2600000,   // 26,000 ₪
+};
 
+// Grouper les donations par niveau
+const donationsByLevel = computed(() => {
+  const levels = {
+    xl: [] as Donation[],
+    l: [] as Donation[],
+    m: [] as Donation[],
+    s: [] as Donation[],
+  };
+
+  donations.value.forEach((donation) => {
+    if (donation.amount >= THRESHOLDS.XL) {
+      levels.xl.push(donation);
+    } else if (donation.amount >= THRESHOLDS.L) {
+      levels.l.push(donation);
+    } else if (donation.amount >= THRESHOLDS.M) {
+      levels.m.push(donation);
+    } else {
+      levels.s.push(donation);
+    }
+  });
+
+  // Trier chaque niveau par montant décroissant
+  Object.values(levels).forEach((arr) => {
+    arr.sort((a, b) => b.amount - a.amount);
+  });
+
+  return levels;
+});
+
+// Écoute les événements uniquement pour l'animation des nouveaux dons
+onMounted(() => {
   on('donation:new', (data: any) => {
-    // Mark as new for animation
     newDonationIds.value.add(data.donation.id);
-    handleDonationNew(data.donation, data.stats);
 
-    // Auto-scroll to show new donation
     nextTick(() => {
       scrollToTop();
-      // Remove "new" flag after animation
       setTimeout(() => {
         newDonationIds.value.delete(data.donation.id);
       }, 2000);
     });
   });
-
-  on('donation:updated', (data: any) => {
-    handleDonationUpdated(data.donation, data.stats);
-  });
-
-  on('donation:deleted', (data: any) => {
-    handleDonationDeleted(data.donationId, data.stats);
-  });
-
-  on('config:updated', (data: any) => {
-    handleConfigUpdated(data.config, data.stats);
-  });
 });
 
-// Scroll to top of grid
 function scrollToTop(): void {
   if (gridRef.value) {
     gridRef.value.scrollTo({
@@ -52,23 +70,73 @@ function scrollToTop(): void {
   }
 }
 
-// Check if donation is new
 function isNewDonation(id: number): boolean {
   return newDonationIds.value.has(id);
 }
 </script>
 
 <template>
-  <div class="donor-plates-wrapper">
-    <div ref="gridRef" class="donor-plates-grid">
-      <TransitionGroup name="plate">
-        <DonorPlate
-          v-for="donation in donations"
-          :key="donation.id"
-          :donation="donation"
-          :is-new="isNewDonation(donation.id)"
-        />
-      </TransitionGroup>
+  <div class="donor-wall-wrapper">
+    <div ref="gridRef" class="donor-wall">
+      <!-- Niveau 3 - XL (72,000+) -->
+      <div v-if="donationsByLevel.xl.length > 0" class="wall-section">
+        <div class="wall-label">Bienfaiteurs Niveau 3</div>
+        <div class="wall-plaques plaques-xl">
+          <TransitionGroup name="plate">
+            <DonorPlate
+              v-for="donation in donationsByLevel.xl"
+              :key="donation.id"
+              :donation="donation"
+              :is-new="isNewDonation(donation.id)"
+            />
+          </TransitionGroup>
+        </div>
+      </div>
+
+      <!-- Niveau 2 - L (36,000+) -->
+      <div v-if="donationsByLevel.l.length > 0" class="wall-section">
+        <div class="wall-label">Bienfaiteurs Niveau 2</div>
+        <div class="wall-plaques plaques-l">
+          <TransitionGroup name="plate">
+            <DonorPlate
+              v-for="donation in donationsByLevel.l"
+              :key="donation.id"
+              :donation="donation"
+              :is-new="isNewDonation(donation.id)"
+            />
+          </TransitionGroup>
+        </div>
+      </div>
+
+      <!-- Niveau 1 - M (26,000+) -->
+      <div v-if="donationsByLevel.m.length > 0" class="wall-section">
+        <div class="wall-label">Bienfaiteurs Niveau 1</div>
+        <div class="wall-plaques plaques-m">
+          <TransitionGroup name="plate">
+            <DonorPlate
+              v-for="donation in donationsByLevel.m"
+              :key="donation.id"
+              :donation="donation"
+              :is-new="isNewDonation(donation.id)"
+            />
+          </TransitionGroup>
+        </div>
+      </div>
+
+      <!-- Niveau 0 - S (<26,000) -->
+      <div v-if="donationsByLevel.s.length > 0" class="wall-section">
+        <div class="wall-label">Donateurs</div>
+        <div class="wall-plaques plaques-s">
+          <TransitionGroup name="plate">
+            <DonorPlate
+              v-for="donation in donationsByLevel.s"
+              :key="donation.id"
+              :donation="donation"
+              :is-new="isNewDonation(donation.id)"
+            />
+          </TransitionGroup>
+        </div>
+      </div>
 
       <!-- Empty State -->
       <div v-if="donations.length === 0" class="empty-state">
@@ -78,52 +146,89 @@ function isNewDonation(id: number): boolean {
           </svg>
         </div>
         <p class="empty-text">En attente des premiers dons...</p>
-        <div class="empty-pulse"></div>
       </div>
     </div>
-
-    <!-- Gradient overlay at bottom -->
-    <div class="scroll-fade"></div>
   </div>
 </template>
 
 <style scoped>
-.donor-plates-wrapper {
+.donor-wall-wrapper {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
-.donor-plates-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 14px;
+.donor-wall {
   overflow-y: auto;
-  padding: 4px;
+  padding: 10px;
   padding-bottom: 40px;
   max-height: 100%;
   min-height: 200px;
 }
 
+/* Sections du mur */
+.wall-section {
+  margin-bottom: 24px;
+}
+
+.wall-section:last-child {
+  margin-bottom: 0;
+}
+
+.wall-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.8rem;
+  color: #c9a227;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+}
+
+/* Grilles de plaques par niveau */
+.wall-plaques {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+}
+
+.plaques-xl {
+  gap: 20px;
+}
+
+.plaques-l {
+  gap: 18px;
+}
+
+.plaques-m {
+  gap: 14px;
+}
+
+.plaques-s {
+  gap: 12px;
+}
+
 /* Custom scrollbar */
-.donor-plates-grid::-webkit-scrollbar {
+.donor-wall::-webkit-scrollbar {
   width: 6px;
 }
 
-.donor-plates-grid::-webkit-scrollbar-track {
+.donor-wall::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.02);
   border-radius: 3px;
 }
 
-.donor-plates-grid::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+.donor-wall::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.3);
   border-radius: 3px;
   transition: background 0.3s ease;
 }
 
-.donor-plates-grid::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+.donor-wall::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.5);
 }
 
 /* Transition animations */
@@ -151,32 +256,29 @@ function isNewDonation(id: number): boolean {
 
 /* Empty State */
 .empty-state {
-  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 60px 40px;
   text-align: center;
-  position: relative;
 }
 
 .empty-icon {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(212, 175, 55, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 20px;
-  position: relative;
 }
 
 .empty-icon svg {
   width: 36px;
   height: 36px;
-  color: rgba(244, 114, 182, 0.4);
+  color: rgba(212, 175, 55, 0.4);
 }
 
 .empty-text {
@@ -186,45 +288,16 @@ function isNewDonation(id: number): boolean {
   margin: 0;
 }
 
-.empty-pulse {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(244, 114, 182, 0.1) 0%, transparent 70%);
-  animation: empty-pulse 3s ease-in-out infinite;
-}
-
-@keyframes empty-pulse {
-  0%, 100% {
-    opacity: 0.3;
-    transform: translate(-50%, -50%) scale(0.8);
-  }
-  50% {
-    opacity: 0.6;
-    transform: translate(-50%, -50%) scale(1.2);
-  }
-}
-
-/* Scroll fade overlay */
-.scroll-fade {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(to top, rgba(10, 10, 26, 0.9) 0%, transparent 100%);
-  pointer-events: none;
-}
-
 /* Responsive */
 @media (max-width: 600px) {
-  .donor-plates-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .wall-plaques {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .wall-label {
+    font-size: 0.7rem;
+    text-align: center;
   }
 }
 </style>
