@@ -86,19 +86,19 @@ const milestones = computed(() => [25, 50, 75, 100]);
 
 <style scoped>
 .progress-container {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(139, 92, 246, 0.02) 100%);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.06) 0%, rgba(212, 175, 55, 0.02) 100%);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(139, 92, 246, 0.15);
-  border-radius: 20px;
-  padding: 24px 28px;
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 16px;
+  padding: 14px 18px;
 }
 
 /* Progress Info */
 .progress-info {
   display: flex;
   align-items: baseline;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .progress-percent {
@@ -107,32 +107,32 @@ const milestones = computed(() => [25, 50, 75, 100]);
 }
 
 .percent-value {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 800;
   font-family: var(--font-display);
-  color: #a78bfa;
-  text-shadow: 0 0 20px rgba(167, 139, 250, 0.4);
+  color: #D4AF37;
+  text-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
   font-variant-numeric: tabular-nums;
 }
 
 .percent-sign {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
-  color: rgba(167, 139, 250, 0.6);
+  color: rgba(212, 175, 55, 0.6);
   margin-left: 2px;
 }
 
 .progress-label {
-  font-size: 14px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
 }
 
 /* Progress Track */
 .progress-track {
   position: relative;
-  height: 16px;
+  height: 12px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: visible;
 }
 
@@ -154,24 +154,24 @@ const milestones = computed(() => [25, 50, 75, 100]);
 
 .milestone-line {
   width: 1px;
-  height: 8px;
+  height: 6px;
   background: rgba(255, 255, 255, 0.1);
   transition: background 0.3s ease;
 }
 
 .milestone.reached .milestone-line {
-  background: rgba(167, 139, 250, 0.5);
+  background: rgba(212, 175, 55, 0.5);
 }
 
 .milestone-label {
-  font-size: 10px;
+  font-size: 9px;
   color: rgba(255, 255, 255, 0.3);
-  margin-top: 4px;
+  margin-top: 3px;
   transition: color 0.3s ease;
 }
 
 .milestone.reached .milestone-label {
-  color: rgba(167, 139, 250, 0.8);
+  color: rgba(212, 175, 55, 0.8);
 }
 
 /* Progress Fill */
@@ -180,8 +180,8 @@ const milestones = computed(() => [25, 50, 75, 100]);
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, #8b5cf6 0%, #a78bfa 50%, #c4b5fd 100%);
-  border-radius: 8px;
+  background: linear-gradient(90deg, #a67c00 0%, #D4AF37 50%, #ffd700 100%);
+  border-radius: 6px;
   transition: width 0.3s ease-out;
   overflow: hidden;
   min-width: 0;
@@ -191,7 +191,7 @@ const milestones = computed(() => [25, 50, 75, 100]);
   position: absolute;
   top: 0;
   right: 0;
-  width: 60px;
+  width: 40px;
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4));
   animation: glow-pulse 2s ease-in-out infinite;
@@ -232,13 +232,13 @@ const milestones = computed(() => [25, 50, 75, 100]);
 }
 
 .indicator-dot {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   background: white;
   border-radius: 50%;
   box-shadow:
-    0 0 0 4px rgba(139, 92, 246, 0.3),
-    0 0 20px rgba(139, 92, 246, 0.5);
+    0 0 0 3px rgba(212, 175, 55, 0.3),
+    0 0 15px rgba(212, 175, 55, 0.5);
 }
 
 /* Goal Info */
@@ -246,37 +246,37 @@ const milestones = computed(() => [25, 50, 75, 100]);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(212, 175, 55, 0.1);
 }
 
 .current-amount {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
-  color: #a78bfa;
+  color: #D4AF37;
 }
 
 .goal-separator {
-  font-size: 14px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.3);
 }
 
 .goal-amount {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Responsive */
 @media (max-width: 600px) {
   .progress-container {
-    padding: 20px;
+    padding: 12px 14px;
   }
 
   .percent-value {
-    font-size: 28px;
+    font-size: 22px;
   }
 
   .milestone-label {

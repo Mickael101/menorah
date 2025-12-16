@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useSocket } from '../composables/useSocket';
 import { useDonations, type Donation } from '../composables/useDonations';
 import DonationForm from '../components/admin/DonationForm.vue';
@@ -8,6 +8,7 @@ import ConfigPanel from '../components/admin/ConfigPanel.vue';
 
 const { on } = useSocket();
 const {
+  donations,
   stats,
   fetchDonations,
   fetchConfig,
@@ -17,6 +18,30 @@ const {
   handleDonationDeleted,
   handleConfigUpdated
 } = useDonations();
+
+// Premium words configuration (amounts in agorot)
+const PREMIUM_TIERS = [
+  { level: 1, amount: 2600000, label: '26,000 ₪', wordCount: 7, words: ['Mot 1', 'Mot 2', 'Mot 3', 'Mot 4', 'Mot 5', 'Mot 6', 'Mot 7'] },
+  { level: 2, amount: 3600000, label: '36,000 ₪', wordCount: 3, words: ['Mot 1', 'Mot 2', 'Mot 3'] },
+  { level: 3, amount: 7200000, label: '72,000 ₪', wordCount: 1, words: ['Mot 1'] }
+];
+
+// Get lit status for each premium tier
+const premiumWordsStatus = computed(() => {
+  return PREMIUM_TIERS.map(tier => {
+    const matchingDonations = donations.value.filter(d => d.amount === tier.amount);
+    const litCount = matchingDonations.length;
+    return {
+      ...tier,
+      litCount,
+      words: tier.words.map((word, index) => ({
+        label: word,
+        isLit: index < litCount,
+        donor: matchingDonations[index] || null
+      }))
+    };
+  });
+});
 
 const editingDonation = ref<Donation | null>(null);
 const activeTab = ref<'donations' | 'config'>('donations');
@@ -133,6 +158,37 @@ function handleCancel(): void {
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               />
             </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Premium Words Section -->
+      <div class="premium-words-section">
+        <h3 class="premium-title">Mots Sacrés de la Menorah</h3>
+        <div class="premium-tiers">
+          <div v-for="tier in premiumWordsStatus" :key="tier.level" class="premium-tier-card">
+            <div class="tier-header">
+              <span class="tier-level">Niveau {{ tier.level }}</span>
+              <span class="tier-amount">{{ tier.label }}</span>
+              <span class="tier-count">{{ tier.litCount }}/{{ tier.wordCount }}</span>
+            </div>
+            <div class="tier-words">
+              <div
+                v-for="(word, idx) in tier.words"
+                :key="idx"
+                class="word-item"
+                :class="{ lit: word.isLit }"
+              >
+                <span class="word-icon">&#10017;</span>
+                <div class="word-info">
+                  <span class="word-label">{{ word.label }}</span>
+                  <span v-if="word.donor" class="word-donor">
+                    {{ word.donor.firstName }} {{ word.donor.lastName }}
+                  </span>
+                  <span v-else class="word-available">Disponible</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -394,6 +450,132 @@ h1 {
   stroke-width: 3;
   stroke-linecap: round;
   transition: stroke-dasharray 0.5s ease;
+}
+
+/* Premium Words Section */
+.premium-words-section {
+  max-width: 1400px;
+  margin: 24px auto 0;
+  position: relative;
+  z-index: 10;
+}
+
+.premium-title {
+  color: var(--gold-400);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.premium-tiers {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.premium-tier-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-md);
+}
+
+.tier-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--gold-200);
+}
+
+.tier-level {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-600);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tier-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gold-600);
+}
+
+.tier-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-500);
+  background: var(--gray-100);
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.tier-words {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.word-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--gray-50);
+  border-radius: var(--radius);
+  transition: all 0.2s ease;
+}
+
+.word-item.lit {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(255, 215, 0, 0.1) 100%);
+  border: 1px solid var(--gold-300);
+}
+
+.word-icon {
+  font-size: 18px;
+  color: var(--gray-400);
+  transition: all 0.2s ease;
+}
+
+.word-item.lit .word-icon {
+  color: var(--gold-500);
+  text-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
+}
+
+.word-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.word-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.word-donor {
+  font-size: 11px;
+  color: var(--gold-600);
+  font-weight: 500;
+}
+
+.word-available {
+  font-size: 11px;
+  color: var(--gray-400);
+  font-style: italic;
+}
+
+@media (max-width: 1200px) {
+  .premium-tiers {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Tabs */

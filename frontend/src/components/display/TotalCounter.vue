@@ -104,11 +104,11 @@ function formatNumber(cents: number): string {
 <style scoped>
 .total-counter {
   position: relative;
-  background: linear-gradient(135deg, rgba(100, 255, 218, 0.08) 0%, rgba(100, 255, 218, 0.02) 100%);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.02) 100%);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(100, 255, 218, 0.15);
-  border-radius: 24px;
-  padding: 28px 32px;
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 16px;
+  padding: 16px 20px;
   overflow: hidden;
 }
 
@@ -123,23 +123,23 @@ function formatNumber(cents: number): string {
 .glow-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(60px);
+  filter: blur(40px);
 }
 
 .glow-1 {
-  width: 200px;
-  height: 200px;
-  top: -50px;
-  right: -50px;
-  background: rgba(100, 255, 218, 0.15);
+  width: 120px;
+  height: 120px;
+  top: -30px;
+  right: -30px;
+  background: rgba(212, 175, 55, 0.15);
 }
 
 .glow-2 {
-  width: 150px;
-  height: 150px;
-  bottom: -30px;
-  left: -30px;
-  background: rgba(139, 92, 246, 0.1);
+  width: 80px;
+  height: 80px;
+  bottom: -20px;
+  left: -20px;
+  background: rgba(212, 175, 55, 0.1);
 }
 
 /* Content */
@@ -152,47 +152,47 @@ function formatNumber(cents: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .label-row svg {
-  width: 20px;
-  height: 20px;
-  color: rgba(100, 255, 218, 0.6);
+  width: 16px;
+  height: 16px;
+  color: rgba(212, 175, 55, 0.6);
 }
 
 .label {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  color: rgba(100, 255, 218, 0.8);
+  color: rgba(212, 175, 55, 0.8);
   text-transform: uppercase;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
 }
 
 .amount-row {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .currency {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 600;
-  color: rgba(100, 255, 218, 0.5);
+  color: rgba(212, 175, 55, 0.5);
   align-self: flex-start;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .amount {
-  font-size: 56px;
+  font-size: 40px;
   font-weight: 800;
   font-family: var(--font-display);
-  color: #64ffda;
+  color: #D4AF37;
   text-shadow:
-    0 0 20px rgba(100, 255, 218, 0.4),
-    0 0 40px rgba(100, 255, 218, 0.2);
+    0 0 15px rgba(212, 175, 55, 0.4),
+    0 0 30px rgba(212, 175, 55, 0.2);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -202,27 +202,27 @@ function formatNumber(cents: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(212, 175, 55, 0.15);
 }
 
 .stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .stat-value {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 10px;
   color: rgba(255, 255, 255, 0.4);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -230,8 +230,8 @@ function formatNumber(cents: number): string {
 
 .stat-divider {
   width: 1px;
-  height: 30px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 24px;
+  background: rgba(212, 175, 55, 0.2);
 }
 
 /* Animation State */
@@ -248,15 +248,15 @@ function formatNumber(cents: number): string {
 /* Responsive */
 @media (max-width: 600px) {
   .total-counter {
-    padding: 20px 24px;
+    padding: 14px 18px;
   }
 
   .amount {
-    font-size: 42px;
+    font-size: 32px;
   }
 
   .currency {
-    font-size: 24px;
+    font-size: 20px;
   }
 }
 </style>

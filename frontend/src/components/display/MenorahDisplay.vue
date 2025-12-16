@@ -207,30 +207,6 @@ watch(() => donations.value, () => {
         class="menorah-svg"
         v-html="svgContent"
       ></div>
-
-      <div class="menorah-info">
-        <span class="percent">{{ stats.percentComplete.toFixed(0) }}%</span>
-        <p class="subtitle">de l'objectif atteint</p>
-      </div>
-
-      <div class="premium-legend">
-        <h4>Mots Premium</h4>
-        <div class="premium-tier" :class="{ lit: litPremiumMasks.some(m => PREMIUM_MASKS[2600000]?.includes(m)) }">
-          <span class="tier-icon">&#10017;</span>
-          <span class="tier-amount">26,000 &#8362;</span>
-          <span class="tier-count">(7 mots)</span>
-        </div>
-        <div class="premium-tier" :class="{ lit: litPremiumMasks.some(m => PREMIUM_MASKS[3600000]?.includes(m)) }">
-          <span class="tier-icon">&#10017;</span>
-          <span class="tier-amount">36,000 &#8362;</span>
-          <span class="tier-count">(3 mots)</span>
-        </div>
-        <div class="premium-tier" :class="{ lit: litPremiumMasks.some(m => PREMIUM_MASKS[7200000]?.includes(m)) }">
-          <span class="tier-icon">&#10017;</span>
-          <span class="tier-amount">72,000 &#8362;</span>
-          <span class="tier-count">(1 mot)</span>
-        </div>
-      </div>
     </div>
   </div>
 </template>

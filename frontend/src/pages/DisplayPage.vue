@@ -87,11 +87,11 @@ function toggleFullscreen(): void {
     <div class="display-content">
       <!-- Title -->
       <header class="display-header">
-        <h1 class="title">
-          <span class="title-icon">✡</span>
-          Ohel Yeochoua
-        </h1>
-        <p class="subtitle">Campagne de dons</p>
+        <h1 class="title">Ensemble, allumons la flamme</h1>
+        <p class="subtitle">
+          <span>Gala des fondateurs</span>
+          <span>Ohel Yehoshua</span>
+        </p>
       </header>
 
       <!-- Grid Layout -->
@@ -110,10 +110,7 @@ function toggleFullscreen(): void {
 
           <div class="donors-section">
             <div class="section-header">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-              </svg>
-              <span>Nos généreux donateurs</span>
+              <span>Le tableau des fondateurs</span>
             </div>
             <DonorPlatesGrid />
           </div>
@@ -142,30 +139,37 @@ function toggleFullscreen(): void {
 .bg-gradient {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 40% at 20% 100%, rgba(236, 72, 153, 0.08) 0%, transparent 50%),
-    linear-gradient(180deg, #0a0a1a 0%, #111827 50%, #0f172a 100%);
+  background: #0a0a1a;
 }
 
 .bg-stars {
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.3), transparent),
-    radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.2), transparent),
-    radial-gradient(1px 1px at 90px 40px, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(2px 2px at 130px 80px, rgba(255, 255, 255, 0.2), transparent),
-    radial-gradient(1px 1px at 160px 30px, rgba(255, 255, 255, 0.3), transparent);
+    radial-gradient(1px 1px at 10px 15px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 25px 45px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 50px 25px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(2px 2px at 75px 60px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 100px 35px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 120px 80px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 140px 20px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 165px 55px, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 180px 90px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 200px 40px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 220px 70px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 250px 30px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 270px 85px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 290px 50px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 310px 15px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(2px 2px at 330px 75px, rgba(255, 255, 255, 0.4), transparent);
   background-repeat: repeat;
-  background-size: 200px 100px;
-  animation: twinkle 4s ease-in-out infinite;
+  background-size: 350px 100px;
+  animation: twinkle 6s ease-in-out infinite alternate;
 }
 
 @keyframes twinkle {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+  0% { opacity: 0.7; transform: translateY(0); }
+  100% { opacity: 1; transform: translateY(-2px); }
 }
 
 .bg-glow {
@@ -274,9 +278,6 @@ function toggleFullscreen(): void {
 }
 
 .title {
-  display: inline-flex;
-  align-items: center;
-  gap: 16px;
   font-size: 42px;
   font-weight: 700;
   color: white;
@@ -284,19 +285,26 @@ function toggleFullscreen(): void {
   text-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
 }
 
-.title-icon {
-  font-size: 48px;
-  color: #ffd700;
-  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5));
+.subtitle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 12px 0 0;
 }
 
-.subtitle {
+.subtitle span {
   font-size: 18px;
   color: rgba(255, 255, 255, 0.5);
-  margin: 8px 0 0;
   font-weight: 400;
   letter-spacing: 2px;
   text-transform: uppercase;
+}
+
+.subtitle span:last-child {
+  color: #ffd700;
+  font-weight: 600;
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
 }
 
 /* Grid Layout */
@@ -342,23 +350,19 @@ function toggleFullscreen(): void {
 .section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.section-header svg {
-  width: 22px;
-  height: 22px;
-  color: #f472b6;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
 }
 
 .section-header span {
   font-size: 16px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
-  letter-spacing: 0.5px;
+  color: #D4AF37;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
 }
 
 /* Fullscreen Mode */
