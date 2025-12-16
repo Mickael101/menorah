@@ -18,34 +18,18 @@ const THRESHOLDS = {
   M: 2600000,   // 26,000 ₪
 };
 
-// Grouper les donations par niveau
-const donationsByLevel = computed(() => {
-  const levels = {
-    xl: [] as Donation[],
-    l: [] as Donation[],
-    m: [] as Donation[],
-    s: [] as Donation[],
-  };
-
-  donations.value.forEach((donation) => {
-    if (donation.amount >= THRESHOLDS.XL) {
-      levels.xl.push(donation);
-    } else if (donation.amount >= THRESHOLDS.L) {
-      levels.l.push(donation);
-    } else if (donation.amount >= THRESHOLDS.M) {
-      levels.m.push(donation);
-    } else {
-      levels.s.push(donation);
-    }
-  });
-
-  // Trier chaque niveau par montant décroissant
-  Object.values(levels).forEach((arr) => {
-    arr.sort((a, b) => b.amount - a.amount);
-  });
-
-  return levels;
+// Sorted donations by amount (descending)
+const sortedDonations = computed(() => {
+  return [...donations.value].sort((a, b) => b.amount - a.amount);
 });
+
+// Get CSS class for plate size based on amount
+function getPlateSize(amount: number): string {
+  if (amount >= THRESHOLDS.XL) return 'plate-xl';
+  if (amount >= THRESHOLDS.L) return 'plate-l';
+  if (amount >= THRESHOLDS.M) return 'plate-m';
+  return 'plate-s';
+}
 
 // Écoute les événements uniquement pour l'animation des nouveaux dons
 onMounted(() => {
@@ -78,64 +62,17 @@ function isNewDonation(id: number): boolean {
 <template>
   <div class="donor-wall-wrapper">
     <div ref="gridRef" class="donor-wall">
-      <!-- Niveau 3 - XL (72,000+) -->
-      <div v-if="donationsByLevel.xl.length > 0" class="wall-section">
-        <div class="wall-label">Bienfaiteurs Niveau 3</div>
-        <div class="wall-plaques plaques-xl">
-          <TransitionGroup name="plate">
-            <DonorPlate
-              v-for="donation in donationsByLevel.xl"
-              :key="donation.id"
-              :donation="donation"
-              :is-new="isNewDonation(donation.id)"
-            />
-          </TransitionGroup>
-        </div>
-      </div>
-
-      <!-- Niveau 2 - L (36,000+) -->
-      <div v-if="donationsByLevel.l.length > 0" class="wall-section">
-        <div class="wall-label">Bienfaiteurs Niveau 2</div>
-        <div class="wall-plaques plaques-l">
-          <TransitionGroup name="plate">
-            <DonorPlate
-              v-for="donation in donationsByLevel.l"
-              :key="donation.id"
-              :donation="donation"
-              :is-new="isNewDonation(donation.id)"
-            />
-          </TransitionGroup>
-        </div>
-      </div>
-
-      <!-- Niveau 1 - M (26,000+) -->
-      <div v-if="donationsByLevel.m.length > 0" class="wall-section">
-        <div class="wall-label">Bienfaiteurs Niveau 1</div>
-        <div class="wall-plaques plaques-m">
-          <TransitionGroup name="plate">
-            <DonorPlate
-              v-for="donation in donationsByLevel.m"
-              :key="donation.id"
-              :donation="donation"
-              :is-new="isNewDonation(donation.id)"
-            />
-          </TransitionGroup>
-        </div>
-      </div>
-
-      <!-- Niveau 0 - S (<26,000) -->
-      <div v-if="donationsByLevel.s.length > 0" class="wall-section">
-        <div class="wall-label">Donateurs</div>
-        <div class="wall-plaques plaques-s">
-          <TransitionGroup name="plate">
-            <DonorPlate
-              v-for="donation in donationsByLevel.s"
-              :key="donation.id"
-              :donation="donation"
-              :is-new="isNewDonation(donation.id)"
-            />
-          </TransitionGroup>
-        </div>
+      <!-- Bento Grid - All donations in interlocking horizontal layout -->
+      <div v-if="sortedDonations.length > 0" class="bento-grid">
+        <TransitionGroup name="plate">
+          <DonorPlate
+            v-for="donation in sortedDonations"
+            :key="donation.id"
+            :donation="donation"
+            :is-new="isNewDonation(donation.id)"
+            :class="getPlateSize(donation.amount)"
+          />
+        </TransitionGroup>
       </div>
 
       <!-- Empty State -->
@@ -167,47 +104,34 @@ function isNewDonation(id: number): boolean {
   min-height: 200px;
 }
 
-/* Sections du mur */
-.wall-section {
-  margin-bottom: 24px;
-}
-
-.wall-section:last-child {
-  margin-bottom: 0;
-}
-
-.wall-label {
-  font-family: 'Cinzel', serif;
-  font-size: 0.75rem;
-  color: rgba(201, 162, 39, 0.6);
-  letter-spacing: 2px;
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  text-align: center;
-}
-
-/* Grilles de plaques par niveau */
-.wall-plaques {
+/* Bento Grid - Interlocking horizontal layout */
+.bento-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
-  justify-content: center;
+  gap: 6px;
+  justify-content: flex-start;
+  align-items: flex-start;
 }
 
-.plaques-xl {
-  gap: 20px;
+/* Plate sizes for bento effect */
+.bento-grid :deep(.plate-xl) {
+  flex: 0 0 calc(100% - 6px);
+  max-width: calc(100% - 6px);
 }
 
-.plaques-l {
-  gap: 18px;
+.bento-grid :deep(.plate-l) {
+  flex: 0 0 calc(50% - 6px);
+  max-width: calc(50% - 6px);
 }
 
-.plaques-m {
-  gap: 14px;
+.bento-grid :deep(.plate-m) {
+  flex: 0 0 calc(33.333% - 6px);
+  max-width: calc(33.333% - 6px);
 }
 
-.plaques-s {
-  gap: 12px;
+.bento-grid :deep(.plate-s) {
+  flex: 0 0 calc(25% - 6px);
+  max-width: calc(25% - 6px);
 }
 
 /* Custom scrollbar */
@@ -288,15 +212,33 @@ function isNewDonation(id: number): boolean {
 }
 
 /* Responsive */
-@media (max-width: 600px) {
-  .wall-plaques {
-    flex-direction: column;
-    align-items: center;
+@media (max-width: 800px) {
+  .bento-grid :deep(.plate-xl) {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 
-  .wall-label {
-    font-size: 0.7rem;
-    text-align: center;
+  .bento-grid :deep(.plate-l) {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .bento-grid :deep(.plate-m) {
+    flex: 0 0 calc(50% - 6px);
+    max-width: calc(50% - 6px);
+  }
+
+  .bento-grid :deep(.plate-s) {
+    flex: 0 0 calc(50% - 6px);
+    max-width: calc(50% - 6px);
+  }
+}
+
+@media (max-width: 500px) {
+  .bento-grid :deep(.plate-m),
+  .bento-grid :deep(.plate-s) {
+    flex: 0 0 100%;
+    max-width: 100%;
   }
 }
 </style>

@@ -1,5 +1,5 @@
 import { getDb, saveDatabase } from '../db/init';
-import { Donation, CreateDonationRequest, UpdateDonationRequest, DonationStats } from '../models/types';
+import { Donation, CreateDonationRequest, UpdateDonationRequest, DonationStats, PREMIUM_WORDS, PremiumWord } from '../models/types';
 import { DonationRow, rowToDonation } from '../models/donation';
 import { buildStats } from '../models/stats';
 import { configService } from './config.service';
@@ -49,8 +49,8 @@ class DonationService {
   create(data: CreateDonationRequest): Donation {
     const db = getDb();
     db.run(
-      `INSERT INTO donations (first_name, last_name, amount, reference) VALUES (?, ?, ?, ?)`,
-      [data.firstName, data.lastName, data.amount, data.reference || null]
+      `INSERT INTO donations (first_name, last_name, amount, reference, premium_word_id) VALUES (?, ?, ?, ?, ?)`,
+      [data.firstName, data.lastName, data.amount, data.reference || null, data.premiumWordId || null]
     );
 
     const lastId = db.exec('SELECT last_insert_rowid() as id')[0].values[0][0] as number;
@@ -89,6 +89,10 @@ class DonationService {
     if (data.reference !== undefined) {
       updates.push('reference = ?');
       values.push(data.reference || null);
+    }
+    if (data.premiumWordId !== undefined) {
+      updates.push('premium_word_id = ?');
+      values.push(data.premiumWordId || null);
     }
 
     if (updates.length === 0) {
@@ -145,6 +149,35 @@ class DonationService {
       config.goalAmount,
       config.menorahSegments
     );
+  }
+
+  // Get used premium word IDs
+  getUsedPremiumWordIds(): string[] {
+    const db = getDb();
+    const result = db.exec(`SELECT premium_word_id FROM donations WHERE premium_word_id IS NOT NULL`);
+
+    if (result.length === 0) {
+      return [];
+    }
+
+    return result[0].values.map(row => row[0] as string);
+  }
+
+  // Get premium words with availability status
+  getPremiumWords(): Array<PremiumWord & { available: boolean; donorName?: string }> {
+    const usedWordIds = this.getUsedPremiumWordIds();
+    const donations = this.getAll();
+
+    return PREMIUM_WORDS.map(word => {
+      const isUsed = usedWordIds.includes(word.id);
+      const donation = donations.find(d => d.premiumWordId === word.id);
+
+      return {
+        ...word,
+        available: !isUsed,
+        donorName: donation ? `${donation.firstName} ${donation.lastName}` : undefined
+      };
+    });
   }
 }
 

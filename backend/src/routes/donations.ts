@@ -2,8 +2,20 @@ import { Router, Request, Response } from 'express';
 import { donationService } from '../services/donation.service';
 import { socketService } from '../services/socket.service';
 import { validateCreateRequest, validateUpdateRequest } from '../models/donation';
+import { PREMIUM_TIERS } from '../models/types';
 
 const router = Router();
+
+// GET /api/donations/premium-words - Get premium words with availability
+router.get('/premium-words', (_req: Request, res: Response) => {
+  try {
+    const words = donationService.getPremiumWords();
+    res.json({ words, tiers: PREMIUM_TIERS });
+  } catch (error) {
+    console.error('Error fetching premium words:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // GET /api/donations - List all donations
 router.get('/', (_req: Request, res: Response) => {

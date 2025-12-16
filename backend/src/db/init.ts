@@ -25,10 +25,18 @@ export async function initDatabase(): Promise<void> {
       last_name TEXT NOT NULL,
       amount INTEGER NOT NULL CHECK(amount > 0),
       reference TEXT,
+      premium_word_id TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  // Migration: Add premium_word_id column if it doesn't exist
+  try {
+    db.run(`ALTER TABLE donations ADD COLUMN premium_word_id TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   // Create index for chronological ordering
   db.run(`

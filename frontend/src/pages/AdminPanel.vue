@@ -10,8 +10,11 @@ const { on } = useSocket();
 const {
   donations,
   stats,
+  premiumWords,
+  premiumTiers,
   fetchDonations,
   fetchConfig,
+  fetchPremiumWords,
   formatAmount,
   handleDonationNew,
   handleDonationUpdated,
@@ -19,25 +22,26 @@ const {
   handleConfigUpdated
 } = useDonations();
 
-// Premium words configuration (amounts in agorot)
-const PREMIUM_TIERS = [
-  { level: 1, amount: 2600000, label: '26,000 ₪', wordCount: 7, words: ['Mot 1', 'Mot 2', 'Mot 3', 'Mot 4', 'Mot 5', 'Mot 6', 'Mot 7'] },
-  { level: 2, amount: 3600000, label: '36,000 ₪', wordCount: 3, words: ['Mot 1', 'Mot 2', 'Mot 3'] },
-  { level: 3, amount: 7200000, label: '72,000 ₪', wordCount: 1, words: ['Mot 1'] }
-];
-
-// Get lit status for each premium tier
+// Get premium words status grouped by tier
 const premiumWordsStatus = computed(() => {
-  return PREMIUM_TIERS.map(tier => {
-    const matchingDonations = donations.value.filter(d => d.amount === tier.amount);
-    const litCount = matchingDonations.length;
+  const tiers = [
+    { level: 1, amount: 2600000, label: '26,000 ₪' },
+    { level: 2, amount: 3600000, label: '36,000 ₪' },
+    { level: 3, amount: 7200000, label: '72,000 ₪' }
+  ];
+
+  return tiers.map(tier => {
+    const wordsForTier = premiumWords.value.filter(w => w.level === tier.level);
+    const litCount = wordsForTier.filter(w => !w.available).length;
+
     return {
       ...tier,
+      wordCount: wordsForTier.length,
       litCount,
-      words: tier.words.map((word, index) => ({
-        label: word,
-        isLit: index < litCount,
-        donor: matchingDonations[index] || null
+      words: wordsForTier.map(word => ({
+        label: word.label,
+        isLit: !word.available,
+        donorName: word.donorName || null
       }))
     };
   });
@@ -48,19 +52,22 @@ const activeTab = ref<'donations' | 'config'>('donations');
 
 // Load initial data
 onMounted(async () => {
-  await Promise.all([fetchDonations(), fetchConfig()]);
+  await Promise.all([fetchDonations(), fetchConfig(), fetchPremiumWords()]);
 
   // Listen for real-time events
-  on('donation:new', (data: any) => {
+  on('donation:new', async (data: any) => {
     handleDonationNew(data.donation, data.stats);
+    await fetchPremiumWords(); // Refresh premium words availability
   });
 
-  on('donation:updated', (data: any) => {
+  on('donation:updated', async (data: any) => {
     handleDonationUpdated(data.donation, data.stats);
+    await fetchPremiumWords(); // Refresh premium words availability
   });
 
-  on('donation:deleted', (data: any) => {
+  on('donation:deleted', async (data: any) => {
     handleDonationDeleted(data.donationId, data.stats);
+    await fetchPremiumWords(); // Refresh premium words availability
   });
 
   on('config:updated', (data: any) => {
@@ -182,8 +189,8 @@ function handleCancel(): void {
                 <span class="word-icon">&#10017;</span>
                 <div class="word-info">
                   <span class="word-label">{{ word.label }}</span>
-                  <span v-if="word.donor" class="word-donor">
-                    {{ word.donor.firstName }} {{ word.donor.lastName }}
+                  <span v-if="word.donorName" class="word-donor">
+                    {{ word.donorName }}
                   </span>
                   <span v-else class="word-available">Disponible</span>
                 </div>

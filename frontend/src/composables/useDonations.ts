@@ -7,8 +7,25 @@ export interface Donation {
   lastName: string;
   amount: number;
   reference: string | null;
+  premiumWordId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PremiumWord {
+  id: string;
+  level: number;
+  wordIndex: number;
+  maskId: string;
+  label: string;
+  available: boolean;
+  donorName?: string;
+}
+
+export interface PremiumTier {
+  level: number;
+  amount: number;
+  wordCount: number;
 }
 
 export interface DonationStats {
@@ -37,6 +54,8 @@ const config = ref<Config>({
   presetAmounts: [1800, 3600, 18000, 36000, 100000],
   menorahSegments: []
 });
+const premiumWords = ref<PremiumWord[]>([]);
+const premiumTiers = ref<PremiumTier[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 
@@ -72,12 +91,27 @@ export function useDonations() {
     }
   }
 
+  // Fetch premium words with availability
+  async function fetchPremiumWords(): Promise<void> {
+    try {
+      const response = await fetch('/api/donations/premium-words');
+      if (!response.ok) throw new Error('Failed to fetch premium words');
+
+      const data = await response.json();
+      premiumWords.value = data.words;
+      premiumTiers.value = data.tiers;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Unknown error';
+    }
+  }
+
   // Create donation
   async function createDonation(data: {
     firstName: string;
     lastName: string;
     amount: number;
     reference?: string;
+    premiumWordId?: string;
   }): Promise<Donation | null> {
     isLoading.value = true;
     error.value = null;
@@ -224,10 +258,13 @@ export function useDonations() {
     donations,
     stats,
     config,
+    premiumWords,
+    premiumTiers,
     isLoading,
     error,
     fetchDonations,
     fetchConfig,
+    fetchPremiumWords,
     createDonation,
     updateDonation,
     deleteDonation,

@@ -1,4 +1,4 @@
-import { Donation, CreateDonationRequest, UpdateDonationRequest } from './types';
+import { Donation, CreateDonationRequest, UpdateDonationRequest, PREMIUM_WORDS, PREMIUM_TIERS } from './types';
 
 // Database row format (snake_case)
 export interface DonationRow {
@@ -7,6 +7,7 @@ export interface DonationRow {
   last_name: string;
   amount: number;
   reference: string | null;
+  premium_word_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -19,9 +20,27 @@ export function rowToDonation(row: DonationRow): Donation {
     lastName: row.last_name,
     amount: row.amount,
     reference: row.reference,
+    premiumWordId: row.premium_word_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
+}
+
+// Get premium level for an amount
+export function getPremiumLevel(amount: number): number | null {
+  const tier = PREMIUM_TIERS.find(t => t.amount === amount);
+  return tier ? tier.level : null;
+}
+
+// Validate premium word ID for a given amount
+export function validatePremiumWordId(wordId: string | undefined, amount: number): string | null {
+  if (!wordId) return null;
+
+  const level = getPremiumLevel(amount);
+  if (!level) return null;
+
+  const word = PREMIUM_WORDS.find(w => w.id === wordId && w.level === level);
+  return word ? wordId : null;
 }
 
 // Validate create request
@@ -38,16 +57,20 @@ export function validateCreateRequest(data: unknown): CreateDonationRequest {
     throw new Error('amount must be a positive number');
   }
 
+  const amount = Math.floor(req.amount);
+  const premiumWordId = validatePremiumWordId(req.premiumWordId, amount);
+
   return {
     firstName: req.firstName.trim().slice(0, 100),
     lastName: req.lastName.trim().slice(0, 100),
-    amount: Math.floor(req.amount),
-    reference: req.reference ? String(req.reference).trim().slice(0, 100) : undefined
+    amount,
+    reference: req.reference ? String(req.reference).trim().slice(0, 100) : undefined,
+    premiumWordId: premiumWordId || undefined
   };
 }
 
 // Validate update request
-export function validateUpdateRequest(data: unknown): UpdateDonationRequest {
+export function validateUpdateRequest(data: unknown, currentAmount?: number): UpdateDonationRequest {
   const req = data as UpdateDonationRequest;
   const result: UpdateDonationRequest = {};
 
@@ -74,6 +97,11 @@ export function validateUpdateRequest(data: unknown): UpdateDonationRequest {
 
   if (req.reference !== undefined) {
     result.reference = req.reference ? String(req.reference).trim().slice(0, 100) : undefined;
+  }
+
+  if (req.premiumWordId !== undefined) {
+    const amount = result.amount || currentAmount || 0;
+    result.premiumWordId = validatePremiumWordId(req.premiumWordId, amount) || undefined;
   }
 
   return result;

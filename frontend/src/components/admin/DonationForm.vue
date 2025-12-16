@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useDonations, type Donation } from '../../composables/useDonations';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useDonations, type Donation, type PremiumWord } from '../../composables/useDonations';
 
 const props = defineProps<{
   donation?: Donation | null;
@@ -11,12 +11,13 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
 }>();
 
-const { config, createDonation, updateDonation, formatAmount, isLoading, error } = useDonations();
+const { config, premiumWords, premiumTiers, createDonation, updateDonation, fetchPremiumWords, formatAmount, isLoading, error } = useDonations();
 
 const firstName = ref(props.donation?.firstName || '');
 const lastName = ref(props.donation?.lastName || '');
 const amount = ref(props.donation?.amount || 0);
 const reference = ref(props.donation?.reference || '');
+const selectedWordId = ref<string | null>(props.donation?.premiumWordId || null);
 const customAmount = ref('');
 const showSuccess = ref(false);
 
@@ -24,14 +25,35 @@ const isEditing = computed(() => !!props.donation);
 
 // Premium amounts for reserved word groups (in agorot)
 const PREMIUM_AMOUNTS = [
-  { amount: 2600000, label: '26,000', words: 7, tier: 'Niveau 1' },
-  { amount: 3600000, label: '36,000', words: 3, tier: 'Niveau 2' },
-  { amount: 7200000, label: '72,000', words: 1, tier: 'Niveau 3' }
+  { amount: 2600000, label: '26,000', words: 7, tier: 'Niveau 1', level: 1 },
+  { amount: 3600000, label: '36,000', words: 3, tier: 'Niveau 2', level: 2 },
+  { amount: 7200000, label: '72,000', words: 1, tier: 'Niveau 3', level: 3 }
 ];
 
 // Check if selected amount is premium
 const selectedPremium = computed(() => {
   return PREMIUM_AMOUNTS.find(p => p.amount === amount.value);
+});
+
+// Get available words for the selected premium tier
+const availableWordsForTier = computed(() => {
+  if (!selectedPremium.value) return [];
+  return premiumWords.value.filter(w => w.level === selectedPremium.value!.level);
+});
+
+// Auto-select word if only one available for Level 3
+watch(() => selectedPremium.value, (premium) => {
+  if (premium?.level === 3) {
+    const lvl3Word = premiumWords.value.find(w => w.level === 3 && w.available);
+    selectedWordId.value = lvl3Word?.id || null;
+  } else if (!premium) {
+    selectedWordId.value = null;
+  }
+});
+
+// Fetch premium words on mount
+onMounted(async () => {
+  await fetchPremiumWords();
 });
 
 // Watch for donation prop changes (when editing)
@@ -41,6 +63,7 @@ watch(() => props.donation, (newDonation) => {
     lastName.value = newDonation.lastName;
     amount.value = newDonation.amount;
     reference.value = newDonation.reference || '';
+    selectedWordId.value = newDonation.premiumWordId || null;
     customAmount.value = '';
   }
 }, { immediate: true });
@@ -49,6 +72,11 @@ watch(() => props.donation, (newDonation) => {
 function selectPreset(preset: number): void {
   amount.value = preset;
   customAmount.value = '';
+  // Reset word selection when amount changes (unless it's level 3 which auto-selects)
+  const premium = PREMIUM_AMOUNTS.find(p => p.amount === preset);
+  if (!premium || premium.level !== 3) {
+    selectedWordId.value = null;
+  }
 }
 
 // Handle custom amount input
@@ -67,11 +95,17 @@ async function submit(): Promise<void> {
     return;
   }
 
+  // Validate that a word is selected for premium amounts
+  if (selectedPremium.value && !selectedWordId.value) {
+    return;
+  }
+
   const data = {
     firstName: firstName.value.trim(),
     lastName: lastName.value.trim(),
     amount: amount.value,
-    reference: reference.value.trim() || undefined
+    reference: reference.value.trim() || undefined,
+    premiumWordId: selectedWordId.value || undefined
   };
 
   let result;
@@ -88,11 +122,15 @@ async function submit(): Promise<void> {
       showSuccess.value = false;
     }, 2000);
 
+    // Refresh premium words to update availability
+    await fetchPremiumWords();
+
     // Reset form
     firstName.value = '';
     lastName.value = '';
     amount.value = 0;
     reference.value = '';
+    selectedWordId.value = null;
     customAmount.value = '';
     emit('saved');
   }
@@ -216,6 +254,33 @@ function cancel(): void {
           />
         </div>
 
+        <!-- Premium Word Selector -->
+        <div v-if="selectedPremium && availableWordsForTier.length > 0" class="word-selector">
+          <label class="word-selector-label">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            Choisissez votre mot sacré
+          </label>
+          <div class="word-options">
+            <button
+              v-for="word in availableWordsForTier"
+              :key="word.id"
+              type="button"
+              :class="['word-option', { selected: selectedWordId === word.id, unavailable: !word.available }]"
+              :disabled="!word.available && selectedWordId !== word.id"
+              @click="word.available || selectedWordId === word.id ? selectedWordId = word.id : null"
+            >
+              <span class="word-star">&#10017;</span>
+              <span class="word-name">{{ word.label }}</span>
+              <span v-if="!word.available && selectedWordId !== word.id" class="word-taken">
+                {{ word.donorName }}
+              </span>
+              <span v-else-if="selectedWordId === word.id" class="word-check">&#10003;</span>
+            </button>
+          </div>
+        </div>
+
         <div v-if="amount > 0" class="selected-amount" :class="{ premium: selectedPremium }">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -223,7 +288,7 @@ function cancel(): void {
           </svg>
           <span v-if="selectedPremium">
             Montant Premium: <strong>{{ formatAmount(amount) }}</strong>
-            <span class="premium-info">({{ selectedPremium.words }} mot{{ selectedPremium.words > 1 ? 's' : '' }} sacré{{ selectedPremium.words > 1 ? 's' : '' }})</span>
+            <span v-if="selectedWordId" class="premium-info"> - {{ availableWordsForTier.find(w => w.id === selectedWordId)?.label }}</span>
           </span>
           <span v-else>
             Montant sélectionné: <strong>{{ formatAmount(amount) }}</strong>
@@ -610,6 +675,104 @@ label svg {
 
 .selected-amount strong {
   color: #047857;
+}
+
+/* Word Selector */
+.word-selector {
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(22, 33, 62, 0.95) 100%);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-top: 16px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.word-selector-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #D4AF37;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.word-selector-label svg {
+  width: 18px;
+  height: 18px;
+  color: #FFD700;
+}
+
+.word-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.word-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border: 2px solid rgba(212, 175, 55, 0.3);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.word-option:hover:not(.unavailable) {
+  border-color: #D4AF37;
+  background: rgba(212, 175, 55, 0.1);
+}
+
+.word-option.selected {
+  border-color: #FFD700;
+  background: rgba(212, 175, 55, 0.2);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+}
+
+.word-option.unavailable {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.word-star {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-bottom: 4px;
+}
+
+.word-option.selected .word-star {
+  color: #FFD700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.word-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.word-option.selected .word-name {
+  color: #FFD700;
+}
+
+.word-taken {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.word-check {
+  font-size: 14px;
+  color: #4ade80;
+  margin-top: 4px;
 }
 
 /* Messages */

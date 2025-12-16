@@ -10,30 +10,34 @@ const { on } = useSocket();
 const svgContainer = ref<HTMLDivElement | null>(null);
 const svgContent = ref<string>('');
 
-// Premium donation amounts mapping (mask IDs for each premium tier)
-// Amounts are in agorot (100 agorot = 1 shekel)
-const PREMIUM_MASKS: Record<number, string[]> = {
-  2600000: ['mask4_0_1', 'mask59_0_1', 'mask5_0_1', 'mask6_0_1', 'mask7_0_1', 'mask8_0_1', 'mask9_0_1'],
-  3600000: ['mask2_0_1', 'mask3_0_1', 'mask0_0_1'],
-  7200000: ['mask1_0_1']
+// Premium word ID to mask ID mapping (each word lights independently)
+const PREMIUM_WORD_TO_MASK: Record<string, string> = {
+  // Level 1 - 26,000 ₪ (7 words)
+  'L1_W1': 'mask4_0_1',
+  'L1_W2': 'mask59_0_1',
+  'L1_W3': 'mask5_0_1',
+  'L1_W4': 'mask6_0_1',
+  'L1_W5': 'mask7_0_1',
+  'L1_W6': 'mask8_0_1',
+  'L1_W7': 'mask9_0_1',
+  // Level 2 - 36,000 ₪ (3 words)
+  'L2_W1': 'mask2_0_1',
+  'L2_W2': 'mask3_0_1',
+  'L2_W3': 'mask0_0_1',
+  // Level 3 - 72,000 ₪ (1 word)
+  'L3_W1': 'mask1_0_1'
 };
 
 // All premium mask IDs (reserved for specific donations)
-const ALL_PREMIUM_MASKS = Object.values(PREMIUM_MASKS).flat();
+const ALL_PREMIUM_MASKS = Object.values(PREMIUM_WORD_TO_MASK);
 
-// Check if a donation has a premium amount
-function isPremiumAmount(amount: number): number | null {
-  const premiumAmounts = [2600000, 3600000, 7200000];
-  return premiumAmounts.find(p => p === amount) || null;
-}
-
-// Get masks that should be lit based on premium donations
+// Get masks that should be lit based on individual premium word assignments
 const litPremiumMasks = computed(() => {
   const lit: string[] = [];
   donations.value.forEach(donation => {
-    const premiumAmount = isPremiumAmount(donation.amount);
-    if (premiumAmount && PREMIUM_MASKS[premiumAmount]) {
-      lit.push(...PREMIUM_MASKS[premiumAmount]);
+    // Only light the specific word assigned to this donation
+    if (donation.premiumWordId && PREMIUM_WORD_TO_MASK[donation.premiumWordId]) {
+      lit.push(PREMIUM_WORD_TO_MASK[donation.premiumWordId]);
     }
   });
   return [...new Set(lit)];
@@ -57,7 +61,7 @@ onMounted(async () => {
 
   on('donation:new', (data: any) => {
     handleDonationNew(data.donation, data.stats);
-    animatePulse();
+    animateBounce();
     updateMenorahLighting();
   });
 
@@ -88,18 +92,40 @@ function animateEntrance(): void {
   );
 }
 
-function animatePulse(): void {
+function animateBounce(): void {
   if (!svgContainer.value) return;
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  gsap.to(svg, {
-    filter: 'drop-shadow(0 0 30px #FFD700)',
-    duration: 0.3,
-    yoyo: true,
-    repeat: 2,
-    ease: 'power2.inOut'
-  });
+  // Bouncing animation with glow
+  gsap.timeline()
+    .to(svg, {
+      scale: 1.05,
+      filter: 'drop-shadow(0 0 40px #FFD700)',
+      duration: 0.2,
+      ease: 'power2.out'
+    })
+    .to(svg, {
+      scale: 0.98,
+      duration: 0.15,
+      ease: 'power2.in'
+    })
+    .to(svg, {
+      scale: 1.03,
+      duration: 0.12,
+      ease: 'power2.out'
+    })
+    .to(svg, {
+      scale: 0.99,
+      duration: 0.1,
+      ease: 'power2.in'
+    })
+    .to(svg, {
+      scale: 1,
+      filter: 'drop-shadow(0 0 0px transparent)',
+      duration: 0.15,
+      ease: 'power2.out'
+    });
 }
 
 function updateMenorahLighting(): void {
