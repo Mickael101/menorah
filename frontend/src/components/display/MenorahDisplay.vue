@@ -197,92 +197,27 @@ watch(() => donations.value, () => {
 
 <template>
   <div class="menorah-display">
-    <div class="bg-gradient"></div>
-    <div class="bg-stars"></div>
-    <div class="bg-glow"></div>
-
-    <div class="content">
-      <div
-        ref="svgContainer"
-        class="menorah-svg"
-        v-html="svgContent"
-      ></div>
-    </div>
+    <div
+      ref="svgContainer"
+      class="menorah-svg"
+      v-html="svgContent"
+    ></div>
   </div>
 </template>
 
 <style scoped>
 .menorah-display {
   position: relative;
-  min-height: 100vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  overflow: hidden;
-}
-
-.bg-gradient {
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(135deg, #0a1628 0%, #1a237e 50%, #0d47a1 100%);
-  z-index: -3;
-}
-
-.bg-stars {
-  position: fixed;
-  inset: 0;
-  background-image:
-    radial-gradient(2px 2px at 20px 30px, white, transparent),
-    radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
-    radial-gradient(1px 1px at 90px 40px, white, transparent),
-    radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.6), transparent),
-    radial-gradient(1px 1px at 160px 120px, white, transparent),
-    radial-gradient(2px 2px at 200px 50px, rgba(255,255,255,0.7), transparent),
-    radial-gradient(1px 1px at 250px 160px, white, transparent),
-    radial-gradient(2px 2px at 300px 100px, rgba(255,255,255,0.8), transparent);
-  background-size: 350px 200px;
-  animation: twinkle 8s ease-in-out infinite;
-  z-index: -2;
-}
-
-.bg-glow {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 120vmax;
-  height: 120vmax;
-  background: radial-gradient(ellipse at center,
-    rgba(212, 175, 55, 0.08) 0%,
-    rgba(212, 175, 55, 0.03) 30%,
-    transparent 70%);
-  animation: glow-pulse 6s ease-in-out infinite;
-  z-index: -1;
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
-}
-
-@keyframes glow-pulse {
-  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-}
-
-.content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  width: 100%;
+  height: 100%;
 }
 
 .menorah-svg {
   width: 100%;
-  max-width: 700px;
+  max-width: 600px;
   height: auto;
 }
 
@@ -296,97 +231,9 @@ watch(() => donations.value, () => {
   transition: fill 0.5s ease;
 }
 
-.menorah-info {
-  margin-top: 30px;
-  text-align: center;
-}
-
-.percent {
-  font-size: 64px;
-  font-weight: bold;
-  color: #D4AF37;
-  text-shadow: 0 0 20px rgba(212, 175, 55, 0.6);
-  display: block;
-}
-
-.subtitle {
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 8px;
-}
-
-.premium-legend {
-  margin-top: 40px;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  padding: 20px 30px;
-  border: 1px solid rgba(212, 175, 55, 0.2);
-}
-
-.premium-legend h4 {
-  color: #D4AF37;
-  font-size: 14px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-bottom: 16px;
-  text-align: center;
-}
-
-.premium-tier {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  border-radius: 8px;
-  margin-bottom: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  transition: all 0.3s ease;
-}
-
-.premium-tier:last-child {
-  margin-bottom: 0;
-}
-
-.premium-tier.lit {
-  background: rgba(212, 175, 55, 0.2);
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
-}
-
-.tier-icon {
-  font-size: 20px;
-  color: #A79085;
-  transition: color 0.3s ease;
-}
-
-.premium-tier.lit .tier-icon {
-  color: #FFD700;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-}
-
-.tier-amount {
-  font-size: 18px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.tier-count {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-left: auto;
-}
-
 @media (max-width: 768px) {
   .menorah-svg {
     max-width: 95%;
-  }
-
-  .percent {
-    font-size: 48px;
-  }
-
-  .premium-legend {
-    padding: 16px 20px;
   }
 }
 </style>

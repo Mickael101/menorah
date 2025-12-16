@@ -3,8 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useSocket } from '../composables/useSocket';
 import { useDonations } from '../composables/useDonations';
 import MenorahDisplay from '../components/display/MenorahDisplay.vue';
-import TotalCounter from '../components/display/TotalCounter.vue';
-import ProgressBar from '../components/display/ProgressBar.vue';
+import StatsCompact from '../components/display/StatsCompact.vue';
 import DonorPlatesGrid from '../components/display/DonorPlatesGrid.vue';
 
 const { on, isConnected } = useSocket();
@@ -62,9 +61,8 @@ function toggleFullscreen(): void {
   <div class="display-page" :class="{ fullscreen: isFullscreen }">
     <!-- Animated Background -->
     <div class="bg-effects">
-      <div class="bg-gradient"></div>
       <div class="bg-stars"></div>
-      <div class="bg-glow"></div>
+      <div class="bg-stars bg-stars-2"></div>
     </div>
 
     <!-- Connection Status -->
@@ -103,10 +101,7 @@ function toggleFullscreen(): void {
 
         <!-- Right: Stats & Donors -->
         <div class="right-section">
-          <div class="stats-section">
-            <TotalCounter />
-            <ProgressBar />
-          </div>
+          <StatsCompact />
 
           <div class="donors-section">
             <div class="section-header">
@@ -136,56 +131,50 @@ function toggleFullscreen(): void {
   overflow: hidden;
 }
 
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: #0a0a1a;
-}
-
 .bg-stars {
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(1px 1px at 10px 15px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(1.5px 1.5px at 25px 45px, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 50px 25px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(2px 2px at 75px 60px, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 100px 35px, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1.5px 1.5px at 120px 80px, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 140px 20px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(2px 2px at 165px 55px, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(1px 1px at 180px 90px, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1.5px 1.5px at 200px 40px, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 220px 70px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(2px 2px at 250px 30px, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 270px 85px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(1.5px 1.5px at 290px 50px, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 310px 15px, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(2px 2px at 330px 75px, rgba(255, 255, 255, 0.4), transparent);
+    radial-gradient(1px 1px at 10px 15px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 35px 55px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 60px 25px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 95px 70px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 120px 40px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 150px 90px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 175px 20px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 210px 65px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 240px 100px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 270px 45px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 300px 80px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 330px 35px, rgba(255, 255, 255, 0.7), transparent);
   background-repeat: repeat;
-  background-size: 350px 100px;
-  animation: twinkle 6s ease-in-out infinite alternate;
+  background-size: 350px 120px;
+  animation: stars-drift 8s linear infinite;
 }
 
-@keyframes twinkle {
-  0% { opacity: 0.7; transform: translateY(0); }
-  100% { opacity: 1; transform: translateY(-2px); }
+.bg-stars-2 {
+  background-image:
+    radial-gradient(1px 1px at 15px 85px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1.5px 1.5px at 55px 30px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 85px 105px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(2px 2px at 125px 50px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 165px 75px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 195px 15px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 235px 95px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(2px 2px at 275px 60px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1px 1px at 315px 25px, rgba(255, 255, 255, 0.7), transparent);
+  background-size: 320px 130px;
+  animation: stars-twinkle 4s ease-in-out infinite alternate;
 }
 
-.bg-glow {
-  position: absolute;
-  top: 50%;
-  left: 30%;
-  transform: translate(-50%, -50%);
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(255, 215, 0, 0.08) 0%, transparent 70%);
-  animation: pulse-glow 6s ease-in-out infinite;
+@keyframes stars-drift {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-10px); }
 }
 
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
+@keyframes stars-twinkle {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
 }
 
 /* Connection Status */
@@ -329,14 +318,7 @@ function toggleFullscreen(): void {
 .right-section {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-}
-
-/* Stats Section */
-.stats-section {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 /* Donors Section */

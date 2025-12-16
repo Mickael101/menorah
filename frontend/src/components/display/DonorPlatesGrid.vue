@@ -178,13 +178,12 @@ function isNewDonation(id: number): boolean {
 
 .wall-label {
   font-family: 'Cinzel', serif;
-  font-size: 0.8rem;
-  color: #c9a227;
+  font-size: 0.75rem;
+  color: rgba(201, 162, 39, 0.6);
   letter-spacing: 2px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   text-transform: uppercase;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+  text-align: center;
 }
 
 /* Grilles de plaques par niveau */

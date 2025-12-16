@@ -187,7 +187,10 @@ export function useDonations() {
 
   // Update local state from socket events
   function handleDonationNew(donation: Donation, newStats: DonationStats): void {
-    donations.value = [donation, ...donations.value];
+    // Avoid duplicates
+    if (!donations.value.some(d => d.id === donation.id)) {
+      donations.value = [donation, ...donations.value];
+    }
     stats.value = newStats;
   }
 
