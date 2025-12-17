@@ -49,8 +49,8 @@ class DonationService {
   create(data: CreateDonationRequest): Donation {
     const db = getDb();
     db.run(
-      `INSERT INTO donations (first_name, last_name, amount, reference, premium_word_id) VALUES (?, ?, ?, ?, ?)`,
-      [data.firstName, data.lastName, data.amount, data.reference || null, data.premiumWordId || null]
+      `INSERT INTO donations (first_name, last_name, email, amount, reference, premium_word_id) VALUES (?, ?, ?, ?, ?, ?)`,
+      [data.firstName, data.lastName, data.email || null, data.amount, data.reference || null, data.premiumWordId || null]
     );
 
     const lastId = db.exec('SELECT last_insert_rowid() as id')[0].values[0][0] as number;
@@ -81,6 +81,10 @@ class DonationService {
     if (data.lastName !== undefined) {
       updates.push('last_name = ?');
       values.push(data.lastName);
+    }
+    if (data.email !== undefined) {
+      updates.push('email = ?');
+      values.push(data.email || null);
     }
     if (data.amount !== undefined) {
       updates.push('amount = ?');

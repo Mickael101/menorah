@@ -15,6 +15,7 @@ const { config, premiumWords, premiumTiers, createDonation, updateDonation, fetc
 
 const firstName = ref(props.donation?.firstName || '');
 const lastName = ref(props.donation?.lastName || '');
+const email = ref(props.donation?.email || '');
 const amount = ref(props.donation?.amount || 0);
 const reference = ref(props.donation?.reference || '');
 const selectedWordId = ref<string | null>(props.donation?.premiumWordId || null);
@@ -61,6 +62,7 @@ watch(() => props.donation, (newDonation) => {
   if (newDonation) {
     firstName.value = newDonation.firstName;
     lastName.value = newDonation.lastName;
+    email.value = newDonation.email || '';
     amount.value = newDonation.amount;
     reference.value = newDonation.reference || '';
     selectedWordId.value = newDonation.premiumWordId || null;
@@ -103,6 +105,7 @@ async function submit(): Promise<void> {
   const data = {
     firstName: firstName.value.trim(),
     lastName: lastName.value.trim(),
+    email: email.value.trim() || undefined,
     amount: amount.value,
     reference: reference.value.trim() || undefined,
     premiumWordId: selectedWordId.value || undefined
@@ -128,6 +131,7 @@ async function submit(): Promise<void> {
     // Reset form
     firstName.value = '';
     lastName.value = '';
+    email.value = '';
     amount.value = 0;
     reference.value = '';
     selectedWordId.value = null;
@@ -192,6 +196,24 @@ function cancel(): void {
             class="input"
           />
         </div>
+      </div>
+
+      <!-- Email Field -->
+      <div class="form-group">
+        <label for="email">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          Email <span class="optional">(optionnel)</span>
+        </label>
+        <input
+          id="email"
+          v-model="email"
+          type="email"
+          placeholder="exemple@email.com"
+          class="input"
+        />
       </div>
 
       <!-- Amount Selection -->

@@ -559,7 +559,7 @@ function toggleFullscreen(): void {
 }
 
 .menorah-section :deep(.menorah-svg svg) {
-  max-height: 75vh;
+  max-height: 85vh;
   width: auto;
   height: auto;
 }
@@ -610,7 +610,7 @@ function toggleFullscreen(): void {
 }
 
 .display-page.fullscreen .menorah-section :deep(.menorah-svg svg) {
-  max-height: 80vh;
+  max-height: 88vh;
 }
 
 /* Responsive */
@@ -651,15 +651,15 @@ function toggleFullscreen(): void {
 /* Large screen optimizations */
 @media (min-width: 1920px) {
   .display-content {
-    padding: 2vh 4vw;
+    padding: 1.5vh 3vw;
   }
 
   .display-grid {
-    gap: 4vw;
+    gap: 3vw;
   }
 
   .menorah-section :deep(.menorah-svg svg) {
-    max-height: 78vh;
+    max-height: 88vh;
   }
 }
 

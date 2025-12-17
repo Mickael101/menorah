@@ -38,6 +38,13 @@ export async function initDatabase(): Promise<void> {
     // Column already exists, ignore
   }
 
+  // Migration: Add email column if it doesn't exist
+  try {
+    db.run(`ALTER TABLE donations ADD COLUMN email TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Create index for chronological ordering
   db.run(`
     CREATE INDEX IF NOT EXISTS idx_donations_created_at ON donations(created_at)

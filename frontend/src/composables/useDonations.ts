@@ -5,6 +5,7 @@ export interface Donation {
   id: number;
   firstName: string;
   lastName: string;
+  email: string | null;
   amount: number;
   reference: string | null;
   premiumWordId: string | null;
@@ -109,6 +110,7 @@ export function useDonations() {
   async function createDonation(data: {
     firstName: string;
     lastName: string;
+    email?: string;
     amount: number;
     reference?: string;
     premiumWordId?: string;

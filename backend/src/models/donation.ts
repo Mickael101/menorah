@@ -5,6 +5,7 @@ export interface DonationRow {
   id: number;
   first_name: string;
   last_name: string;
+  email: string | null;
   amount: number;
   reference: string | null;
   premium_word_id: string | null;
@@ -18,6 +19,7 @@ export function rowToDonation(row: DonationRow): Donation {
     id: row.id,
     firstName: row.first_name,
     lastName: row.last_name,
+    email: row.email,
     amount: row.amount,
     reference: row.reference,
     premiumWordId: row.premium_word_id,
@@ -43,6 +45,12 @@ export function validatePremiumWordId(wordId: string | undefined, amount: number
   return word ? wordId : null;
 }
 
+// Validate email format
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
 // Validate create request
 export function validateCreateRequest(data: unknown): CreateDonationRequest {
   const req = data as CreateDonationRequest;
@@ -60,9 +68,20 @@ export function validateCreateRequest(data: unknown): CreateDonationRequest {
   const amount = Math.floor(req.amount);
   const premiumWordId = validatePremiumWordId(req.premiumWordId, amount);
 
+  // Validate email if provided
+  let email: string | undefined;
+  if (req.email && typeof req.email === 'string' && req.email.trim()) {
+    const trimmedEmail = req.email.trim().toLowerCase();
+    if (!isValidEmail(trimmedEmail)) {
+      throw new Error('Invalid email format');
+    }
+    email = trimmedEmail.slice(0, 255);
+  }
+
   return {
     firstName: req.firstName.trim().slice(0, 100),
     lastName: req.lastName.trim().slice(0, 100),
+    email,
     amount,
     reference: req.reference ? String(req.reference).trim().slice(0, 100) : undefined,
     premiumWordId: premiumWordId || undefined
@@ -86,6 +105,18 @@ export function validateUpdateRequest(data: unknown, currentAmount?: number): Up
       throw new Error('lastName must be a non-empty string');
     }
     result.lastName = req.lastName.trim().slice(0, 100);
+  }
+
+  if (req.email !== undefined) {
+    if (req.email && typeof req.email === 'string' && req.email.trim()) {
+      const trimmedEmail = req.email.trim().toLowerCase();
+      if (!isValidEmail(trimmedEmail)) {
+        throw new Error('Invalid email format');
+      }
+      result.email = trimmedEmail.slice(0, 255);
+    } else {
+      result.email = undefined;
+    }
   }
 
   if (req.amount !== undefined) {

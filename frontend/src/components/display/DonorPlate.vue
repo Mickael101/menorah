@@ -124,29 +124,29 @@ const fullName = computed(() => {
 /* ===================== */
 .plaque.xl {
   width: 100%;
-  max-width: 450px;
-  height: 120px;
-  border-radius: 6px;
-  padding: 20px 30px;
+  max-width: 550px;
+  height: 140px;
+  border-radius: 8px;
+  padding: 24px 36px;
 }
 
 .plaque.xl::before {
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
   border-width: 3px;
-  border-radius: 4px;
+  border-radius: 5px;
 }
 
 .plaque.xl .nom {
-  font-size: 1.5rem;
-  letter-spacing: 3px;
-  margin-bottom: 8px;
+  font-size: 2rem;
+  letter-spacing: 4px;
+  margin-bottom: 10px;
 }
 
 .plaque.xl .montant {
-  font-size: 1.15rem;
+  font-size: 1.4rem;
 }
 
 /* ===================== */
@@ -155,27 +155,28 @@ const fullName = computed(() => {
 /* ===================== */
 .plaque.l {
   width: 100%;
-  max-width: 350px;
-  height: 90px;
-  border-radius: 5px;
-  padding: 15px 25px;
+  max-width: 420px;
+  height: 110px;
+  border-radius: 6px;
+  padding: 18px 28px;
 }
 
 .plaque.l::before {
-  top: 10px;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  border-radius: 3px;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  border-radius: 4px;
 }
 
 .plaque.l .nom {
-  font-size: 1.2rem;
-  margin-bottom: 6px;
+  font-size: 1.5rem;
+  letter-spacing: 3px;
+  margin-bottom: 8px;
 }
 
 .plaque.l .montant {
-  font-size: 1rem;
+  font-size: 1.2rem;
 }
 
 /* ===================== */
@@ -184,29 +185,29 @@ const fullName = computed(() => {
 /* ===================== */
 .plaque.m {
   width: 100%;
-  max-width: 280px;
-  height: 70px;
-  border-radius: 4px;
-  padding: 12px 20px;
+  max-width: 340px;
+  height: 90px;
+  border-radius: 5px;
+  padding: 14px 24px;
 }
 
 .plaque.m::before {
-  top: 8px;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  border-width: 1.5px;
-  border-radius: 2px;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border-width: 2px;
+  border-radius: 3px;
 }
 
 .plaque.m .nom {
-  font-size: 1rem;
-  letter-spacing: 1.5px;
-  margin-bottom: 4px;
+  font-size: 1.25rem;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
 }
 
 .plaque.m .montant {
-  font-size: 0.9rem;
+  font-size: 1.05rem;
 }
 
 /* ===================== */
@@ -215,29 +216,29 @@ const fullName = computed(() => {
 /* ===================== */
 .plaque.s {
   width: 100%;
-  max-width: 220px;
-  height: 55px;
-  border-radius: 3px;
-  padding: 10px 15px;
+  max-width: 280px;
+  height: 72px;
+  border-radius: 4px;
+  padding: 12px 18px;
 }
 
 .plaque.s::before {
-  top: 6px;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  border-width: 1px;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  border-width: 1.5px;
   border-radius: 2px;
 }
 
 .plaque.s .nom {
-  font-size: 0.9rem;
-  letter-spacing: 1px;
-  margin-bottom: 2px;
+  font-size: 1.1rem;
+  letter-spacing: 1.5px;
+  margin-bottom: 4px;
 }
 
 .plaque.s .montant {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
 }
 
 /* ===================== */
