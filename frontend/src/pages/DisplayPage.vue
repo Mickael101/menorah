@@ -526,27 +526,34 @@ function toggleFullscreen(): void {
   text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
 }
 
-/* Grid Layout - Full viewport utilization */
+/* Grid Layout - Exact 50/50 split */
 .display-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3vw;
+  grid-template-columns: 50% 50%;
+  gap: 0;
   width: 100%;
   min-height: 0;
 }
 
-/* Menorah Section - Full height */
+/* Menorah Section - Exactly half the screen */
 .menorah-section {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 0;
+  width: 50vw;
+  height: 100%;
+  padding: 1vh 2vw;
+  box-sizing: border-box;
 }
 
 .menorah-section :deep(.menorah-display) {
   width: 100%;
   height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .menorah-section :deep(.menorah-svg) {
@@ -559,17 +566,22 @@ function toggleFullscreen(): void {
 }
 
 .menorah-section :deep(.menorah-svg svg) {
-  max-height: 85vh;
+  max-width: 46vw;
+  max-height: 90vh;
   width: auto;
   height: auto;
+  object-fit: contain;
 }
 
-/* Right Section - Full height */
+/* Right Section - Exactly half the screen */
 .right-section {
   display: flex;
   flex-direction: column;
   gap: 2vh;
   min-height: 0;
+  width: 50vw;
+  padding: 1vh 2vw;
+  box-sizing: border-box;
 }
 
 /* Donors Section - Takes remaining space */
@@ -600,17 +612,26 @@ function toggleFullscreen(): void {
   text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
 }
 
-/* Fullscreen Mode - Even more space */
+/* Fullscreen Mode - Maximum space */
 .display-page.fullscreen .display-content {
-  padding: 1.5vh 2vw;
+  padding: 1vh 0;
 }
 
 .display-page.fullscreen .title {
   font-size: clamp(36px, 5vw, 72px);
 }
 
+.display-page.fullscreen .menorah-section {
+  padding: 0.5vh 1vw;
+}
+
 .display-page.fullscreen .menorah-section :deep(.menorah-svg svg) {
-  max-height: 88vh;
+  max-width: 48vw;
+  max-height: 92vh;
+}
+
+.display-page.fullscreen .right-section {
+  padding: 0.5vh 1vw;
 }
 
 /* Responsive */
@@ -651,15 +672,12 @@ function toggleFullscreen(): void {
 /* Large screen optimizations */
 @media (min-width: 1920px) {
   .display-content {
-    padding: 1.5vh 3vw;
-  }
-
-  .display-grid {
-    gap: 3vw;
+    padding: 1vh 0;
   }
 
   .menorah-section :deep(.menorah-svg svg) {
-    max-height: 88vh;
+    max-width: 48vw;
+    max-height: 92vh;
   }
 }
 
