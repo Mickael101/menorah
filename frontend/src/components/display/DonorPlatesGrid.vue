@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { useDonations, type Donation } from '../../composables/useDonations';
 import { useSocket } from '../../composables/useSocket';
 import DonorPlate from './DonorPlate.vue';
@@ -10,6 +10,10 @@ const { on } = useSocket();
 
 const gridRef = ref<HTMLDivElement | null>(null);
 const newDonationIds = ref<Set<number>>(new Set());
+const isPaused = ref(false);
+const scrollDirection = ref<'down' | 'up'>('down');
+let scrollInterval: number | null = null;
+let pauseTimeout: number | null = null;
 
 // Seuils en centimes (shekels * 100)
 const THRESHOLDS = {
@@ -31,18 +35,88 @@ function getPlateSize(amount: number): string {
   return 'plate-s';
 }
 
+// Auto-scroll function
+function autoScroll(): void {
+  if (!gridRef.value || isPaused.value) return;
+
+  const el = gridRef.value;
+  const maxScroll = el.scrollHeight - el.clientHeight;
+
+  if (maxScroll <= 0) return; // Nothing to scroll
+
+  const scrollSpeed = 0.5; // pixels per frame
+
+  if (scrollDirection.value === 'down') {
+    if (el.scrollTop >= maxScroll - 1) {
+      // Reached bottom, pause then reverse
+      pauseScroll(3000);
+      scrollDirection.value = 'up';
+    } else {
+      el.scrollTop += scrollSpeed;
+    }
+  } else {
+    if (el.scrollTop <= 1) {
+      // Reached top, pause then reverse
+      pauseScroll(3000);
+      scrollDirection.value = 'down';
+    } else {
+      el.scrollTop -= scrollSpeed;
+    }
+  }
+}
+
+function pauseScroll(duration: number): void {
+  isPaused.value = true;
+  if (pauseTimeout) clearTimeout(pauseTimeout);
+  pauseTimeout = window.setTimeout(() => {
+    isPaused.value = false;
+  }, duration);
+}
+
+function startAutoScroll(): void {
+  if (scrollInterval) return;
+  scrollInterval = window.setInterval(autoScroll, 16); // ~60fps
+}
+
+function stopAutoScroll(): void {
+  if (scrollInterval) {
+    clearInterval(scrollInterval);
+    scrollInterval = null;
+  }
+  if (pauseTimeout) {
+    clearTimeout(pauseTimeout);
+    pauseTimeout = null;
+  }
+}
+
 // Écoute les événements uniquement pour l'animation des nouveaux dons
 onMounted(() => {
   on('donation:new', (data: any) => {
     newDonationIds.value.add(data.donation.id);
 
+    // Pause scroll and go to top for new donation
+    stopAutoScroll();
+    scrollToTop();
+
     nextTick(() => {
-      scrollToTop();
       setTimeout(() => {
         newDonationIds.value.delete(data.donation.id);
-      }, 2000);
+        // Resume auto-scroll after showing new donation
+        scrollDirection.value = 'down';
+        isPaused.value = false;
+        startAutoScroll();
+      }, 3000);
     });
   });
+
+  // Start auto-scroll after a delay
+  setTimeout(() => {
+    startAutoScroll();
+  }, 2000);
+});
+
+onUnmounted(() => {
+  stopAutoScroll();
 });
 
 function scrollToTop(): void {
@@ -98,19 +172,28 @@ function isNewDonation(id: number): boolean {
 
 .donor-wall {
   overflow-y: auto;
-  padding: 10px;
-  padding-bottom: 40px;
+  overflow-x: hidden;
+  padding: 8px;
+  padding-bottom: 20px;
   max-height: 100%;
-  min-height: 200px;
+  min-height: 100px;
+  /* Hide scrollbar for cleaner look with auto-scroll */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.donor-wall::-webkit-scrollbar {
+  display: none;
 }
 
 /* Bento Grid - Interlocking horizontal layout */
 .bento-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-start;
+  gap: 5px;
+  justify-content: center;
   align-items: flex-start;
+  align-content: flex-start;
 }
 
 /* Plate sizes for bento effect */
@@ -134,25 +217,6 @@ function isNewDonation(id: number): boolean {
   max-width: calc(25% - 6px);
 }
 
-/* Custom scrollbar */
-.donor-wall::-webkit-scrollbar {
-  width: 6px;
-}
-
-.donor-wall::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 3px;
-}
-
-.donor-wall::-webkit-scrollbar-thumb {
-  background: rgba(212, 175, 55, 0.3);
-  border-radius: 3px;
-  transition: background 0.3s ease;
-}
-
-.donor-wall::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 175, 55, 0.5);
-}
 
 /* Transition animations */
 .plate-enter-active {

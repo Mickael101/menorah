@@ -478,21 +478,22 @@ function toggleFullscreen(): void {
   color: white;
 }
 
-/* Display Content - Optimized for large screens */
+/* Display Content - Maximum space */
 .display-content {
   position: relative;
   z-index: 10;
-  padding: 2vh 3vw;
+  padding: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
 
-/* Header - Compact for max content space */
+/* Header - Minimal for max content space */
 .display-header {
   text-align: center;
-  margin-bottom: 2vh;
+  margin-bottom: 0.5vh;
+  padding: 1vh 0;
   flex-shrink: 0;
 }
 
@@ -536,7 +537,7 @@ function toggleFullscreen(): void {
   min-height: 0;
 }
 
-/* Menorah Section - Exactly half the screen */
+/* Menorah Section - Full half screen, imposing */
 .menorah-section {
   display: flex;
   align-items: center;
@@ -544,7 +545,7 @@ function toggleFullscreen(): void {
   min-height: 0;
   width: 50vw;
   height: 100%;
-  padding: 1vh 2vw;
+  padding: 0;
   box-sizing: border-box;
 }
 
@@ -566,10 +567,10 @@ function toggleFullscreen(): void {
 }
 
 .menorah-section :deep(.menorah-svg svg) {
-  max-width: 46vw;
-  max-height: 90vh;
-  width: auto;
-  height: auto;
+  width: 50vw;
+  height: 95vh;
+  max-width: 50vw;
+  max-height: 95vh;
   object-fit: contain;
 }
 
@@ -577,10 +578,10 @@ function toggleFullscreen(): void {
 .right-section {
   display: flex;
   flex-direction: column;
-  gap: 2vh;
+  gap: 1vh;
   min-height: 0;
   width: 50vw;
-  padding: 1vh 2vw;
+  padding: 0.5vh 1.5vw;
   box-sizing: border-box;
 }
 
@@ -614,20 +615,27 @@ function toggleFullscreen(): void {
 
 /* Fullscreen Mode - Maximum space */
 .display-page.fullscreen .display-content {
-  padding: 1vh 0;
+  padding: 0;
+}
+
+.display-page.fullscreen .display-header {
+  padding: 0.5vh 0;
+  margin-bottom: 0;
 }
 
 .display-page.fullscreen .title {
-  font-size: clamp(36px, 5vw, 72px);
+  font-size: clamp(28px, 3vw, 50px);
 }
 
 .display-page.fullscreen .menorah-section {
-  padding: 0.5vh 1vw;
+  padding: 0;
 }
 
 .display-page.fullscreen .menorah-section :deep(.menorah-svg svg) {
-  max-width: 48vw;
-  max-height: 92vh;
+  width: 50vw;
+  height: 98vh;
+  max-width: 50vw;
+  max-height: 98vh;
 }
 
 .display-page.fullscreen .right-section {
@@ -672,12 +680,14 @@ function toggleFullscreen(): void {
 /* Large screen optimizations */
 @media (min-width: 1920px) {
   .display-content {
-    padding: 1vh 0;
+    padding: 0;
   }
 
   .menorah-section :deep(.menorah-svg svg) {
-    max-width: 48vw;
-    max-height: 92vh;
+    width: 50vw;
+    height: 96vh;
+    max-width: 50vw;
+    max-height: 96vh;
   }
 }
 

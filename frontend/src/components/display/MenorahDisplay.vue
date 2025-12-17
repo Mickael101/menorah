@@ -156,26 +156,14 @@ function updateMenorahLighting(): void {
     const paths = group.querySelectorAll('path');
     const shouldLight = index < groupsToLight;
 
-    // Use vivid gold matching donor plates
+    // Vivid gold - no shadow, just bright color
     paths.forEach(path => {
       gsap.to(path, {
-        fill: shouldLight ? '#f5d67b' : '#A79085',
+        fill: shouldLight ? '#FFD700' : '#A79085',
         duration: 0.8,
         ease: 'power2.out'
       });
     });
-
-    if (shouldLight) {
-      gsap.to(group, {
-        filter: 'drop-shadow(0 0 12px rgba(212, 175, 55, 0.8)) drop-shadow(0 0 25px rgba(245, 214, 123, 0.5))',
-        duration: 0.8
-      });
-    } else {
-      gsap.to(group, {
-        filter: 'none',
-        duration: 0.5
-      });
-    }
   });
 
   // Stop all existing breathing animations
@@ -191,65 +179,50 @@ function updateMenorahLighting(): void {
       const isLit = litPremiumMasks.value.includes(maskId);
       const paths = group.querySelectorAll('path');
 
-      // Use vivid gold colors matching donor plates
-      paths.forEach(path => {
-        gsap.to(path, {
-          fill: isLit ? '#f5d67b' : '#A79085',
-          duration: 1,
-          ease: 'power2.out'
-        });
-      });
-
       if (isLit) {
-        // Initial glow
-        gsap.to(group, {
-          filter: 'drop-shadow(0 0 20px rgba(212, 175, 55, 1)) drop-shadow(0 0 40px rgba(245, 214, 123, 0.8))',
-          duration: 1
+        // Initial bright gold
+        paths.forEach(path => {
+          gsap.to(path, {
+            fill: '#FFD700',
+            duration: 0.5,
+            ease: 'power2.out'
+          });
         });
 
-        // Breathing candle animation - continuous
+        // Breathing effect - pure intensity variation, no shadows
         const breathingTl = gsap.timeline({ repeat: -1 });
+        const randomOffset = Math.random() * 0.8;
         breathingTl
           .to(paths, {
-            fill: '#ffe066',
-            duration: 1.5 + Math.random() * 0.5,
+            fill: '#FFEC8B',  // Bright luminous gold
+            duration: 1.2 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(paths, {
-            fill: '#d4af37',
-            duration: 1.2 + Math.random() * 0.5,
+            fill: '#FFD700',  // Pure gold
+            duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(paths, {
-            fill: '#f5d67b',
-            duration: 1.3 + Math.random() * 0.5,
+            fill: '#FFC125',  // Warm gold
+            duration: 1.1 + randomOffset,
+            ease: 'sine.inOut'
+          })
+          .to(paths, {
+            fill: '#FFD700',  // Back to pure gold
+            duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           });
 
-        // Glow breathing effect
-        const glowTl = gsap.timeline({ repeat: -1 });
-        glowTl
-          .to(group, {
-            filter: 'drop-shadow(0 0 25px rgba(255, 224, 102, 1)) drop-shadow(0 0 50px rgba(212, 175, 55, 0.9))',
-            duration: 1.8 + Math.random() * 0.4,
-            ease: 'sine.inOut'
-          })
-          .to(group, {
-            filter: 'drop-shadow(0 0 15px rgba(212, 175, 55, 0.8)) drop-shadow(0 0 30px rgba(245, 214, 123, 0.6))',
-            duration: 1.4 + Math.random() * 0.4,
-            ease: 'sine.inOut'
-          })
-          .to(group, {
-            filter: 'drop-shadow(0 0 22px rgba(245, 214, 123, 1)) drop-shadow(0 0 45px rgba(212, 175, 55, 0.85))',
-            duration: 1.6 + Math.random() * 0.4,
-            ease: 'sine.inOut'
-          });
-
-        breathingAnimations.value.push(breathingTl, glowTl);
+        breathingAnimations.value.push(breathingTl);
       } else {
-        gsap.to(group, {
-          filter: 'none',
-          duration: 0.5
+        // Unlit - gray
+        paths.forEach(path => {
+          gsap.to(path, {
+            fill: '#A79085',
+            duration: 0.5,
+            ease: 'power2.out'
+          });
         });
       }
     }

@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plaques de Donateurs</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+            font-family: 'Cormorant Garamond', Georgia, serif;
+            padding: 60px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #f5d67b 0%, #c9a227 25%, #f5d67b 50%, #c9a227 75%, #f5d67b 100%);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+            margin-bottom: 20px;
+            letter-spacing: 4px;
+            animation: shimmer 3s linear infinite;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1rem;
+            margin-bottom: 50px;
+            text-align: center;
+        }
+
+        @keyframes shimmer {
+            to {
+                background-position: 200% center;
+            }
+        }
+
+        .section {
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 60px;
+        }
+
+        .section-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            color: #c9a227;
+            letter-spacing: 3px;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(201, 162, 39, 0.3);
+        }
+
+        .plaques-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            justify-content: flex-start;
+        }
+
+        /* Base plaque styles */
+        .plaque {
+            position: relative;
+            background: linear-gradient(145deg,
+                    #d4af37 0%,
+                    #f5d67b 15%,
+                    #c9a227 30%,
+                    #f5d67b 45%,
+                    #d4af37 60%,
+                    #b8960c 75%,
+                    #d4af37 90%,
+                    #f5d67b 100%);
+            box-shadow:
+                0 4px 8px rgba(0, 0, 0, 0.4),
+                0 8px 16px rgba(0, 0, 0, 0.3),
+                inset 0 2px 4px rgba(255, 255, 255, 0.4),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .plaque:hover {
+            transform: translateY(-4px);
+            box-shadow:
+                0 8px 16px rgba(0, 0, 0, 0.4),
+                0 16px 32px rgba(0, 0, 0, 0.3),
+                inset 0 2px 4px rgba(255, 255, 255, 0.5),
+                inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+                0 0 40px rgba(212, 175, 55, 0.25);
+        }
+
+        /* Bordure intérieure */
+        .plaque::before {
+            content: '';
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            border: 2px solid rgba(139, 109, 26, 0.5);
+            pointer-events: none;
+        }
+
+        .plaque-inner {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .nom {
+            font-family: 'Cinzel', serif;
+            font-weight: 600;
+            color: #3d2e06;
+            letter-spacing: 2px;
+            text-shadow:
+                1px 1px 0 rgba(255, 255, 255, 0.3),
+                -1px -1px 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 4px;
+        }
+
+        .dedicace {
+            font-style: italic;
+            color: #4a3b10;
+            line-height: 1.4;
+        }
+
+        /* ===================== */
+        /* TAILLE XL - Platine   */
+        /* ===================== */
+        .plaque.xl {
+            width: 450px;
+            height: 120px;
+            border-radius: 6px;
+            padding: 20px 30px;
+        }
+
+        .plaque.xl::before {
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border-width: 3px;
+            border-radius: 4px;
+        }
+
+        .plaque.xl .nom {
+            font-size: 1.6rem;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+        }
+
+        .plaque.xl .dedicace {
+            font-size: 1.15rem;
+        }
+
+        /* ===================== */
+        /* TAILLE L - Or         */
+        /* ===================== */
+        .plaque.l {
+            width: 350px;
+            height: 90px;
+            border-radius: 5px;
+            padding: 15px 25px;
+        }
+
+        .plaque.l::before {
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border-radius: 3px;
+        }
+
+        .plaque.l .nom {
+            font-size: 1.3rem;
+            margin-bottom: 6px;
+        }
+
+        .plaque.l .dedicace {
+            font-size: 1rem;
+        }
+
+        /* ===================== */
+        /* TAILLE M - Argent     */
+        /* ===================== */
+        .plaque.m {
+            width: 280px;
+            height: 70px;
+            border-radius: 4px;
+            padding: 12px 20px;
+        }
+
+        .plaque.m::before {
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            bottom: 8px;
+            border-width: 1.5px;
+            border-radius: 2px;
+        }
+
+        .plaque.m .nom {
+            font-size: 1.1rem;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+        }
+
+        .plaque.m .dedicace {
+            font-size: 0.9rem;
+        }
+
+        /* ===================== */
+        /* TAILLE S - Bronze     */
+        /* ===================== */
+        .plaque.s {
+            width: 220px;
+            height: 55px;
+            border-radius: 3px;
+            padding: 10px 15px;
+        }
+
+        .plaque.s::before {
+            top: 6px;
+            left: 6px;
+            right: 6px;
+            bottom: 6px;
+            border-width: 1px;
+            border-radius: 2px;
+        }
+
+        .plaque.s .nom {
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+
+        .plaque.s .dedicace {
+            font-size: 0.8rem;
+        }
+
+        /* ===================== */
+        /* Mur de donateurs      */
+        /* ===================== */
+        .donor-wall {
+            background: linear-gradient(180deg, #2a2a3e 0%, #1a1a2e 100%);
+            border-radius: 12px;
+            padding: 40px;
+            margin-top: 40px;
+            box-shadow:
+                inset 0 2px 10px rgba(0, 0, 0, 0.5),
+                0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .donor-wall h2 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            color: #c9a227;
+            text-align: center;
+            margin-bottom: 30px;
+            letter-spacing: 4px;
+        }
+
+        .wall-section {
+            margin-bottom: 30px;
+        }
+
+        .wall-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .wall-label {
+            font-family: 'Cinzel', serif;
+            font-size: 0.85rem;
+            color: #888;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .wall-plaques {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .plaque.xl {
+                width: 100%;
+                max-width: 400px;
+            }
+
+            .plaque.l {
+                width: 100%;
+                max-width: 320px;
+            }
+
+            .plaque.m {
+                width: 100%;
+                max-width: 260px;
+            }
+
+            .plaque.s {
+                width: 100%;
+                max-width: 200px;
+            }
+
+            .donor-wall {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>PLAQUES DE DONATEURS</h1>
+    <p class="subtitle">Quatre formats pour honorer la générosité</p>
+
+    <!-- Démonstration des tailles -->
+    <div class="section">
+        <h3 class="section-title">✦ PLATINE — Format XL</h3>
+        <div class="plaques-row">
+            <div class="plaque xl">
+                <div class="plaque-inner">
+                    <div class="nom">FAMILLE ROTHSCHILD</div>
+                    <div class="dedicace">En mémoire de nos ancêtres</div>
+                </div>
+            </div>
+            <div class="plaque xl">
+                <div class="plaque-inner">
+                    <div class="nom">FONDATION LEVY</div>
+                    <div class="dedicace">Pour les générations futures</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3 class="section-title">✦ OR — Format L</h3>
+        <div class="plaques-row">
+            <div class="plaque l">
+                <div class="plaque-inner">
+                    <div class="nom">DAVID & SARAH COHEN</div>
+                    <div class="dedicace">Zachor — Souviens-toi</div>
+                </div>
+            </div>
+            <div class="plaque l">
+                <div class="plaque-inner">
+                    <div class="nom">FAMILLE BENSIMON</div>
+                    <div class="dedicace">À nos parents bien-aimés</div>
+                </div>
+            </div>
+            <div class="plaque l">
+                <div class="plaque-inner">
+                    <div class="nom">MEYER HOLDINGS</div>
+                    <div class="dedicace">L'avenir se construit sur la mémoire</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3 class="section-title">✦ ARGENT — Format M</h3>
+        <div class="plaques-row">
+            <div class="plaque m">
+                <div class="plaque-inner">
+                    <div class="nom">JEAN-PIERRE MARTIN</div>
+                    <div class="dedicace">Pour ne jamais oublier</div>
+                </div>
+            </div>
+            <div class="plaque m">
+                <div class="plaque-inner">
+                    <div class="nom">RACHEL AZOULAY</div>
+                    <div class="dedicace">En l'honneur de ma mère</div>
+                </div>
+            </div>
+            <div class="plaque m">
+                <div class="plaque-inner">
+                    <div class="nom">FAMILLE PEREZ</div>
+                    <div class="dedicace">Unis dans le souvenir</div>
+                </div>
+            </div>
+            <div class="plaque m">
+                <div class="plaque-inner">
+                    <div class="nom">ANDRÉ BLUM</div>
+                    <div class="dedicace">La mémoire est un devoir</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3 class="section-title">✦ BRONZE — Format S</h3>
+        <div class="plaques-row">
+            <div class="plaque s">
+                <div class="plaque-inner">
+                    <div class="nom">SIMON KATZ</div>
+                    <div class="dedicace">Avec respect</div>
+                </div>
+            </div>
+            <div class="plaque s">
+                <div class="plaque-inner">
+                    <div class="nom">CLAIRE DURAND</div>
+                    <div class="dedicace">En hommage</div>
+                </div>
+            </div>
+            <div class="plaque s">
+                <div class="plaque-inner">
+                    <div class="nom">MARC LÉVY</div>
+                    <div class="dedicace">Pour la mémoire</div>
+                </div>
+            </div>
+            <div class="plaque s">
+                <div class="plaque-inner">
+                    <div class="nom">ANNA STERN</div>
+                    <div class="dedicace">Jamais oublier</div>
+                </div>
+            </div>
+            <div class="plaque s">
+                <div class="plaque-inner">
+                    <div class="nom">PAUL WEISS</div>
+                    <div class="dedicace">Avec gratitude</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exemple de mur complet -->
+    <div class="section donor-wall">
+        <h2>✡ MUR DES DONATEURS ✡</h2>
+
+        <div class="wall-section">
+            <div class="wall-label">Bienfaiteurs Platine</div>
+            <div class="wall-plaques">
+                <div class="plaque xl">
+                    <div class="plaque-inner">
+                        <div class="nom">FONDATION MÉMOIRES</div>
+                        <div class="dedicace">Transmettre pour ne pas oublier</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wall-section">
+            <div class="wall-label">Bienfaiteurs Or</div>
+            <div class="wall-plaques">
+                <div class="plaque l">
+                    <div class="plaque-inner">
+                        <div class="nom">FAMILLE GOLDSTEIN</div>
+                        <div class="dedicace">Pour nos enfants</div>
+                    </div>
+                </div>
+                <div class="plaque l">
+                    <div class="plaque-inner">
+                        <div class="nom">ISAAC & MIRIAM</div>
+                        <div class="dedicace">Am Israel Chai</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wall-section">
+            <div class="wall-label">Bienfaiteurs Argent</div>
+            <div class="wall-plaques">
+                <div class="plaque m">
+                    <div class="plaque-inner">
+                        <div class="nom">DANIEL ROSEN</div>
+                        <div class="dedicace">Pour Papa</div>
+                    </div>
+                </div>
+                <div class="plaque m">
+                    <div class="plaque-inner">
+                        <div class="nom">ESTHER KLEIN</div>
+                        <div class="dedicace">L'dor v'dor</div>
+                    </div>
+                </div>
+                <div class="plaque m">
+                    <div class="plaque-inner">
+                        <div class="nom">GROUPE ALEPH</div>
+                        <div class="dedicace">Ensemble</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wall-section">
+            <div class="wall-label">Bienfaiteurs Bronze</div>
+            <div class="wall-plaques">
+                <div class="plaque s">
+                    <div class="plaque-inner">
+                        <div class="nom">RUTH HAZAN</div>
+                        <div class="dedicace">Merci</div>
+                    </div>
+                </div>
+                <div class="plaque s">
+                    <div class="plaque-inner">
+                        <div class="nom">JOSEPH DANA</div>
+                        <div class="dedicace">Zachor</div>
+                    </div>
+                </div>
+                <div class="plaque s">
+                    <div class="plaque-inner">
+                        <div class="nom">LÉA MORENO</div>
+                        <div class="dedicace">Pour Mamie</div>
+                    </div>
+                </div>
+                <div class="plaque s">
+                    <div class="plaque-inner">
+                        <div class="nom">ELI BARUCH</div>
+                        <div class="dedicace">Toda</div>
+                    </div>
+                </div>
+                <div class="plaque s">
+                    <div class="plaque-inner">
+                        <div class="nom">MAYA STEIN</div>
+                        <div class="dedicace">Avec amour</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
