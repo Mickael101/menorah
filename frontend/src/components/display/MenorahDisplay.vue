@@ -156,10 +156,10 @@ function updateMenorahLighting(): void {
     const paths = group.querySelectorAll('path');
     const shouldLight = index < groupsToLight;
 
-    // Vivid gold - no shadow, just bright color
+    // Very vivid bright gold/yellow
     paths.forEach(path => {
       gsap.to(path, {
-        fill: shouldLight ? '#FFD700' : '#A79085',
+        fill: shouldLight ? '#FFE500' : '#A79085',
         duration: 0.8,
         ease: 'power2.out'
       });
@@ -180,36 +180,36 @@ function updateMenorahLighting(): void {
       const paths = group.querySelectorAll('path');
 
       if (isLit) {
-        // Initial bright gold
+        // Initial very bright yellow/gold
         paths.forEach(path => {
           gsap.to(path, {
-            fill: '#FFD700',
+            fill: '#FFFF00',
             duration: 0.5,
             ease: 'power2.out'
           });
         });
 
-        // Breathing effect - pure intensity variation, no shadows
+        // Breathing effect - vivid intensity variation
         const breathingTl = gsap.timeline({ repeat: -1 });
-        const randomOffset = Math.random() * 0.8;
+        const randomOffset = Math.random() * 0.6;
         breathingTl
           .to(paths, {
-            fill: '#FFEC8B',  // Bright luminous gold
+            fill: '#FFFF33',  // Very bright yellow
             duration: 1.2 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(paths, {
-            fill: '#FFD700',  // Pure gold
+            fill: '#FFE500',  // Vivid gold-yellow
             duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(paths, {
-            fill: '#FFC125',  // Warm gold
+            fill: '#FFFF00',  // Pure bright yellow
             duration: 1.1 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(paths, {
-            fill: '#FFD700',  // Back to pure gold
+            fill: '#FFD700',  // Gold
             duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           });
@@ -260,23 +260,27 @@ watch(() => donations.value, () => {
 
 .menorah-svg {
   width: 100%;
-  max-width: 600px;
-  height: auto;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .menorah-svg :deep(svg) {
   width: 100%;
-  height: auto;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .menorah-svg :deep(path) {
   fill: #A79085;
-  transition: fill 0.5s ease;
+  transition: fill 0.3s ease;
 }
 
 @media (max-width: 768px) {
   .menorah-svg {
-    max-width: 95%;
+    max-width: 100%;
   }
 }
 </style>
