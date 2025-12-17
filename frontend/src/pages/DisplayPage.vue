@@ -527,35 +527,31 @@ function toggleFullscreen(): void {
 .menorah-section {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   width: 50vw;
   height: 100vh;
   padding: 0;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 .menorah-section :deep(.menorah-display) {
-  width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .menorah-section :deep(.menorah-svg) {
-  width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
 }
 
 .menorah-section :deep(.menorah-svg svg) {
-  width: 100%;
-  height: 100%;
-  min-width: 50vw;
-  min-height: 100vh;
+  height: 100vh;
+  width: auto;
+  max-height: 100vh;
 }
 
 /* Right Section - Exactly half the screen */

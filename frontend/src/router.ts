@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import AdminPanel from './pages/AdminPanel.vue';
 import DisplayPage from './pages/DisplayPage.vue';
+import DisplayHiddenPage from './pages/DisplayHiddenPage.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -18,6 +19,11 @@ const router = createRouter({
       path: '/display',
       name: 'display',
       component: DisplayPage
+    },
+    {
+      path: '/display-hidden',
+      name: 'display-hidden',
+      component: DisplayHiddenPage
     }
   ]
 });
