@@ -527,7 +527,7 @@ function toggleFullscreen(): void {
 .menorah-section {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   width: 50vw;
   height: 100vh;
   padding: 0;
@@ -538,14 +538,14 @@ function toggleFullscreen(): void {
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .menorah-section :deep(.menorah-svg) {
   height: 100%;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .menorah-section :deep(.menorah-svg svg) {
