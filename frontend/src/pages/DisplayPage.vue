@@ -486,19 +486,19 @@ function toggleFullscreen(): void {
   box-sizing: border-box;
 }
 
-/* Small title above menorah */
+/* Small title above menorah - centered on left half */
 .menorah-title {
-  position: absolute;
+  position: fixed;
   top: 1vh;
-  left: 50%;
+  left: 25vw;
   transform: translateX(-50%);
-  font-size: clamp(14px, 1.5vw, 22px);
+  font-size: clamp(12px, 1.2vw, 18px);
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.6);
   letter-spacing: 2px;
   text-transform: uppercase;
   white-space: nowrap;
-  z-index: 10;
+  z-index: 100;
 }
 
 /* Gala header on right side */
@@ -550,6 +550,7 @@ function toggleFullscreen(): void {
   height: 100vh;
   padding: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .menorah-section :deep(.menorah-display) {
@@ -561,7 +562,6 @@ function toggleFullscreen(): void {
 }
 
 .menorah-section :deep(.menorah-svg) {
-  max-width: none;
   width: 100%;
   height: 100%;
   display: flex;
@@ -570,11 +570,11 @@ function toggleFullscreen(): void {
 }
 
 .menorah-section :deep(.menorah-svg svg) {
+  /* Scale to fill width, let height overflow if needed */
   width: 50vw;
-  height: 100vh;
-  max-width: 50vw;
-  max-height: 100vh;
-  object-fit: contain;
+  height: auto;
+  min-height: 100vh;
+  transform: scale(1.1);
 }
 
 /* Right Section - Exactly half the screen */
@@ -623,14 +623,14 @@ function toggleFullscreen(): void {
 }
 
 .display-page.fullscreen .menorah-title {
-  font-size: clamp(12px, 1.2vw, 18px);
+  font-size: clamp(10px, 1vw, 14px);
 }
 
 .display-page.fullscreen .menorah-section :deep(.menorah-svg svg) {
   width: 50vw;
-  height: 100vh;
-  max-width: 50vw;
-  max-height: 100vh;
+  height: auto;
+  min-height: 100vh;
+  transform: scale(1.15);
 }
 
 .display-page.fullscreen .right-section {
@@ -680,9 +680,9 @@ function toggleFullscreen(): void {
 
   .menorah-section :deep(.menorah-svg svg) {
     width: 50vw;
-    height: 100vh;
-    max-width: 50vw;
-    max-height: 100vh;
+    height: auto;
+    min-height: 100vh;
+    transform: scale(1.2);
   }
 }
 
