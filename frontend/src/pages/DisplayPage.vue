@@ -105,9 +105,8 @@ function toggleFullscreen(): void {
     <div class="display-content">
       <!-- Grid Layout - Full screen -->
       <div class="display-grid">
-        <!-- Left: Menorah with small title -->
+        <!-- Left: Menorah -->
         <div class="menorah-section">
-          <div class="menorah-title">Ensemble, allumons la flamme</div>
           <MenorahDisplay />
         </div>
 
@@ -486,21 +485,6 @@ function toggleFullscreen(): void {
   box-sizing: border-box;
 }
 
-/* Small title above menorah - centered on left half */
-.menorah-title {
-  position: fixed;
-  top: 1vh;
-  left: 25vw;
-  transform: translateX(-50%);
-  font-size: clamp(12px, 1.2vw, 18px);
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  white-space: nowrap;
-  z-index: 100;
-}
-
 /* Gala header on right side */
 .gala-header {
   display: flex;
@@ -541,16 +525,13 @@ function toggleFullscreen(): void {
 
 /* Menorah Section - Full half screen, imposing */
 .menorah-section {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
   width: 50vw;
   height: 100vh;
   padding: 0;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
 .menorah-section :deep(.menorah-display) {
@@ -570,11 +551,8 @@ function toggleFullscreen(): void {
 }
 
 .menorah-section :deep(.menorah-svg svg) {
-  /* Scale to fill width, let height overflow if needed */
-  width: 50vw;
-  height: auto;
-  min-height: 100vh;
-  transform: scale(1.1);
+  width: 100%;
+  height: 100%;
 }
 
 /* Right Section - Exactly half the screen */
@@ -622,17 +600,6 @@ function toggleFullscreen(): void {
   padding: 0;
 }
 
-.display-page.fullscreen .menorah-title {
-  font-size: clamp(10px, 1vw, 14px);
-}
-
-.display-page.fullscreen .menorah-section :deep(.menorah-svg svg) {
-  width: 50vw;
-  height: auto;
-  min-height: 100vh;
-  transform: scale(1.15);
-}
-
 .display-page.fullscreen .right-section {
   padding: 0.5vh 1vw;
 }
@@ -676,13 +643,6 @@ function toggleFullscreen(): void {
 @media (min-width: 1920px) {
   .display-content {
     padding: 0;
-  }
-
-  .menorah-section :deep(.menorah-svg svg) {
-    width: 50vw;
-    height: auto;
-    min-height: 100vh;
-    transform: scale(1.2);
   }
 }
 
