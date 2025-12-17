@@ -17,6 +17,15 @@ const {
 } = useDonations();
 
 const isFullscreen = ref(false);
+const showDonationFlash = ref(false);
+
+// Trigger spectacular donation animation
+function triggerDonationCelebration(): void {
+  showDonationFlash.value = true;
+  setTimeout(() => {
+    showDonationFlash.value = false;
+  }, 2000);
+}
 
 // Load initial data and setup socket listeners
 onMounted(async () => {
@@ -25,6 +34,7 @@ onMounted(async () => {
   // Listen for real-time events
   on('donation:new', (data: any) => {
     handleDonationNew(data.donation, data.stats);
+    triggerDonationCelebration();
   });
 
   on('donation:updated', (data: any) => {
@@ -59,10 +69,20 @@ function toggleFullscreen(): void {
 
 <template>
   <div class="display-page" :class="{ fullscreen: isFullscreen }">
-    <!-- Animated Background -->
+    <!-- Animated Background - Stars -->
     <div class="bg-effects">
-      <div class="bg-stars"></div>
-      <div class="bg-stars bg-stars-2"></div>
+      <div class="stars-layer stars-layer-1"></div>
+      <div class="stars-layer stars-layer-2"></div>
+      <div class="stars-layer stars-layer-3"></div>
+    </div>
+
+    <!-- Donation Celebration Effect -->
+    <div class="donation-flash" :class="{ active: showDonationFlash }">
+      <div class="flash-rays"></div>
+      <div class="flash-glow"></div>
+      <div class="flash-particles">
+        <span v-for="i in 20" :key="i" class="particle"></span>
+      </div>
     </div>
 
     <!-- Connection Status -->
@@ -118,12 +138,13 @@ function toggleFullscreen(): void {
 <style scoped>
 .display-page {
   min-height: 100vh;
+  height: 100vh;
   background: #0a0a1a;
   position: relative;
   overflow: hidden;
 }
 
-/* Background Effects */
+/* Background Effects - Smooth continuous stars */
 .bg-effects {
   position: absolute;
   inset: 0;
@@ -131,50 +152,257 @@ function toggleFullscreen(): void {
   overflow: hidden;
 }
 
-.bg-stars {
+.stars-layer {
   position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(1px 1px at 10px 15px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(1.5px 1.5px at 35px 55px, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1px 1px at 60px 25px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(2px 2px at 95px 70px, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 120px 40px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(1.5px 1.5px at 150px 90px, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1px 1px at 175px 20px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(2px 2px at 210px 65px, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 240px 100px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(1.5px 1.5px at 270px 45px, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 300px 80px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(2px 2px at 330px 35px, rgba(255, 255, 255, 0.7), transparent);
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
   background-repeat: repeat;
-  background-size: 350px 120px;
-  animation: stars-drift 8s linear infinite;
+  will-change: transform;
 }
 
-.bg-stars-2 {
+.stars-layer-1 {
   background-image:
-    radial-gradient(1px 1px at 15px 85px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(1.5px 1.5px at 55px 30px, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(1px 1px at 85px 105px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(2px 2px at 125px 50px, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1px 1px at 165px 75px, rgba(255, 255, 255, 0.7), transparent),
-    radial-gradient(1.5px 1.5px at 195px 15px, rgba(255, 255, 255, 0.8), transparent),
-    radial-gradient(1px 1px at 235px 95px, rgba(255, 255, 255, 0.6), transparent),
-    radial-gradient(2px 2px at 275px 60px, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(1px 1px at 315px 25px, rgba(255, 255, 255, 0.7), transparent);
-  background-size: 320px 130px;
-  animation: stars-twinkle 4s ease-in-out infinite alternate;
+    radial-gradient(1px 1px at 20px 30px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 70px 90px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 130px 50px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 190px 120px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 250px 70px, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 310px 150px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 370px 40px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 430px 100px, rgba(255, 255, 255, 0.7), transparent);
+  background-size: 500px 200px;
+  animation: stars-float-1 60s linear infinite;
+  opacity: 0.9;
 }
 
-@keyframes stars-drift {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-10px); }
+.stars-layer-2 {
+  background-image:
+    radial-gradient(1px 1px at 40px 80px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 100px 20px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1px 1px at 160px 140px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 220px 60px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 280px 110px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 340px 30px, rgba(255, 255, 255, 0.9), transparent);
+  background-size: 400px 180px;
+  animation: stars-float-2 80s linear infinite;
+  opacity: 0.7;
+}
+
+.stars-layer-3 {
+  background-image:
+    radial-gradient(1.5px 1.5px at 30px 100px, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(2px 2px at 120px 40px, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1.5px 1.5px at 210px 130px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 300px 70px, rgba(255, 255, 255, 0.8), transparent);
+  background-size: 350px 160px;
+  animation: stars-float-3 100s linear infinite, stars-twinkle 8s ease-in-out infinite;
+  opacity: 0.5;
+}
+
+@keyframes stars-float-1 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-250px, -100px); }
+}
+
+@keyframes stars-float-2 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(200px, -90px); }
+}
+
+@keyframes stars-float-3 {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-175px, 80px); }
 }
 
 @keyframes stars-twinkle {
-  0% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.8; }
+}
+
+/* Donation Celebration Effect */
+.donation-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.donation-flash.active {
+  visibility: visible;
+  animation: flash-sequence 2s ease-out forwards;
+}
+
+@keyframes flash-sequence {
+  0% { opacity: 0; }
+  5% { opacity: 1; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.flash-rays {
+  position: absolute;
+  top: 50%;
+  left: 25%;
+  width: 100px;
+  height: 100px;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 215, 0, 0.6) 10deg,
+    transparent 20deg,
+    transparent 30deg,
+    rgba(255, 215, 0, 0.4) 40deg,
+    transparent 50deg,
+    transparent 60deg,
+    rgba(255, 215, 0, 0.5) 70deg,
+    transparent 80deg,
+    transparent 90deg,
+    rgba(255, 215, 0, 0.6) 100deg,
+    transparent 110deg,
+    transparent 120deg,
+    rgba(255, 215, 0, 0.4) 130deg,
+    transparent 140deg,
+    transparent 150deg,
+    rgba(255, 215, 0, 0.5) 160deg,
+    transparent 170deg,
+    transparent 180deg,
+    rgba(255, 215, 0, 0.6) 190deg,
+    transparent 200deg,
+    transparent 210deg,
+    rgba(255, 215, 0, 0.4) 220deg,
+    transparent 230deg,
+    transparent 240deg,
+    rgba(255, 215, 0, 0.5) 250deg,
+    transparent 260deg,
+    transparent 270deg,
+    rgba(255, 215, 0, 0.6) 280deg,
+    transparent 290deg,
+    transparent 300deg,
+    rgba(255, 215, 0, 0.4) 310deg,
+    transparent 320deg,
+    transparent 330deg,
+    rgba(255, 215, 0, 0.5) 340deg,
+    transparent 350deg,
+    transparent 360deg
+  );
+  border-radius: 50%;
+}
+
+.donation-flash.active .flash-rays {
+  animation: rays-expand 2s ease-out forwards;
+}
+
+@keyframes rays-expand {
+  0% {
+    width: 100px;
+    height: 100px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    width: 300vw;
+    height: 300vw;
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+}
+
+.flash-glow {
+  position: absolute;
+  top: 50%;
+  left: 25%;
+  width: 200px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.8) 0%, rgba(255, 215, 0, 0) 70%);
+  border-radius: 50%;
+}
+
+.donation-flash.active .flash-glow {
+  animation: glow-pulse 1.5s ease-out forwards;
+}
+
+@keyframes glow-pulse {
+  0% {
+    width: 200px;
+    height: 200px;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    width: 150vw;
+    height: 150vw;
+    opacity: 0;
+  }
+}
+
+.flash-particles {
+  position: absolute;
+  top: 50%;
+  left: 25%;
+  width: 0;
+  height: 0;
+}
+
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #FFD700;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #FFD700, 0 0 20px #FFA500;
+}
+
+.donation-flash.active .particle {
+  animation: particle-burst 1.5s ease-out forwards;
+}
+
+.particle:nth-child(1) { --angle: 0deg; --distance: 400px; animation-delay: 0ms; }
+.particle:nth-child(2) { --angle: 18deg; --distance: 350px; animation-delay: 20ms; }
+.particle:nth-child(3) { --angle: 36deg; --distance: 420px; animation-delay: 40ms; }
+.particle:nth-child(4) { --angle: 54deg; --distance: 380px; animation-delay: 60ms; }
+.particle:nth-child(5) { --angle: 72deg; --distance: 450px; animation-delay: 80ms; }
+.particle:nth-child(6) { --angle: 90deg; --distance: 370px; animation-delay: 100ms; }
+.particle:nth-child(7) { --angle: 108deg; --distance: 410px; animation-delay: 120ms; }
+.particle:nth-child(8) { --angle: 126deg; --distance: 360px; animation-delay: 140ms; }
+.particle:nth-child(9) { --angle: 144deg; --distance: 430px; animation-delay: 160ms; }
+.particle:nth-child(10) { --angle: 162deg; --distance: 390px; animation-delay: 180ms; }
+.particle:nth-child(11) { --angle: 180deg; --distance: 440px; animation-delay: 200ms; }
+.particle:nth-child(12) { --angle: 198deg; --distance: 355px; animation-delay: 220ms; }
+.particle:nth-child(13) { --angle: 216deg; --distance: 425px; animation-delay: 240ms; }
+.particle:nth-child(14) { --angle: 234deg; --distance: 375px; animation-delay: 260ms; }
+.particle:nth-child(15) { --angle: 252deg; --distance: 460px; animation-delay: 280ms; }
+.particle:nth-child(16) { --angle: 270deg; --distance: 385px; animation-delay: 300ms; }
+.particle:nth-child(17) { --angle: 288deg; --distance: 415px; animation-delay: 320ms; }
+.particle:nth-child(18) { --angle: 306deg; --distance: 365px; animation-delay: 340ms; }
+.particle:nth-child(19) { --angle: 324deg; --distance: 445px; animation-delay: 360ms; }
+.particle:nth-child(20) { --angle: 342deg; --distance: 395px; animation-delay: 380ms; }
+
+@keyframes particle-burst {
+  0% {
+    transform: translate(0, 0) scale(0);
+    opacity: 1;
+  }
+  20% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(
+      calc(cos(var(--angle)) * var(--distance)),
+      calc(sin(var(--angle)) * var(--distance))
+    ) scale(0);
+    opacity: 0;
+  }
 }
 
 /* Connection Status */
@@ -250,24 +478,26 @@ function toggleFullscreen(): void {
   color: white;
 }
 
-/* Display Content */
+/* Display Content - Optimized for large screens */
 .display-content {
   position: relative;
   z-index: 10;
-  padding: 30px 40px;
-  min-height: 100vh;
+  padding: 2vh 3vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
-/* Header */
+/* Header - Compact for max content space */
 .display-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 2vh;
+  flex-shrink: 0;
 }
 
 .title {
-  font-size: 42px;
+  font-size: clamp(32px, 4vw, 60px);
   font-weight: 700;
   color: white;
   margin: 0;
@@ -279,11 +509,11 @@ function toggleFullscreen(): void {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  margin: 12px 0 0;
+  margin: 1vh 0 0;
 }
 
 .subtitle span {
-  font-size: 18px;
+  font-size: clamp(14px, 1.5vw, 22px);
   color: rgba(255, 255, 255, 0.5);
   font-weight: 400;
   letter-spacing: 2px;
@@ -296,50 +526,73 @@ function toggleFullscreen(): void {
   text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
 }
 
-/* Grid Layout */
+/* Grid Layout - Full viewport utilization */
 .display-grid {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 40px;
-  max-width: 1600px;
-  margin: 0 auto;
+  gap: 3vw;
   width: 100%;
+  min-height: 0;
 }
 
-/* Menorah Section */
+/* Menorah Section - Full height */
 .menorah-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+
+.menorah-section :deep(.menorah-display) {
+  width: 100%;
+  height: 100%;
+}
+
+.menorah-section :deep(.menorah-svg) {
+  max-width: none;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Right Section */
+.menorah-section :deep(.menorah-svg svg) {
+  max-height: 75vh;
+  width: auto;
+  height: auto;
+}
+
+/* Right Section - Full height */
 .right-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 2vh;
+  min-height: 0;
 }
 
-/* Donors Section */
+/* Donors Section - Takes remaining space */
 .donors-section {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 .section-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 1.5vh;
+  padding-bottom: 1vh;
   border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  flex-shrink: 0;
 }
 
 .section-header span {
-  font-size: 16px;
+  font-size: clamp(14px, 1.2vw, 20px);
   font-weight: 600;
   color: #D4AF37;
   letter-spacing: 1px;
@@ -347,24 +600,33 @@ function toggleFullscreen(): void {
   text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
 }
 
-/* Fullscreen Mode */
+/* Fullscreen Mode - Even more space */
 .display-page.fullscreen .display-content {
-  padding: 40px 60px;
+  padding: 1.5vh 2vw;
 }
 
 .display-page.fullscreen .title {
-  font-size: 52px;
+  font-size: clamp(36px, 5vw, 72px);
+}
+
+.display-page.fullscreen .menorah-section :deep(.menorah-svg svg) {
+  max-height: 80vh;
 }
 
 /* Responsive */
 @media (max-width: 1200px) {
   .display-grid {
     grid-template-columns: 1fr;
-    gap: 30px;
+    gap: 2vh;
   }
 
   .menorah-section {
     order: 1;
+    max-height: 50vh;
+  }
+
+  .menorah-section :deep(.menorah-svg svg) {
+    max-height: 45vh;
   }
 
   .right-section {
@@ -374,19 +636,44 @@ function toggleFullscreen(): void {
 
 @media (max-width: 768px) {
   .display-content {
-    padding: 20px;
+    padding: 15px;
   }
 
   .title {
     font-size: 28px;
   }
 
-  .title-icon {
-    font-size: 32px;
+  .subtitle span {
+    font-size: 14px;
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1920px) {
+  .display-content {
+    padding: 2vh 4vw;
   }
 
-  .subtitle {
-    font-size: 14px;
+  .display-grid {
+    gap: 4vw;
+  }
+
+  .menorah-section :deep(.menorah-svg svg) {
+    max-height: 78vh;
+  }
+}
+
+@media (min-width: 2560px) {
+  .title {
+    font-size: 80px;
+  }
+
+  .subtitle span {
+    font-size: 28px;
+  }
+
+  .section-header span {
+    font-size: 24px;
   }
 }
 </style>
