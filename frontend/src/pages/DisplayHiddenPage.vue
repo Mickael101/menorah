@@ -776,14 +776,14 @@ function toggleFullscreen(): void {
   min-height: 0;
 }
 
-/* Menorah Section - Full half screen, imposing */
+/* Menorah Section - Centered on left half */
 .menorah-section {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 50vw;
   height: 100vh;
-  padding: 0;
+  padding: 2vh 3vw;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -797,8 +797,8 @@ function toggleFullscreen(): void {
 }
 
 .menorah-section :deep(.menorah-svg) {
-  width: 100%;
-  height: 100%;
+  width: 90%;
+  height: 90%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -807,8 +807,9 @@ function toggleFullscreen(): void {
 .menorah-section :deep(.menorah-svg svg) {
   width: 100%;
   height: 100%;
-  min-width: 50vw;
-  min-height: 100vh;
+  max-width: 45vw;
+  max-height: 90vh;
+  object-fit: contain;
 }
 
 /* Right Section - Exactly half the screen */
