@@ -532,6 +532,7 @@ function toggleFullscreen(): void {
   height: 100vh;
   padding: 0;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .menorah-section :deep(.menorah-display) {
@@ -553,6 +554,8 @@ function toggleFullscreen(): void {
 .menorah-section :deep(.menorah-svg svg) {
   width: 100%;
   height: 100%;
+  min-width: 50vw;
+  min-height: 100vh;
 }
 
 /* Right Section - Exactly half the screen */
