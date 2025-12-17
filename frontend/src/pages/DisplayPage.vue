@@ -103,24 +103,21 @@ function toggleFullscreen(): void {
 
     <!-- Main Content -->
     <div class="display-content">
-      <!-- Title -->
-      <header class="display-header">
-        <h1 class="title">Ensemble, allumons la flamme</h1>
-        <p class="subtitle">
-          <span>Gala des fondateurs</span>
-          <span>Ohel Yehoshua</span>
-        </p>
-      </header>
-
-      <!-- Grid Layout -->
+      <!-- Grid Layout - Full screen -->
       <div class="display-grid">
-        <!-- Left: Menorah -->
+        <!-- Left: Menorah with small title -->
         <div class="menorah-section">
+          <div class="menorah-title">Ensemble, allumons la flamme</div>
           <MenorahDisplay />
         </div>
 
-        <!-- Right: Stats & Donors -->
+        <!-- Right: Gala info, Stats & Donors -->
         <div class="right-section">
+          <div class="gala-header">
+            <span class="gala-title">Gala des fondateurs</span>
+            <span class="gala-org">Ohel Yehoshua</span>
+          </div>
+
           <StatsCompact />
 
           <div class="donors-section">
@@ -489,42 +486,47 @@ function toggleFullscreen(): void {
   box-sizing: border-box;
 }
 
-/* Header - Minimal for max content space */
-.display-header {
+/* Small title above menorah */
+.menorah-title {
+  position: absolute;
+  top: 1vh;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(14px, 1.5vw, 22px);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* Gala header on right side */
+.gala-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  margin-bottom: 0.5vh;
   padding: 1vh 0;
   flex-shrink: 0;
 }
 
-.title {
-  font-size: clamp(32px, 4vw, 60px);
-  font-weight: 700;
-  color: white;
-  margin: 0;
-  text-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
-}
-
-.subtitle {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  margin: 1vh 0 0;
-}
-
-.subtitle span {
-  font-size: clamp(14px, 1.5vw, 22px);
+.gala-title {
+  font-size: clamp(12px, 1.2vw, 18px);
   color: rgba(255, 255, 255, 0.5);
   font-weight: 400;
   letter-spacing: 2px;
   text-transform: uppercase;
 }
 
-.subtitle span:last-child {
-  color: #ffd700;
-  font-weight: 600;
-  text-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+.gala-org {
+  font-size: clamp(16px, 2vw, 28px);
+  color: #FFD700;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  margin-top: 4px;
 }
 
 /* Grid Layout - Exact 50/50 split */
@@ -539,12 +541,13 @@ function toggleFullscreen(): void {
 
 /* Menorah Section - Full half screen, imposing */
 .menorah-section {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 0;
   width: 50vw;
-  height: 100%;
+  height: 100vh;
   padding: 0;
   box-sizing: border-box;
 }
@@ -568,9 +571,9 @@ function toggleFullscreen(): void {
 
 .menorah-section :deep(.menorah-svg svg) {
   width: 50vw;
-  height: 95vh;
+  height: 100vh;
   max-width: 50vw;
-  max-height: 95vh;
+  max-height: 100vh;
   object-fit: contain;
 }
 
@@ -581,7 +584,8 @@ function toggleFullscreen(): void {
   gap: 1vh;
   min-height: 0;
   width: 50vw;
-  padding: 0.5vh 1.5vw;
+  height: 100vh;
+  padding: 1vh 1.5vw;
   box-sizing: border-box;
 }
 
@@ -618,24 +622,15 @@ function toggleFullscreen(): void {
   padding: 0;
 }
 
-.display-page.fullscreen .display-header {
-  padding: 0.5vh 0;
-  margin-bottom: 0;
-}
-
-.display-page.fullscreen .title {
-  font-size: clamp(28px, 3vw, 50px);
-}
-
-.display-page.fullscreen .menorah-section {
-  padding: 0;
+.display-page.fullscreen .menorah-title {
+  font-size: clamp(12px, 1.2vw, 18px);
 }
 
 .display-page.fullscreen .menorah-section :deep(.menorah-svg svg) {
   width: 50vw;
-  height: 98vh;
+  height: 100vh;
   max-width: 50vw;
-  max-height: 98vh;
+  max-height: 100vh;
 }
 
 .display-page.fullscreen .right-section {
@@ -685,9 +680,9 @@ function toggleFullscreen(): void {
 
   .menorah-section :deep(.menorah-svg svg) {
     width: 50vw;
-    height: 96vh;
+    height: 100vh;
     max-width: 50vw;
-    max-height: 96vh;
+    max-height: 100vh;
   }
 }
 

@@ -156,10 +156,10 @@ function updateMenorahLighting(): void {
     const paths = group.querySelectorAll('path');
     const shouldLight = index < groupsToLight;
 
-    // Very vivid bright gold/yellow
+    // Extremely vivid bright yellow
     paths.forEach(path => {
       gsap.to(path, {
-        fill: shouldLight ? '#FFE500' : '#A79085',
+        fill: shouldLight ? '#FFFF00' : '#A79085',
         duration: 0.8,
         ease: 'power2.out'
       });
@@ -180,7 +180,7 @@ function updateMenorahLighting(): void {
       const paths = group.querySelectorAll('path');
 
       if (isLit) {
-        // Initial very bright yellow/gold
+        // Initial extremely bright yellow
         paths.forEach(path => {
           gsap.to(path, {
             fill: '#FFFF00',
@@ -189,28 +189,28 @@ function updateMenorahLighting(): void {
           });
         });
 
-        // Breathing effect - vivid intensity variation
+        // Breathing effect - maximum vivid intensity variation
         const breathingTl = gsap.timeline({ repeat: -1 });
-        const randomOffset = Math.random() * 0.6;
+        const randomOffset = Math.random() * 0.5;
         breathingTl
           .to(paths, {
-            fill: '#FFFF33',  // Very bright yellow
-            duration: 1.2 + randomOffset,
-            ease: 'sine.inOut'
-          })
-          .to(paths, {
-            fill: '#FFE500',  // Vivid gold-yellow
+            fill: '#FFFF66',  // Maximum bright yellow-white
             duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(paths, {
-            fill: '#FFFF00',  // Pure bright yellow
-            duration: 1.1 + randomOffset,
+            fill: '#FFFF00',  // Pure yellow
+            duration: 0.8 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(paths, {
-            fill: '#FFD700',  // Gold
-            duration: 1.0 + randomOffset,
+            fill: '#FFEE00',  // Slightly warmer
+            duration: 0.9 + randomOffset,
+            ease: 'sine.inOut'
+          })
+          .to(paths, {
+            fill: '#FFFF33',  // Back to bright
+            duration: 0.8 + randomOffset,
             ease: 'sine.inOut'
           });
 
