@@ -11,11 +11,23 @@ const { on, isConnected } = useSocket();
 const {
   fetchDonations,
   fetchConfig,
+  config,
   handleDonationNew,
   handleDonationUpdated,
   handleDonationDeleted,
   handleConfigUpdated
 } = useDonations();
+
+// Play audio helper
+function playAudio(url: string): void {
+  try {
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    audio.play().catch(err => console.log('Audio play failed:', err));
+  } catch (e) {
+    console.log('Audio error:', e);
+  }
+}
 
 const isFullscreen = ref(false);
 const showDonationFlash = ref(false);
@@ -30,6 +42,11 @@ function triggerDonationCelebration(donation: Donation): void {
   latestDonation.value = donation;
   showPlateAnimation.value = true;
 
+  // Play donation sound if configured
+  if (config.value.displaySettings.donationSound) {
+    playAudio(config.value.displaySettings.donationSound);
+  }
+
   setTimeout(() => {
     showDonationFlash.value = false;
   }, 2000);
@@ -40,9 +57,15 @@ function handlePlateAnimationEnd(): void {
 }
 
 // Trigger GIF explosion (for admin triggered GIFs)
-function triggerGifExplosion(gifUrl: string): void {
+function triggerGifExplosion(gifUrl: string, audioUrl?: string): void {
   currentGif.value = gifUrl;
   showGifExplosion.value = true;
+
+  // Play associated audio if provided
+  if (audioUrl) {
+    playAudio(audioUrl);
+  }
+
   setTimeout(() => {
     showGifExplosion.value = false;
   }, 4000);
@@ -60,7 +83,7 @@ onMounted(async () => {
 
   // Listen for admin-triggered GIF explosions
   on('gif:trigger', (data: any) => {
-    triggerGifExplosion(data.gifUrl);
+    triggerGifExplosion(data.gifUrl, data.audioUrl);
   });
 
   on('donation:updated', (data: any) => {

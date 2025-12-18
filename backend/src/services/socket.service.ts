@@ -64,11 +64,12 @@ class SocketService {
     });
   }
 
-  // Emit GIF trigger event to all display pages
-  emitGifTrigger(gifUrl: string): void {
+  // Emit GIF trigger event to all display pages (with optional audio)
+  emitGifTrigger(gifUrl: string, audioUrl?: string): void {
     this.io?.emit('gif:trigger', {
       type: 'gif:trigger',
-      gifUrl
+      gifUrl,
+      audioUrl
     });
   }
 }

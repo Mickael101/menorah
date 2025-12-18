@@ -91,6 +91,9 @@ export interface DisplaySettings {
   // Chart colors
   chartPrimaryColor: string;
   chartSecondaryColor: string;
+
+  // Audio
+  donationSound: string | null; // Sound to play on each new donation
 }
 
 // Default display settings
@@ -104,7 +107,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   headerTextColor: '#FFD700',
   statsTextColor: '#FFFFFF',
   chartPrimaryColor: '#FFD700',
-  chartSecondaryColor: '#D4AF37'
+  chartSecondaryColor: '#D4AF37',
+  donationSound: null
 };
 
 // Global configuration

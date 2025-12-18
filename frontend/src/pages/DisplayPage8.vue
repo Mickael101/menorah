@@ -9,7 +9,7 @@ import DonorPlatesGrid from '../components/display/DonorPlatesGrid.vue';
 import DonorPlateAnimation from '../components/display/DonorPlateAnimation.vue';
 
 const { on, isConnected } = useSocket();
-const { fetchDonations, fetchConfig, handleDonationNew, handleDonationUpdated, handleDonationDeleted, handleConfigUpdated } = useDonations();
+const { config, fetchDonations, fetchConfig, handleDonationNew, handleDonationUpdated, handleDonationDeleted, handleConfigUpdated } = useDonations();
 
 const isFullscreen = ref(false);
 const showDonationFlash = ref(false);
@@ -18,10 +18,19 @@ const latestDonation = ref<Donation | null>(null);
 const showGifExplosion = ref(false);
 const currentGif = ref('');
 
+function playAudio(url: string): void {
+  try {
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    audio.play().catch(err => console.log('Audio play failed:', err));
+  } catch (e) { console.log('Audio error:', e); }
+}
+
 function triggerDonationCelebration(donation: Donation): void {
   showDonationFlash.value = true;
   latestDonation.value = donation;
   showPlateAnimation.value = true;
+  if (config.value.displaySettings.donationSound) { playAudio(config.value.displaySettings.donationSound); }
   setTimeout(() => { showDonationFlash.value = false; }, 2000);
 }
 
@@ -29,16 +38,17 @@ function handlePlateAnimationEnd(): void {
   showPlateAnimation.value = false;
 }
 
-function triggerGifExplosion(gifUrl: string): void {
+function triggerGifExplosion(gifUrl: string, audioUrl?: string): void {
   currentGif.value = gifUrl;
   showGifExplosion.value = true;
+  if (audioUrl) { playAudio(audioUrl); }
   setTimeout(() => { showGifExplosion.value = false; }, 4000);
 }
 
 onMounted(async () => {
   await Promise.all([fetchDonations(), fetchConfig()]);
   on('donation:new', (data: any) => { handleDonationNew(data.donation, data.stats); triggerDonationCelebration(data.donation); });
-  on('gif:trigger', (data: any) => { triggerGifExplosion(data.gifUrl); });
+  on('gif:trigger', (data: any) => { triggerGifExplosion(data.gifUrl, data.audioUrl); });
   on('donation:updated', (data: any) => { handleDonationUpdated(data.donation, data.stats); });
   on('donation:deleted', (data: any) => { handleDonationDeleted(data.donationId, data.stats); });
   on('config:updated', (data: any) => { handleConfigUpdated(data.config, data.stats); });

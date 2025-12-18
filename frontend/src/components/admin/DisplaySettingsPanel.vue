@@ -73,6 +73,52 @@ async function uploadBackgroundImage(event: Event): Promise<void> {
 function removeBackgroundImage(): void {
   settings.value.backgroundImage = null;
 }
+
+// Upload donation sound
+const isUploadingSound = ref(false);
+const soundUploadError = ref('');
+
+async function uploadDonationSound(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  if (!input.files?.length) return;
+
+  isUploadingSound.value = true;
+  soundUploadError.value = '';
+
+  const formData = new FormData();
+  formData.append('audio', input.files[0]);
+
+  try {
+    const response = await fetch(`${API_BASE}/api/gifs/upload-audio`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Upload failed');
+    }
+
+    const result = await response.json();
+    settings.value.donationSound = result.url;
+    input.value = '';
+  } catch (error: any) {
+    soundUploadError.value = error.message || 'Failed to upload audio';
+  } finally {
+    isUploadingSound.value = false;
+  }
+}
+
+// Remove donation sound
+function removeDonationSound(): void {
+  settings.value.donationSound = null;
+}
+
+// Play sound preview
+function playSound(url: string): void {
+  const audio = new Audio(url);
+  audio.play();
+}
 </script>
 
 <template>
@@ -209,6 +255,48 @@ function removeBackgroundImage(): void {
             <input type="color" v-model="settings.chartSecondaryColor" />
             <input type="text" v-model="settings.chartSecondaryColor" class="hex-input" />
           </div>
+        </div>
+      </section>
+
+      <!-- Audio Section -->
+      <section class="settings-section">
+        <h3>Son de donation</h3>
+        <p class="section-description">Ce son sera joue a chaque nouveau don sur toutes les pages d'affichage.</p>
+
+        <div class="audio-upload-row">
+          <div v-if="settings.donationSound" class="audio-preview">
+            <div class="audio-info">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18V5l12-2v13"/>
+                <circle cx="6" cy="18" r="3"/>
+                <circle cx="18" cy="16" r="3"/>
+              </svg>
+              <span>Son configure</span>
+            </div>
+            <div class="audio-actions">
+              <button class="play-btn" @click="playSound(settings.donationSound)" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+              </button>
+              <button class="remove-audio-btn" @click="removeDonationSound" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <label class="upload-btn" :class="{ uploading: isUploadingSound }">
+            <input type="file" accept="audio/*" @change="uploadDonationSound" :disabled="isUploadingSound" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            {{ isUploadingSound ? 'Upload...' : 'Choisir un son (mp3, wav, ogg)' }}
+          </label>
+          <p v-if="soundUploadError" class="upload-error">{{ soundUploadError }}</p>
         </div>
       </section>
 
@@ -497,5 +585,87 @@ function removeBackgroundImage(): void {
 .reset-btn svg, .save-btn svg {
   width: 18px;
   height: 18px;
+}
+
+/* Audio Upload */
+.section-description {
+  font-size: 13px;
+  color: var(--gray-500);
+  margin: -8px 0 16px;
+}
+
+.audio-upload-row {
+  padding: 12px 0;
+}
+
+.audio-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--gray-50);
+  border: 2px solid var(--gold-300);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+}
+
+.audio-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--gray-700);
+  font-weight: 500;
+}
+
+.audio-info svg {
+  width: 24px;
+  height: 24px;
+  color: var(--gold-500);
+}
+
+.audio-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.play-btn, .remove-audio-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.play-btn {
+  background: var(--gold-100);
+  color: var(--gold-600);
+}
+
+.play-btn:hover {
+  background: var(--gold-200);
+}
+
+.play-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.remove-audio-btn {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.remove-audio-btn:hover {
+  background: var(--error-100);
+  color: var(--error-500);
+}
+
+.remove-audio-btn svg {
+  width: 16px;
+  height: 16px;
 }
 </style>

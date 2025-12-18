@@ -47,6 +47,7 @@ export interface DisplaySettings {
   statsTextColor: string;
   chartPrimaryColor: string;
   chartSecondaryColor: string;
+  donationSound: string | null;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -59,7 +60,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   headerTextColor: '#FFD700',
   statsTextColor: '#FFFFFF',
   chartPrimaryColor: '#FFD700',
-  chartSecondaryColor: '#D4AF37'
+  chartSecondaryColor: '#D4AF37',
+  donationSound: null
 };
 
 export interface Config {
