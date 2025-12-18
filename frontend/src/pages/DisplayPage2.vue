@@ -19,7 +19,6 @@ const {
 const isFullscreen = ref(false);
 const showDonationFlash = ref(false);
 
-// Trigger spectacular donation animation
 function triggerDonationCelebration(): void {
   showDonationFlash.value = true;
   setTimeout(() => {
@@ -27,11 +26,9 @@ function triggerDonationCelebration(): void {
   }, 2000);
 }
 
-// Load initial data and setup socket listeners
 onMounted(async () => {
   await Promise.all([fetchDonations(), fetchConfig()]);
 
-  // Listen for real-time events
   on('donation:new', (data: any) => {
     handleDonationNew(data.donation, data.stats);
     triggerDonationCelebration();
@@ -49,9 +46,7 @@ onMounted(async () => {
     handleConfigUpdated(data.config, data.stats);
   });
 
-  // Handle reconnection - reload state
   on('connect', async () => {
-    console.log('Socket reconnected, reloading state...');
     await Promise.all([fetchDonations(), fetchConfig()]);
   });
 });
@@ -69,19 +64,8 @@ function toggleFullscreen(): void {
 
 <template>
   <div class="display-page" :class="{ fullscreen: isFullscreen }">
-    <!-- Elegant shimmer background effect -->
-    <div class="bg-effects">
-      <div class="shimmer-layer shimmer-1"></div>
-      <div class="shimmer-layer shimmer-2"></div>
-    </div>
-
-    <!-- Donation Celebration Effect - Golden wave -->
-    <div class="donation-flash" :class="{ active: showDonationFlash }">
-      <div class="golden-wave"></div>
-      <div class="sparkle-burst">
-        <span v-for="i in 30" :key="i" class="sparkle"></span>
-      </div>
-    </div>
+    <!-- Donation Flash -->
+    <div class="donation-flash" :class="{ active: showDonationFlash }"></div>
 
     <!-- Connection Status -->
     <div class="connection-status" :class="{ connected: isConnected }">
@@ -90,7 +74,7 @@ function toggleFullscreen(): void {
     </div>
 
     <!-- Fullscreen Toggle -->
-    <button class="fullscreen-btn" @click="toggleFullscreen" :title="isFullscreen ? 'Quitter le plein ecran' : 'Plein ecran'">
+    <button class="fullscreen-btn" @click="toggleFullscreen">
       <svg v-if="!isFullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
       </svg>
@@ -101,25 +85,22 @@ function toggleFullscreen(): void {
 
     <!-- Main Content -->
     <div class="display-content">
-      <!-- Grid Layout - Full screen -->
       <div class="display-grid">
-        <!-- Left: Menorah -->
         <div class="menorah-section">
           <MenorahDisplay />
         </div>
 
-        <!-- Right: Gala info, Stats & Donors -->
         <div class="right-section">
           <div class="gala-header">
-            <span class="gala-title">Gala des fondateurs</span>
-            <span class="gala-org">Ohel Yehoshua</span>
+            <span class="gala-title">GALA DES FONDATEURS</span>
+            <span class="gala-org">OHEL YEHOSHUA</span>
           </div>
 
           <StatsCompact />
 
           <div class="donors-section">
             <div class="section-header">
-              <span>Le tableau des fondateurs</span>
+              <span>LE TABLEAU DES FONDATEURS</span>
             </div>
             <DonorPlatesGrid />
           </div>
@@ -130,184 +111,38 @@ function toggleFullscreen(): void {
 </template>
 
 <style scoped>
-/* Page 2 - Fond beige elegant */
+/* Page 2 - Fond blanc pur */
 .display-page {
   min-height: 100vh;
   height: 100vh;
-  background: linear-gradient(135deg, #f5f0e6 0%, #e8dcc8 50%, #f0e6d3 100%);
+  background: #FFFFFF;
   position: relative;
   overflow: hidden;
 }
 
-/* Background Effects - Subtle shimmer */
-.bg-effects {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.shimmer-layer {
-  position: absolute;
-  width: 200%;
-  height: 200%;
-  top: -50%;
-  left: -50%;
-}
-
-.shimmer-1 {
-  background: linear-gradient(
-    45deg,
-    transparent 0%,
-    rgba(212, 175, 55, 0.03) 25%,
-    transparent 50%,
-    rgba(212, 175, 55, 0.05) 75%,
-    transparent 100%
-  );
-  background-size: 400px 400px;
-  animation: shimmer-move 15s ease-in-out infinite;
-}
-
-.shimmer-2 {
-  background: linear-gradient(
-    -45deg,
-    transparent 0%,
-    rgba(255, 215, 0, 0.02) 25%,
-    transparent 50%,
-    rgba(255, 215, 0, 0.04) 75%,
-    transparent 100%
-  );
-  background-size: 300px 300px;
-  animation: shimmer-move 20s ease-in-out infinite reverse;
-}
-
-@keyframes shimmer-move {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(100px, 50px); }
-}
-
-/* Donation Celebration - Golden wave effect */
+/* Flash donation */
 .donation-flash {
   position: fixed;
   inset: 0;
+  background: rgba(255, 215, 0, 0.3);
   pointer-events: none;
   z-index: 1000;
   opacity: 0;
-  visibility: hidden;
+  transition: opacity 0.3s;
 }
 
 .donation-flash.active {
-  visibility: visible;
-  animation: flash-sequence 2s ease-out forwards;
+  opacity: 1;
+  animation: flash-pulse 2s ease-out;
 }
 
-@keyframes flash-sequence {
+@keyframes flash-pulse {
   0% { opacity: 0; }
-  5% { opacity: 1; }
-  30% { opacity: 1; }
+  10% { opacity: 1; }
   100% { opacity: 0; }
 }
 
-.golden-wave {
-  position: absolute;
-  top: 50%;
-  left: 25%;
-  width: 100px;
-  height: 100px;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(212, 175, 55, 0.6) 0%, rgba(255, 215, 0, 0.3) 40%, transparent 70%);
-  border-radius: 50%;
-}
-
-.donation-flash.active .golden-wave {
-  animation: wave-expand 2s ease-out forwards;
-}
-
-@keyframes wave-expand {
-  0% {
-    width: 100px;
-    height: 100px;
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  100% {
-    width: 200vw;
-    height: 200vw;
-    opacity: 0;
-  }
-}
-
-.sparkle-burst {
-  position: absolute;
-  top: 50%;
-  left: 25%;
-}
-
-.sparkle {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: #FFD700;
-  border-radius: 50%;
-  box-shadow: 0 0 8px #FFD700;
-}
-
-.donation-flash.active .sparkle {
-  animation: sparkle-fly 1.8s ease-out forwards;
-}
-
-.sparkle:nth-child(1) { --angle: 0deg; --dist: 300px; }
-.sparkle:nth-child(2) { --angle: 12deg; --dist: 280px; }
-.sparkle:nth-child(3) { --angle: 24deg; --dist: 320px; }
-.sparkle:nth-child(4) { --angle: 36deg; --dist: 260px; }
-.sparkle:nth-child(5) { --angle: 48deg; --dist: 340px; }
-.sparkle:nth-child(6) { --angle: 60deg; --dist: 290px; }
-.sparkle:nth-child(7) { --angle: 72deg; --dist: 310px; }
-.sparkle:nth-child(8) { --angle: 84deg; --dist: 270px; }
-.sparkle:nth-child(9) { --angle: 96deg; --dist: 330px; }
-.sparkle:nth-child(10) { --angle: 108deg; --dist: 285px; }
-.sparkle:nth-child(11) { --angle: 120deg; --dist: 315px; }
-.sparkle:nth-child(12) { --angle: 132deg; --dist: 265px; }
-.sparkle:nth-child(13) { --angle: 144deg; --dist: 345px; }
-.sparkle:nth-child(14) { --angle: 156deg; --dist: 295px; }
-.sparkle:nth-child(15) { --angle: 168deg; --dist: 325px; }
-.sparkle:nth-child(16) { --angle: 180deg; --dist: 275px; }
-.sparkle:nth-child(17) { --angle: 192deg; --dist: 335px; }
-.sparkle:nth-child(18) { --angle: 204deg; --dist: 255px; }
-.sparkle:nth-child(19) { --angle: 216deg; --dist: 350px; }
-.sparkle:nth-child(20) { --angle: 228deg; --dist: 305px; }
-.sparkle:nth-child(21) { --angle: 240deg; --dist: 280px; }
-.sparkle:nth-child(22) { --angle: 252deg; --dist: 320px; }
-.sparkle:nth-child(23) { --angle: 264deg; --dist: 260px; }
-.sparkle:nth-child(24) { --angle: 276deg; --dist: 340px; }
-.sparkle:nth-child(25) { --angle: 288deg; --dist: 290px; }
-.sparkle:nth-child(26) { --angle: 300deg; --dist: 310px; }
-.sparkle:nth-child(27) { --angle: 312deg; --dist: 270px; }
-.sparkle:nth-child(28) { --angle: 324deg; --dist: 330px; }
-.sparkle:nth-child(29) { --angle: 336deg; --dist: 285px; }
-.sparkle:nth-child(30) { --angle: 348deg; --dist: 315px; }
-
-@keyframes sparkle-fly {
-  0% {
-    transform: translate(0, 0) scale(0);
-    opacity: 1;
-  }
-  20% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(
-      calc(cos(var(--angle)) * var(--dist)),
-      calc(sin(var(--angle)) * var(--dist))
-    ) scale(0);
-    opacity: 0;
-  }
-}
-
-/* Connection Status - Dark text on light bg */
+/* Connection Status */
 .connection-status {
   position: fixed;
   top: 20px;
@@ -315,27 +150,25 @@ function toggleFullscreen(): void {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
-  background: rgba(239, 68, 68, 0.15);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 12px 20px;
+  background: #FEE2E2;
+  border: 2px solid #EF4444;
   border-radius: 50px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #b91c1c;
+  font-size: 16px;
+  font-weight: 700;
+  color: #DC2626;
   z-index: 100;
-  transition: all 0.3s ease;
 }
 
 .connection-status.connected {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #047857;
+  background: #D1FAE5;
+  border-color: #10B981;
+  color: #059669;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: currentColor;
   animation: pulse 2s ease-in-out infinite;
@@ -346,77 +179,64 @@ function toggleFullscreen(): void {
   50% { opacity: 0.5; transform: scale(0.8); }
 }
 
-/* Fullscreen Button - Dark on light */
+/* Fullscreen Button */
 .fullscreen-btn {
   position: fixed;
   top: 20px;
   left: 20px;
-  width: 44px;
-  height: 44px;
+  width: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: #F3F4F6;
+  border: 2px solid #D1D5DB;
   border-radius: 12px;
   cursor: pointer;
   z-index: 100;
-  transition: all 0.3s ease;
 }
 
 .fullscreen-btn svg {
-  width: 20px;
-  height: 20px;
-  color: rgba(0, 0, 0, 0.5);
-  transition: color 0.3s ease;
+  width: 24px;
+  height: 24px;
+  color: #374151;
 }
 
 .fullscreen-btn:hover {
-  background: rgba(0, 0, 0, 0.15);
-}
-
-.fullscreen-btn:hover svg {
-  color: rgba(0, 0, 0, 0.8);
+  background: #E5E7EB;
 }
 
 /* Display Content */
 .display-content {
   position: relative;
   z-index: 10;
-  padding: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
 }
 
-/* Gala header - Dark text */
+/* Gala header */
 .gala-header {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 1vh 0;
-  flex-shrink: 0;
+  padding: 1.5vh 0;
 }
 
 .gala-title {
-  font-size: clamp(12px, 1.2vw, 18px);
-  color: rgba(0, 0, 0, 0.5);
-  font-weight: 400;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  font-size: clamp(16px, 2vw, 28px);
+  color: #6B7280;
+  font-weight: 700;
+  letter-spacing: 4px;
 }
 
 .gala-org {
-  font-size: clamp(16px, 2vw, 28px);
-  color: #8B6914;
-  font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  text-shadow: 0 2px 4px rgba(139, 105, 20, 0.2);
-  margin-top: 4px;
+  font-size: clamp(24px, 3vw, 44px);
+  color: #B8860B;
+  font-weight: 900;
+  letter-spacing: 5px;
+  margin-top: 5px;
 }
 
 /* Grid Layout */
@@ -424,7 +244,6 @@ function toggleFullscreen(): void {
   flex: 1;
   display: grid;
   grid-template-columns: 50% 50%;
-  gap: 0;
   width: 100%;
   min-height: 0;
 }
@@ -436,22 +255,6 @@ function toggleFullscreen(): void {
   justify-content: center;
   width: 50vw;
   height: 100vh;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-.menorah-section :deep(.menorah-display) {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.menorah-section :deep(.menorah-svg) {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .menorah-section :deep(.menorah-svg svg) {
@@ -465,10 +268,9 @@ function toggleFullscreen(): void {
   display: flex;
   flex-direction: column;
   gap: 1vh;
-  min-height: 0;
   width: 50vw;
   height: 100vh;
-  padding: 1vh 1.5vw;
+  padding: 1vh 2vw;
   box-sizing: border-box;
 }
 
@@ -487,51 +289,23 @@ function toggleFullscreen(): void {
   justify-content: center;
   margin-bottom: 1.5vh;
   padding-bottom: 1vh;
-  border-bottom: 1px solid rgba(139, 105, 20, 0.3);
-  flex-shrink: 0;
+  border-bottom: 3px solid #B8860B;
 }
 
 .section-header span {
-  font-size: clamp(14px, 1.2vw, 20px);
-  font-weight: 600;
-  color: #8B6914;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-/* Fullscreen Mode */
-.display-page.fullscreen .display-content {
-  padding: 0;
-}
-
-.display-page.fullscreen .right-section {
-  padding: 0.5vh 1vw;
+  font-size: clamp(18px, 2vw, 32px);
+  font-weight: 900;
+  color: #B8860B;
+  letter-spacing: 3px;
 }
 
 /* Responsive */
 @media (max-width: 1200px) {
   .display-grid {
     grid-template-columns: 1fr;
-    gap: 2vh;
   }
-
   .menorah-section {
-    order: 1;
     max-height: 50vh;
-  }
-
-  .menorah-section :deep(.menorah-svg svg) {
-    max-height: 45vh;
-  }
-
-  .right-section {
-    order: 2;
-  }
-}
-
-@media (max-width: 768px) {
-  .display-content {
-    padding: 15px;
   }
 }
 </style>

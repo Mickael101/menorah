@@ -161,7 +161,7 @@ function updateMenorahLighting(): void {
     const shouldLight = index < groupsToLight;
 
     if (shouldLight) {
-      // Vivid gold color
+      // Couleur or vive et constante
       paths.forEach(path => {
         gsap.to(path, {
           fill: '#FFD700',
@@ -170,35 +170,44 @@ function updateMenorahLighting(): void {
         });
       });
 
-      // Breathing effect for all lit segments
+      // Effet de respiration avec halo lumineux (pas de changement de couleur)
       const breathingTl = gsap.timeline({ repeat: -1 });
-      const randomOffset = Math.random() * 0.4;
+      const randomOffset = Math.random() * 0.5;
       breathingTl
-        .to(paths, {
-          fill: '#FFDF00',
+        .to(group, {
+          filter: 'drop-shadow(0 0 8px #FFD700) drop-shadow(0 0 15px #FFD700)',
+          duration: 1.5 + randomOffset,
+          ease: 'sine.inOut'
+        })
+        .to(group, {
+          filter: 'drop-shadow(0 0 3px #FFD700) drop-shadow(0 0 6px #FFD700)',
+          duration: 1.3 + randomOffset,
+          ease: 'sine.inOut'
+        })
+        .to(group, {
+          filter: 'drop-shadow(0 0 12px #FFFF00) drop-shadow(0 0 20px #FFD700)',
+          duration: 1.4 + randomOffset,
+          ease: 'sine.inOut'
+        })
+        .to(group, {
+          filter: 'drop-shadow(0 0 5px #FFD700) drop-shadow(0 0 10px #FFD700)',
           duration: 1.2 + randomOffset,
-          ease: 'sine.inOut'
-        })
-        .to(paths, {
-          fill: '#FFD700',
-          duration: 1.0 + randomOffset,
-          ease: 'sine.inOut'
-        })
-        .to(paths, {
-          fill: '#FFC800',
-          duration: 1.1 + randomOffset,
           ease: 'sine.inOut'
         });
 
       breathingAnimations.value.push(breathingTl);
     } else {
-      // Unlit - gray
+      // Eteint - gris
       paths.forEach(path => {
         gsap.to(path, {
           fill: '#A79085',
           duration: 0.8,
           ease: 'power2.out'
         });
+      });
+      gsap.to(group, {
+        filter: 'none',
+        duration: 0.5
       });
     }
   });
@@ -213,49 +222,53 @@ function updateMenorahLighting(): void {
       const paths = group.querySelectorAll('path');
 
       if (isLit) {
-        // Initial extremely bright yellow
+        // Couleur or tres vive pour les mots premium
         paths.forEach(path => {
           gsap.to(path, {
-            fill: '#FFFF00',
+            fill: '#FFDD00',
             duration: 0.5,
             ease: 'power2.out'
           });
         });
 
-        // Breathing effect - maximum vivid intensity variation
+        // Effet de respiration avec halo lumineux tres intense
         const breathingTl = gsap.timeline({ repeat: -1 });
-        const randomOffset = Math.random() * 0.5;
+        const randomOffset = Math.random() * 0.4;
         breathingTl
-          .to(paths, {
-            fill: '#FFFF66',  // Maximum bright yellow-white
+          .to(group, {
+            filter: 'drop-shadow(0 0 15px #FFFF00) drop-shadow(0 0 25px #FFD700) drop-shadow(0 0 35px #FFD700)',
+            duration: 1.2 + randomOffset,
+            ease: 'sine.inOut'
+          })
+          .to(group, {
+            filter: 'drop-shadow(0 0 8px #FFD700) drop-shadow(0 0 12px #FFD700)',
             duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           })
-          .to(paths, {
-            fill: '#FFFF00',  // Pure yellow
-            duration: 0.8 + randomOffset,
+          .to(group, {
+            filter: 'drop-shadow(0 0 20px #FFFF33) drop-shadow(0 0 30px #FFD700) drop-shadow(0 0 40px #FFD700)',
+            duration: 1.1 + randomOffset,
             ease: 'sine.inOut'
           })
-          .to(paths, {
-            fill: '#FFEE00',  // Slightly warmer
-            duration: 0.9 + randomOffset,
-            ease: 'sine.inOut'
-          })
-          .to(paths, {
-            fill: '#FFFF33',  // Back to bright
-            duration: 0.8 + randomOffset,
+          .to(group, {
+            filter: 'drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 18px #FFD700)',
+            duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           });
 
         breathingAnimations.value.push(breathingTl);
       } else {
-        // Unlit - gray
+        // Eteint - gris
         paths.forEach(path => {
           gsap.to(path, {
             fill: '#A79085',
             duration: 0.5,
             ease: 'power2.out'
           });
+        });
+        gsap.to(group, {
+          filter: 'none',
+          duration: 0.5
         });
       }
     }

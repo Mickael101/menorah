@@ -170,19 +170,16 @@ function isNewDonation(id: number): boolean {
   display: none;
 }
 
-/* Grille uniforme pour toutes les plaques */
+/* Une plaque par ligne - pleine largeur */
 .plates-grid {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  align-items: flex-start;
-  align-content: flex-start;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
 }
 
 .plates-grid :deep(.plaque) {
-  flex: 0 0 calc(33.333% - 8px);
-  max-width: calc(33.333% - 8px);
+  width: 100%;
 }
 
 
@@ -243,18 +240,10 @@ function isNewDonation(id: number): boolean {
   margin: 0;
 }
 
-/* Responsive */
+/* Responsive - toujours pleine largeur */
 @media (max-width: 800px) {
-  .plates-grid :deep(.plaque) {
-    flex: 0 0 calc(50% - 8px);
-    max-width: calc(50% - 8px);
-  }
-}
-
-@media (max-width: 500px) {
-  .plates-grid :deep(.plaque) {
-    flex: 0 0 100%;
-    max-width: 100%;
+  .plates-grid {
+    gap: 8px;
   }
 }
 </style>

@@ -22,7 +22,7 @@ const plaqueColor = computed(() => {
   if (amount >= THRESHOLDS.GOLD) return 'gold';
   if (amount >= THRESHOLDS.DIAMOND) return 'diamond';
   if (amount >= THRESHOLDS.BRONZE) return 'bronze';
-  return 'bronze'; // Default to bronze for smaller donations
+  return 'bronze';
 });
 
 // Nom complet du donateur
@@ -40,57 +40,28 @@ const fullName = computed(() => {
       <div class="nom">{{ fullName }}</div>
       <div class="montant">{{ formatAmount(donation.amount) }}</div>
     </div>
-    <!-- Effet de brillance pour les nouveaux dons -->
     <div v-if="isNew" class="plaque-shine"></div>
   </div>
 </template>
 
 <style scoped>
 /* ===================== */
-/* Base plaque - Taille unique */
+/* PLAQUE - Optimisee ecran LED geant */
+/* Pleine largeur, couleurs vives, police tres bold */
 /* ===================== */
 .plaque {
   position: relative;
   width: 100%;
-  max-width: 320px;
-  height: 70px;
-  border-radius: 6px;
-  padding: 12px 20px;
-  box-shadow:
-    0 4px 8px rgba(0, 0, 0, 0.4),
-    0 8px 16px rgba(0, 0, 0, 0.3),
-    inset 0 2px 4px rgba(255, 255, 255, 0.4),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 90px;
+  border-radius: 8px;
+  padding: 15px 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
 }
 
-.plaque:hover {
-  transform: translateY(-3px);
-  box-shadow:
-    0 8px 16px rgba(0, 0, 0, 0.4),
-    0 16px 32px rgba(0, 0, 0, 0.3),
-    inset 0 2px 4px rgba(255, 255, 255, 0.5),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* Bordure intérieure */
-.plaque::before {
-  content: '';
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  border: 2px solid rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
-  pointer-events: none;
-}
-
-/* Layout horizontal: nom à gauche, montant à droite */
+/* Layout horizontal: nom a gauche, montant a droite */
 .plaque-inner {
   position: relative;
   z-index: 1;
@@ -98,132 +69,65 @@ const fullName = computed(() => {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0 8px;
 }
 
 .nom {
-  font-family: 'Cinzel', serif;
-  font-weight: 800;
-  font-size: 1.3rem;
-  letter-spacing: 1.5px;
-  text-shadow:
-    1px 1px 0 rgba(255, 255, 255, 0.3),
-    -1px -1px 0 rgba(0, 0, 0, 0.1);
-  line-height: 1.2;
+  font-family: 'Cinzel', 'Arial Black', sans-serif;
+  font-weight: 900;
+  font-size: 2.2rem;
+  letter-spacing: 3px;
+  line-height: 1.1;
   flex: 1;
   text-align: left;
 }
 
 .montant {
-  font-family: 'Cinzel', serif;
-  font-weight: 800;
-  font-size: 1.2rem;
-  line-height: 1.4;
+  font-family: 'Cinzel', 'Arial Black', sans-serif;
+  font-weight: 900;
+  font-size: 2rem;
+  line-height: 1.1;
   text-align: right;
-  margin-left: 15px;
+  margin-left: 30px;
   white-space: nowrap;
 }
 
 /* ===================== */
 /* COULEUR OR - Niveau 3 */
-/* 72,000+ ₪             */
+/* 72,000+ ₪ - Fond or vif */
 /* ===================== */
 .plaque.gold {
-  background: linear-gradient(145deg,
-    #d4af37 0%,
-    #f5d67b 15%,
-    #c9a227 30%,
-    #f5d67b 45%,
-    #d4af37 60%,
-    #b8960c 75%,
-    #d4af37 90%,
-    #f5d67b 100%);
-}
-
-.plaque.gold::before {
-  border-color: rgba(139, 109, 26, 0.5);
+  background: #FFD700;
 }
 
 .plaque.gold .nom,
 .plaque.gold .montant {
-  color: #3d2e06;
-}
-
-.plaque.gold:hover {
-  box-shadow:
-    0 8px 16px rgba(0, 0, 0, 0.4),
-    0 16px 32px rgba(0, 0, 0, 0.3),
-    inset 0 2px 4px rgba(255, 255, 255, 0.5),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
-    0 0 40px rgba(212, 175, 55, 0.3);
+  color: #1a1400;
 }
 
 /* ===================== */
 /* COULEUR DIAMANT - Niveau 2 */
-/* 36,000+ ₪             */
+/* 36,000+ ₪ - Fond argent brillant */
 /* ===================== */
 .plaque.diamond {
-  background: linear-gradient(145deg,
-    #e8e8e8 0%,
-    #ffffff 15%,
-    #d0d0d0 30%,
-    #ffffff 45%,
-    #e8e8e8 60%,
-    #c0c0c0 75%,
-    #e8e8e8 90%,
-    #ffffff 100%);
-}
-
-.plaque.diamond::before {
-  border-color: rgba(150, 150, 150, 0.5);
+  background: #E8E8E8;
 }
 
 .plaque.diamond .nom,
 .plaque.diamond .montant {
-  color: #2a2a2a;
-}
-
-.plaque.diamond:hover {
-  box-shadow:
-    0 8px 16px rgba(0, 0, 0, 0.4),
-    0 16px 32px rgba(0, 0, 0, 0.3),
-    inset 0 2px 4px rgba(255, 255, 255, 0.8),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
-    0 0 40px rgba(200, 200, 255, 0.4);
+  color: #1a1a1a;
 }
 
 /* ===================== */
 /* COULEUR BRONZE - Niveau 1 */
-/* < 36,000 ₪            */
+/* < 36,000 ₪ - Fond bronze vif */
 /* ===================== */
 .plaque.bronze {
-  background: linear-gradient(145deg,
-    #cd7f32 0%,
-    #e6a855 15%,
-    #b87333 30%,
-    #e6a855 45%,
-    #cd7f32 60%,
-    #8b5a2b 75%,
-    #cd7f32 90%,
-    #e6a855 100%);
-}
-
-.plaque.bronze::before {
-  border-color: rgba(100, 60, 30, 0.5);
+  background: #CD7F32;
 }
 
 .plaque.bronze .nom,
 .plaque.bronze .montant {
-  color: #3d2810;
-}
-
-.plaque.bronze:hover {
-  box-shadow:
-    0 8px 16px rgba(0, 0, 0, 0.4),
-    0 16px 32px rgba(0, 0, 0, 0.3),
-    inset 0 2px 4px rgba(255, 255, 255, 0.5),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
-    0 0 40px rgba(205, 127, 50, 0.3);
+  color: #1a0d00;
 }
 
 /* ===================== */
@@ -242,7 +146,7 @@ const fullName = computed(() => {
   background: linear-gradient(
     45deg,
     transparent 30%,
-    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.6) 50%,
     transparent 70%
   );
   animation: shine 1.5s ease-out;
@@ -252,14 +156,14 @@ const fullName = computed(() => {
 @keyframes plaque-entrance {
   0% {
     opacity: 0;
-    transform: scale(0.8) rotateX(-15deg);
+    transform: scale(0.9);
   }
   50% {
-    transform: scale(1.05) rotateX(5deg);
+    transform: scale(1.02);
   }
   100% {
     opacity: 1;
-    transform: scale(1) rotateX(0);
+    transform: scale(1);
   }
 }
 
@@ -272,35 +176,53 @@ const fullName = computed(() => {
   }
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* Ecrans moyens */
+@media (max-width: 1200px) {
   .plaque {
-    max-width: 100%;
-    height: 60px;
+    height: 80px;
+    padding: 12px 25px;
   }
 
   .nom {
-    font-size: 1.1rem;
+    font-size: 1.8rem;
   }
 
   .montant {
-    font-size: 1rem;
+    font-size: 1.6rem;
   }
 }
 
-/* Large screens */
+/* Ecrans LED geants (4K+) */
 @media (min-width: 1920px) {
   .plaque {
-    max-width: 380px;
-    height: 80px;
+    height: 110px;
+    padding: 20px 40px;
   }
 
   .nom {
-    font-size: 1.5rem;
+    font-size: 2.8rem;
+    letter-spacing: 4px;
   }
 
   .montant {
-    font-size: 1.4rem;
+    font-size: 2.5rem;
+  }
+}
+
+/* Ecrans tres larges (8K) */
+@media (min-width: 3840px) {
+  .plaque {
+    height: 150px;
+    padding: 30px 60px;
+  }
+
+  .nom {
+    font-size: 4rem;
+    letter-spacing: 6px;
+  }
+
+  .montant {
+    font-size: 3.5rem;
   }
 }
 </style>
