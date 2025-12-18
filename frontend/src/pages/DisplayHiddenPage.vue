@@ -305,14 +305,14 @@ function toggleFullscreen(): void {
 .gif-explosion-overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.3) 0%, rgba(0, 0, 0, 0.8) 70%);
-  animation: overlay-pulse 0.5s ease-out;
+  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.2) 0%, rgba(0, 0, 0, 0.3) 70%);
+  animation: overlay-pulse 0.5s ease-out forwards;
 }
 
 @keyframes overlay-pulse {
   0% { opacity: 0; transform: scale(0.5); }
-  50% { opacity: 1; }
-  100% { opacity: 0.8; }
+  50% { opacity: 0.8; }
+  100% { opacity: 0.5; }
 }
 
 .gif-explosion-content {

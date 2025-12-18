@@ -140,8 +140,8 @@ function toggleFullscreen(): void {
 
 /* GIF Explosion Effect */
 .gif-explosion-container { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.gif-explosion-overlay { position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(255, 215, 0, 0.3) 0%, rgba(0, 0, 0, 0.85) 70%); animation: gif-overlay-pulse 0.5s ease-out; }
-@keyframes gif-overlay-pulse { 0% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; } 100% { opacity: 0.9; } }
+.gif-explosion-overlay { position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(255, 215, 0, 0.2) 0%, rgba(0, 0, 0, 0.3) 70%); animation: gif-overlay-pulse 0.5s ease-out forwards; }
+@keyframes gif-overlay-pulse { 0% { opacity: 0; transform: scale(0.5); } 50% { opacity: 0.8; } 100% { opacity: 0.5; } }
 .gif-explosion-content { position: relative; z-index: 10; animation: gif-content-entrance 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 @keyframes gif-content-entrance { 0% { transform: scale(0) rotate(-10deg); opacity: 0; } 50% { transform: scale(1.2) rotate(5deg); } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
 .explosion-gif { max-width: 60vw; max-height: 70vh; border-radius: 20px; box-shadow: 0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.5), 0 0 180px rgba(255, 100, 0, 0.3); animation: gif-glow-anim 1s ease-in-out infinite alternate; }
