@@ -11,44 +11,62 @@ const { on } = useSocket();
 const gridRef = ref<HTMLDivElement | null>(null);
 const newDonationIds = ref<Set<number>>(new Set());
 const isPaused = ref(false);
-let scrollInterval: number | null = null;
-let scrollPosition = ref(0);
+let animationFrameId: number | null = null;
+let lastTime = 0;
 
 // Sorted donations by amount (descending)
 const sortedDonations = computed(() => {
   return [...donations.value].sort((a, b) => b.amount - a.amount);
 });
 
-// Infinite scroll - seamless continuous loop
-function infiniteScroll(): void {
-  if (!gridRef.value || isPaused.value) return;
-
-  const el = gridRef.value;
-  const contentHeight = el.scrollHeight / 2; // Half because content is duplicated
-
-  if (contentHeight <= el.clientHeight) return; // Nothing to scroll
-
-  const scrollSpeed = 0.5; // pixels per frame (slower for smoother effect)
-
-  scrollPosition.value += scrollSpeed;
-
-  // Seamless reset: when scrolled past first set, jump back invisibly
-  if (scrollPosition.value >= contentHeight) {
-    scrollPosition.value = 0;
+// Infinite scroll - seamless continuous downward loop using requestAnimationFrame
+function infiniteScroll(currentTime: number): void {
+  if (!gridRef.value) {
+    animationFrameId = requestAnimationFrame(infiniteScroll);
+    return;
   }
 
-  el.scrollTop = scrollPosition.value;
+  if (isPaused.value) {
+    lastTime = currentTime;
+    animationFrameId = requestAnimationFrame(infiniteScroll);
+    return;
+  }
+
+  const el = gridRef.value;
+  const firstSetHeight = el.scrollHeight / 2;
+
+  if (firstSetHeight <= el.clientHeight) {
+    animationFrameId = requestAnimationFrame(infiniteScroll);
+    return;
+  }
+
+  // Calculate time-based scroll for consistent speed regardless of frame rate
+  const deltaTime = lastTime ? (currentTime - lastTime) / 1000 : 0;
+  lastTime = currentTime;
+
+  const scrollSpeed = 30; // pixels per second
+  const scrollDelta = scrollSpeed * deltaTime;
+
+  el.scrollTop += scrollDelta;
+
+  // Seamless loop: when scrolled past first set, jump back invisibly
+  if (el.scrollTop >= firstSetHeight) {
+    el.scrollTop = el.scrollTop - firstSetHeight;
+  }
+
+  animationFrameId = requestAnimationFrame(infiniteScroll);
 }
 
 function startAutoScroll(): void {
-  if (scrollInterval) return;
-  scrollInterval = window.setInterval(infiniteScroll, 16); // ~60fps
+  if (animationFrameId) return;
+  lastTime = 0;
+  animationFrameId = requestAnimationFrame(infiniteScroll);
 }
 
 function stopAutoScroll(): void {
-  if (scrollInterval) {
-    clearInterval(scrollInterval);
-    scrollInterval = null;
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
   }
 }
 
@@ -66,7 +84,6 @@ onMounted(() => {
 
     // Pause scroll and go to top for new donation
     isPaused.value = true;
-    scrollPosition.value = 0;
     if (gridRef.value) {
       gridRef.value.scrollTop = 0;
     }
