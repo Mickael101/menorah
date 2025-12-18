@@ -72,11 +72,47 @@ export interface MenorahSegment {
   order: number;
 }
 
+// Display customization settings
+export interface DisplaySettings {
+  // Background
+  backgroundColor: string;
+  backgroundImage: string | null;
+
+  // Plate colors (hex)
+  plateColorGold: string;
+  plateColorDiamond: string;
+  plateColorBronze: string;
+
+  // Text colors
+  plateTextColor: string;
+  headerTextColor: string;
+  statsTextColor: string;
+
+  // Chart colors
+  chartPrimaryColor: string;
+  chartSecondaryColor: string;
+}
+
+// Default display settings
+export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  backgroundColor: '#0a0a1a',
+  backgroundImage: null,
+  plateColorGold: '#FFD700',
+  plateColorDiamond: '#E8E8E8',
+  plateColorBronze: '#CD7F32',
+  plateTextColor: '#1a1400',
+  headerTextColor: '#FFD700',
+  statsTextColor: '#FFFFFF',
+  chartPrimaryColor: '#FFD700',
+  chartSecondaryColor: '#D4AF37'
+};
+
 // Global configuration
 export interface Config {
   goalAmount: number;
   presetAmounts: number[];
   menorahSegments: MenorahSegment[];
+  displaySettings: DisplaySettings;
 }
 
 // Computed donation statistics

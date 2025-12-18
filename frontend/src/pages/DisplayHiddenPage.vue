@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useSocket } from '../composables/useSocket';
-import { useDonations } from '../composables/useDonations';
+import { useDonations, type Donation } from '../composables/useDonations';
 import MenorahDisplay from '../components/display/MenorahDisplay.vue';
 import StatsCompact from '../components/display/StatsCompact.vue';
 import DonorPlatesGrid from '../components/display/DonorPlatesGrid.vue';
+import DonorPlateAnimation from '../components/display/DonorPlateAnimation.vue';
 
 const { on, isConnected } = useSocket();
 const {
@@ -18,51 +19,33 @@ const {
 
 const isFullscreen = ref(false);
 const showDonationFlash = ref(false);
+const showPlateAnimation = ref(false);
+const latestDonation = ref<Donation | null>(null);
 const showGifExplosion = ref(false);
 const currentGif = ref('');
 
-// GIFs disponibles - best.gif toujours en premier
-const GIFS = [
-  '/gif/best.gif',
-  '/gif/bitcoin-bitaroo.gif',
-  '/gif/fire-up-brasil.gif',
-  '/gif/gamingbigbrain-crypto.gif',
-  '/gif/johnny-hallyday-sing.gif',
-  '/gif/pay-day.gif'
-];
-
-let gifIndex = 0;
-let isFirstDonation = true;
-
-// Get the next GIF to display
-function getNextGif(): string {
-  if (isFirstDonation) {
-    isFirstDonation = false;
-    return GIFS[0]; // best.gif
-  }
-
-  // Cycle through all GIFs starting from index 1
-  const gif = GIFS[gifIndex];
-  gifIndex = (gifIndex + 1) % GIFS.length;
-  return gif;
-}
-
-// Trigger spectacular donation animation with GIF explosion
-function triggerDonationCelebration(): void {
+// Trigger spectacular donation animation with plate
+function triggerDonationCelebration(donation: Donation): void {
   showDonationFlash.value = true;
-
-  // Show GIF explosion
-  currentGif.value = getNextGif();
-  showGifExplosion.value = true;
+  latestDonation.value = donation;
+  showPlateAnimation.value = true;
 
   setTimeout(() => {
     showDonationFlash.value = false;
   }, 2000);
+}
 
-  // Hide GIF after 3 seconds
+function handlePlateAnimationEnd(): void {
+  showPlateAnimation.value = false;
+}
+
+// Trigger GIF explosion (for admin triggered GIFs)
+function triggerGifExplosion(gifUrl: string): void {
+  currentGif.value = gifUrl;
+  showGifExplosion.value = true;
   setTimeout(() => {
     showGifExplosion.value = false;
-  }, 3000);
+  }, 4000);
 }
 
 // Load initial data and setup socket listeners
@@ -72,7 +55,12 @@ onMounted(async () => {
   // Listen for real-time events
   on('donation:new', (data: any) => {
     handleDonationNew(data.donation, data.stats);
-    triggerDonationCelebration();
+    triggerDonationCelebration(data.donation);
+  });
+
+  // Listen for admin-triggered GIF explosions
+  on('gif:trigger', (data: any) => {
+    triggerGifExplosion(data.gifUrl);
   });
 
   on('donation:updated', (data: any) => {
@@ -140,6 +128,13 @@ function toggleFullscreen(): void {
         <span v-for="i in 20" :key="i" class="particle"></span>
       </div>
     </div>
+
+    <!-- Donor Plate Animation -->
+    <DonorPlateAnimation
+      :donation="latestDonation"
+      :show="showPlateAnimation"
+      @animationEnd="handlePlateAnimationEnd"
+    />
 
     <!-- Connection Status -->
     <div class="connection-status" :class="{ connected: isConnected }">

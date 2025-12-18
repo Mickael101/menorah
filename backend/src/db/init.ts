@@ -57,9 +57,17 @@ export async function initDatabase(): Promise<void> {
       goal_amount INTEGER NOT NULL DEFAULT 10000000,
       preset_amounts TEXT NOT NULL DEFAULT '[1800,3600,18000,36000,100000]',
       menorah_segments TEXT NOT NULL DEFAULT '[]',
+      display_settings TEXT NOT NULL DEFAULT '{}',
       updated_at TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  // Migration: Add display_settings column if it doesn't exist
+  try {
+    db.run(`ALTER TABLE config ADD COLUMN display_settings TEXT NOT NULL DEFAULT '{}'`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   // Insert default config if not exists
   db.run(`INSERT OR IGNORE INTO config (id) VALUES (1)`);

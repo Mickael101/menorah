@@ -1,4 +1,4 @@
-import { Config, MenorahSegment } from './types';
+import { Config, MenorahSegment, DisplaySettings, DEFAULT_DISPLAY_SETTINGS } from './types';
 
 // Database row format
 export interface ConfigRow {
@@ -6,15 +6,26 @@ export interface ConfigRow {
   goal_amount: number;
   preset_amounts: string; // JSON string
   menorah_segments: string; // JSON string
+  display_settings: string; // JSON string
   updated_at: string;
 }
 
 // Convert database row to API format
 export function rowToConfig(row: ConfigRow): Config {
+  // Parse display settings with defaults fallback
+  let displaySettings: DisplaySettings = { ...DEFAULT_DISPLAY_SETTINGS };
+  try {
+    const parsed = JSON.parse(row.display_settings || '{}');
+    displaySettings = { ...DEFAULT_DISPLAY_SETTINGS, ...parsed };
+  } catch (e) {
+    // Use defaults if parsing fails
+  }
+
   return {
     goalAmount: row.goal_amount,
     presetAmounts: JSON.parse(row.preset_amounts),
-    menorahSegments: JSON.parse(row.menorah_segments)
+    menorahSegments: JSON.parse(row.menorah_segments),
+    displaySettings
   };
 }
 
@@ -45,6 +56,41 @@ export function validateConfigUpdate(data: unknown): Partial<Config> {
       throw new Error('menorahSegments must be an array');
     }
     result.menorahSegments = req.menorahSegments.map(validateSegment);
+  }
+
+  if (req.displaySettings !== undefined) {
+    result.displaySettings = validateDisplaySettings(req.displaySettings);
+  }
+
+  return result;
+}
+
+// Validate display settings
+function validateDisplaySettings(settings: unknown): DisplaySettings {
+  const s = settings as Partial<DisplaySettings>;
+  const result: DisplaySettings = { ...DEFAULT_DISPLAY_SETTINGS };
+
+  // Validate color fields (hex format)
+  const colorFields: (keyof DisplaySettings)[] = [
+    'backgroundColor', 'plateColorGold', 'plateColorDiamond', 'plateColorBronze',
+    'plateTextColor', 'headerTextColor', 'statsTextColor',
+    'chartPrimaryColor', 'chartSecondaryColor'
+  ];
+
+  for (const field of colorFields) {
+    if (s[field] !== undefined) {
+      const value = s[field] as string;
+      if (typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
+        (result as any)[field] = value;
+      }
+    }
+  }
+
+  // Validate background image (URL or null)
+  if (s.backgroundImage !== undefined) {
+    if (s.backgroundImage === null || typeof s.backgroundImage === 'string') {
+      result.backgroundImage = s.backgroundImage;
+    }
   }
 
   return result;

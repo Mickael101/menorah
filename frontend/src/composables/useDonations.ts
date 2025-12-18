@@ -36,10 +36,37 @@ export interface DonationStats {
   litSegments: string[];
 }
 
+export interface DisplaySettings {
+  backgroundColor: string;
+  backgroundImage: string | null;
+  plateColorGold: string;
+  plateColorDiamond: string;
+  plateColorBronze: string;
+  plateTextColor: string;
+  headerTextColor: string;
+  statsTextColor: string;
+  chartPrimaryColor: string;
+  chartSecondaryColor: string;
+}
+
+export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
+  backgroundColor: '#0a0a1a',
+  backgroundImage: null,
+  plateColorGold: '#FFD700',
+  plateColorDiamond: '#E8E8E8',
+  plateColorBronze: '#CD7F32',
+  plateTextColor: '#1a1400',
+  headerTextColor: '#FFD700',
+  statsTextColor: '#FFFFFF',
+  chartPrimaryColor: '#FFD700',
+  chartSecondaryColor: '#D4AF37'
+};
+
 export interface Config {
   goalAmount: number;
   presetAmounts: number[];
   menorahSegments: { id: string; thresholdPercent: number; order: number }[];
+  displaySettings: DisplaySettings;
 }
 
 // Shared state
@@ -53,7 +80,8 @@ const stats = ref<DonationStats>({
 const config = ref<Config>({
   goalAmount: 10000000,
   presetAmounts: [1800, 3600, 18000, 36000, 100000],
-  menorahSegments: []
+  menorahSegments: [],
+  displaySettings: { ...DEFAULT_DISPLAY_SETTINGS }
 });
 const premiumWords = ref<PremiumWord[]>([]);
 const premiumTiers = ref<PremiumTier[]>([]);

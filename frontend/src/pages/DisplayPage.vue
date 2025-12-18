@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useSocket } from '../composables/useSocket';
-import { useDonations } from '../composables/useDonations';
+import { useDonations, type Donation } from '../composables/useDonations';
 import MenorahDisplay from '../components/display/MenorahDisplay.vue';
 import StatsCompact from '../components/display/StatsCompact.vue';
 import DonorPlatesGrid from '../components/display/DonorPlatesGrid.vue';
+import DonorPlateAnimation from '../components/display/DonorPlateAnimation.vue';
 
 const { on, isConnected } = useSocket();
 const {
+  config,
   fetchDonations,
   fetchConfig,
   handleDonationNew,
@@ -16,15 +18,52 @@ const {
   handleConfigUpdated
 } = useDonations();
 
+// Dynamic styles from config
+const displayStyles = computed(() => {
+  const settings = config.value.displaySettings;
+  return {
+    '--bg-color': settings.backgroundColor,
+    '--bg-image': settings.backgroundImage ? `url(${settings.backgroundImage})` : 'none',
+    '--header-text-color': settings.headerTextColor,
+    '--stats-text-color': settings.statsTextColor,
+    '--chart-primary-color': settings.chartPrimaryColor,
+    '--chart-secondary-color': settings.chartSecondaryColor,
+    '--plate-gold': settings.plateColorGold,
+    '--plate-diamond': settings.plateColorDiamond,
+    '--plate-bronze': settings.plateColorBronze,
+    '--plate-text': settings.plateTextColor
+  };
+});
+
 const isFullscreen = ref(false);
 const showDonationFlash = ref(false);
+const showPlateAnimation = ref(false);
+const latestDonation = ref<Donation | null>(null);
+const showGifExplosion = ref(false);
+const currentGif = ref('');
 
-// Trigger spectacular donation animation
-function triggerDonationCelebration(): void {
+// Trigger spectacular donation animation with plate
+function triggerDonationCelebration(donation: Donation): void {
   showDonationFlash.value = true;
+  latestDonation.value = donation;
+  showPlateAnimation.value = true;
+
   setTimeout(() => {
     showDonationFlash.value = false;
   }, 2000);
+}
+
+function handlePlateAnimationEnd(): void {
+  showPlateAnimation.value = false;
+}
+
+// Trigger GIF explosion (for admin triggered GIFs)
+function triggerGifExplosion(gifUrl: string): void {
+  currentGif.value = gifUrl;
+  showGifExplosion.value = true;
+  setTimeout(() => {
+    showGifExplosion.value = false;
+  }, 4000);
 }
 
 // Load initial data and setup socket listeners
@@ -34,7 +73,12 @@ onMounted(async () => {
   // Listen for real-time events
   on('donation:new', (data: any) => {
     handleDonationNew(data.donation, data.stats);
-    triggerDonationCelebration();
+    triggerDonationCelebration(data.donation);
+  });
+
+  // Listen for admin-triggered GIF explosions
+  on('gif:trigger', (data: any) => {
+    triggerGifExplosion(data.gifUrl);
   });
 
   on('donation:updated', (data: any) => {
@@ -68,7 +112,7 @@ function toggleFullscreen(): void {
 </script>
 
 <template>
-  <div class="display-page" :class="{ fullscreen: isFullscreen }">
+  <div class="display-page" :class="{ fullscreen: isFullscreen }" :style="displayStyles">
     <!-- Animated Background - Stars -->
     <div class="bg-effects">
       <div class="stars-layer stars-layer-1"></div>
@@ -85,10 +129,35 @@ function toggleFullscreen(): void {
       </div>
     </div>
 
-    <!-- Connection Status -->
+    <!-- Donor Plate Animation -->
+    <DonorPlateAnimation
+      :donation="latestDonation"
+      :show="showPlateAnimation"
+      @animationEnd="handlePlateAnimationEnd"
+    />
+
+    <!-- GIF Explosion Effect (Admin triggered) -->
+    <Transition name="gif-explosion">
+      <div v-if="showGifExplosion" class="gif-explosion-container">
+        <div class="gif-explosion-overlay"></div>
+        <div class="gif-explosion-content">
+          <img :src="currentGif" alt="Celebration" class="explosion-gif" />
+        </div>
+        <div class="gif-explosion-particles">
+          <span v-for="i in 30" :key="i" class="gif-particle"></span>
+        </div>
+        <div class="gif-explosion-rings">
+          <div class="gif-ring gif-ring-1"></div>
+          <div class="gif-ring gif-ring-2"></div>
+          <div class="gif-ring gif-ring-3"></div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Connection Status - LED optimise -->
     <div class="connection-status" :class="{ connected: isConnected }">
       <span class="status-dot"></span>
-      {{ isConnected ? 'En direct' : 'Reconnexion...' }}
+      {{ isConnected ? 'EN DIRECT' : 'RECONNEXION...' }}
     </div>
 
     <!-- Fullscreen Toggle -->
@@ -113,15 +182,15 @@ function toggleFullscreen(): void {
         <!-- Right: Gala info, Stats & Donors -->
         <div class="right-section">
           <div class="gala-header">
-            <span class="gala-title">Gala des fondateurs</span>
-            <span class="gala-org">Ohel Yehoshua</span>
+            <span class="gala-title">GALA DES FONDATEURS</span>
+            <span class="gala-org">OHEL YEHOSHUA</span>
           </div>
 
           <StatsCompact />
 
           <div class="donors-section">
             <div class="section-header">
-              <span>Le tableau des fondateurs</span>
+              <span>LE TABLEAU DES FONDATEURS</span>
             </div>
             <DonorPlatesGrid />
           </div>
@@ -135,7 +204,11 @@ function toggleFullscreen(): void {
 .display-page {
   min-height: 100vh;
   height: 100vh;
-  background: #0a0a1a;
+  background-color: var(--bg-color, #0a0a1a);
+  background-image: var(--bg-image, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   position: relative;
   overflow: hidden;
 }
@@ -401,38 +474,37 @@ function toggleFullscreen(): void {
   }
 }
 
-/* Connection Status */
+/* Connection Status - LED optimise */
 .connection-status {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  top: 25px;
+  right: 25px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  background: rgba(239, 68, 68, 0.2);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  gap: 10px;
+  padding: 15px 25px;
+  background: rgba(255, 0, 0, 0.8);
+  border: 3px solid #FF6666;
   border-radius: 50px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #fca5a5;
+  font-size: 20px;
+  font-weight: 900;
+  color: #FFFFFF;
   z-index: 100;
-  transition: all 0.3s ease;
+  letter-spacing: 2px;
 }
 
 .connection-status.connected {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #6ee7b7;
+  background: rgba(0, 170, 0, 0.8);
+  border-color: #66FF66;
+  color: #FFFFFF;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: currentColor;
-  animation: pulse 2s ease-in-out infinite;
+  background: #FFFFFF;
+  animation: pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse {
@@ -440,38 +512,36 @@ function toggleFullscreen(): void {
   50% { opacity: 0.5; transform: scale(0.8); }
 }
 
-/* Fullscreen Button */
+/* Fullscreen Button - LED optimise */
 .fullscreen-btn {
   position: fixed;
-  top: 20px;
-  left: 20px;
-  width: 44px;
-  height: 44px;
+  top: 25px;
+  left: 25px;
+  width: 60px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  background: rgba(255, 215, 0, 0.9);
+  border: 3px solid #FFD700;
+  border-radius: 15px;
   cursor: pointer;
   z-index: 100;
-  transition: all 0.3s ease;
 }
 
 .fullscreen-btn svg {
-  width: 20px;
-  height: 20px;
-  color: rgba(255, 255, 255, 0.7);
-  transition: color 0.3s ease;
+  width: 30px;
+  height: 30px;
+  color: #000;
+  stroke-width: 3;
 }
 
 .fullscreen-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: #FFD700;
 }
 
 .fullscreen-btn:hover svg {
-  color: white;
+  color: #000;
 }
 
 /* Display Content - Maximum space */
@@ -485,32 +555,30 @@ function toggleFullscreen(): void {
   box-sizing: border-box;
 }
 
-/* Gala header on right side */
+/* Gala header - LED optimise XXL */
 .gala-header {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 1vh 0;
+  padding: 2vh 0;
   flex-shrink: 0;
 }
 
 .gala-title {
-  font-size: clamp(12px, 1.2vw, 18px);
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 400;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  font-size: clamp(20px, 2.5vw, 36px);
+  color: var(--stats-text-color, rgba(255, 255, 255, 0.8));
+  font-weight: 900;
+  letter-spacing: 6px;
 }
 
 .gala-org {
-  font-size: clamp(16px, 2vw, 28px);
-  color: #FFD700;
-  font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
-  margin-top: 4px;
+  font-size: clamp(30px, 4vw, 60px);
+  color: var(--header-text-color, #FFD700);
+  font-weight: 900;
+  letter-spacing: 8px;
+  text-shadow: 0 0 30px currentColor;
+  margin-top: 8px;
 }
 
 /* Grid Layout - Exact 50/50 split */
@@ -579,19 +647,18 @@ function toggleFullscreen(): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1.5vh;
-  padding-bottom: 1vh;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  margin-bottom: 2vh;
+  padding-bottom: 1.5vh;
+  border-bottom: 4px solid var(--header-text-color, #FFD700);
   flex-shrink: 0;
 }
 
 .section-header span {
-  font-size: clamp(14px, 1.2vw, 20px);
-  font-weight: 600;
-  color: #D4AF37;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+  font-size: clamp(22px, 2.5vw, 40px);
+  font-weight: 900;
+  color: var(--header-text-color, #FFD700);
+  letter-spacing: 4px;
+  text-shadow: 0 0 20px currentColor;
 }
 
 /* Fullscreen Mode - Maximum space */
@@ -658,4 +725,137 @@ function toggleFullscreen(): void {
     font-size: 24px;
   }
 }
+
+/* GIF Explosion Effect */
+.gif-explosion-container {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.gif-explosion-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.3) 0%, rgba(0, 0, 0, 0.85) 70%);
+  animation: gif-overlay-pulse 0.5s ease-out;
+}
+
+@keyframes gif-overlay-pulse {
+  0% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; }
+  100% { opacity: 0.9; }
+}
+
+.gif-explosion-content {
+  position: relative;
+  z-index: 10;
+  animation: gif-content-entrance 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes gif-content-entrance {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.explosion-gif {
+  max-width: 60vw;
+  max-height: 70vh;
+  border-radius: 20px;
+  box-shadow: 0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.5), 0 0 180px rgba(255, 100, 0, 0.3);
+  animation: gif-glow-anim 1s ease-in-out infinite alternate;
+}
+
+@keyframes gif-glow-anim {
+  0% { box-shadow: 0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.5), 0 0 180px rgba(255, 100, 0, 0.3); }
+  100% { box-shadow: 0 0 80px rgba(255, 215, 0, 1), 0 0 150px rgba(255, 165, 0, 0.7), 0 0 220px rgba(255, 100, 0, 0.5); }
+}
+
+.gif-explosion-particles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+.gif-particle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  border-radius: 50%;
+  box-shadow: 0 0 15px #FFD700, 0 0 30px #FFA500;
+  animation: gif-particle-explode 2s ease-out forwards;
+}
+
+.gif-particle:nth-child(1) { --angle: 0deg; --dist: 350px; animation-delay: 0ms; }
+.gif-particle:nth-child(2) { --angle: 12deg; --dist: 400px; animation-delay: 30ms; }
+.gif-particle:nth-child(3) { --angle: 24deg; --dist: 320px; animation-delay: 60ms; }
+.gif-particle:nth-child(4) { --angle: 36deg; --dist: 380px; animation-delay: 90ms; }
+.gif-particle:nth-child(5) { --angle: 48deg; --dist: 420px; animation-delay: 120ms; }
+.gif-particle:nth-child(6) { --angle: 60deg; --dist: 340px; animation-delay: 150ms; }
+.gif-particle:nth-child(7) { --angle: 72deg; --dist: 390px; animation-delay: 180ms; }
+.gif-particle:nth-child(8) { --angle: 84deg; --dist: 360px; animation-delay: 210ms; }
+.gif-particle:nth-child(9) { --angle: 96deg; --dist: 410px; animation-delay: 240ms; }
+.gif-particle:nth-child(10) { --angle: 108deg; --dist: 330px; animation-delay: 270ms; }
+.gif-particle:nth-child(11) { --angle: 120deg; --dist: 400px; animation-delay: 300ms; }
+.gif-particle:nth-child(12) { --angle: 132deg; --dist: 350px; animation-delay: 330ms; }
+.gif-particle:nth-child(13) { --angle: 144deg; --dist: 420px; animation-delay: 360ms; }
+.gif-particle:nth-child(14) { --angle: 156deg; --dist: 340px; animation-delay: 390ms; }
+.gif-particle:nth-child(15) { --angle: 168deg; --dist: 380px; animation-delay: 420ms; }
+.gif-particle:nth-child(16) { --angle: 180deg; --dist: 360px; animation-delay: 450ms; }
+.gif-particle:nth-child(17) { --angle: 192deg; --dist: 400px; animation-delay: 480ms; }
+.gif-particle:nth-child(18) { --angle: 204deg; --dist: 320px; animation-delay: 510ms; }
+.gif-particle:nth-child(19) { --angle: 216deg; --dist: 410px; animation-delay: 540ms; }
+.gif-particle:nth-child(20) { --angle: 228deg; --dist: 370px; animation-delay: 570ms; }
+.gif-particle:nth-child(21) { --angle: 240deg; --dist: 430px; animation-delay: 600ms; }
+.gif-particle:nth-child(22) { --angle: 252deg; --dist: 345px; animation-delay: 630ms; }
+.gif-particle:nth-child(23) { --angle: 264deg; --dist: 395px; animation-delay: 660ms; }
+.gif-particle:nth-child(24) { --angle: 276deg; --dist: 355px; animation-delay: 690ms; }
+.gif-particle:nth-child(25) { --angle: 288deg; --dist: 405px; animation-delay: 720ms; }
+.gif-particle:nth-child(26) { --angle: 300deg; --dist: 335px; animation-delay: 750ms; }
+.gif-particle:nth-child(27) { --angle: 312deg; --dist: 395px; animation-delay: 780ms; }
+.gif-particle:nth-child(28) { --angle: 324deg; --dist: 365px; animation-delay: 810ms; }
+.gif-particle:nth-child(29) { --angle: 336deg; --dist: 415px; animation-delay: 840ms; }
+.gif-particle:nth-child(30) { --angle: 348deg; --dist: 375px; animation-delay: 870ms; }
+
+@keyframes gif-particle-explode {
+  0% { transform: translate(0, 0) scale(0); opacity: 1; }
+  30% { transform: translate(calc(cos(var(--angle)) * calc(var(--dist) * 0.3)), calc(sin(var(--angle)) * calc(var(--dist) * 0.3))) scale(1.5); opacity: 1; }
+  100% { transform: translate(calc(cos(var(--angle)) * var(--dist)), calc(sin(var(--angle)) * var(--dist))) scale(0); opacity: 0; }
+}
+
+.gif-explosion-rings {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.gif-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 4px solid rgba(255, 215, 0, 0.8);
+  border-radius: 50%;
+  animation: gif-ring-expand 2s ease-out forwards;
+}
+
+.gif-ring-1 { animation-delay: 0ms; }
+.gif-ring-2 { animation-delay: 200ms; }
+.gif-ring-3 { animation-delay: 400ms; }
+
+@keyframes gif-ring-expand {
+  0% { width: 50px; height: 50px; opacity: 1; border-width: 4px; }
+  100% { width: 150vw; height: 150vw; opacity: 0; border-width: 1px; }
+}
+
+.gif-explosion-enter-active { animation: gif-explosion-in 0.3s ease-out; }
+.gif-explosion-leave-active { animation: gif-explosion-out 0.5s ease-in; }
+@keyframes gif-explosion-in { 0% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes gif-explosion-out { 0% { opacity: 1; } 100% { opacity: 0; } }
 </style>

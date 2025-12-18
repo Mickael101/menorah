@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useDonations, type Donation } from '../../composables/useDonations';
 import { useSocket } from '../../composables/useSocket';
 import DonorPlate from './DonorPlate.vue';
@@ -11,56 +11,38 @@ const { on } = useSocket();
 const gridRef = ref<HTMLDivElement | null>(null);
 const newDonationIds = ref<Set<number>>(new Set());
 const isPaused = ref(false);
-const scrollDirection = ref<'down' | 'up'>('down');
 let scrollInterval: number | null = null;
-let pauseTimeout: number | null = null;
+let scrollPosition = ref(0);
 
 // Sorted donations by amount (descending)
 const sortedDonations = computed(() => {
   return [...donations.value].sort((a, b) => b.amount - a.amount);
 });
 
-// Auto-scroll function
-function autoScroll(): void {
+// Infinite scroll - continuous loop
+function infiniteScroll(): void {
   if (!gridRef.value || isPaused.value) return;
 
   const el = gridRef.value;
-  const maxScroll = el.scrollHeight - el.clientHeight;
+  const contentHeight = el.scrollHeight / 2; // Half because we duplicate content
 
-  if (maxScroll <= 0) return; // Nothing to scroll
+  if (contentHeight <= el.clientHeight) return; // Nothing to scroll
 
-  const scrollSpeed = 0.5; // pixels per frame
+  const scrollSpeed = 0.8; // pixels per frame
 
-  if (scrollDirection.value === 'down') {
-    if (el.scrollTop >= maxScroll - 1) {
-      // Reached bottom, pause then reverse
-      pauseScroll(3000);
-      scrollDirection.value = 'up';
-    } else {
-      el.scrollTop += scrollSpeed;
-    }
-  } else {
-    if (el.scrollTop <= 1) {
-      // Reached top, pause then reverse
-      pauseScroll(3000);
-      scrollDirection.value = 'down';
-    } else {
-      el.scrollTop -= scrollSpeed;
-    }
+  scrollPosition.value += scrollSpeed;
+
+  // When we've scrolled through the first set, reset to beginning
+  if (scrollPosition.value >= contentHeight) {
+    scrollPosition.value = 0;
   }
-}
 
-function pauseScroll(duration: number): void {
-  isPaused.value = true;
-  if (pauseTimeout) clearTimeout(pauseTimeout);
-  pauseTimeout = window.setTimeout(() => {
-    isPaused.value = false;
-  }, duration);
+  el.scrollTop = scrollPosition.value;
 }
 
 function startAutoScroll(): void {
   if (scrollInterval) return;
-  scrollInterval = window.setInterval(autoScroll, 16); // ~60fps
+  scrollInterval = window.setInterval(infiniteScroll, 16); // ~60fps
 }
 
 function stopAutoScroll(): void {
@@ -68,10 +50,13 @@ function stopAutoScroll(): void {
     clearInterval(scrollInterval);
     scrollInterval = null;
   }
-  if (pauseTimeout) {
-    clearTimeout(pauseTimeout);
-    pauseTimeout = null;
-  }
+}
+
+function pauseScroll(duration: number): void {
+  isPaused.value = true;
+  setTimeout(() => {
+    isPaused.value = false;
+  }, duration);
 }
 
 // Écoute les événements uniquement pour l'animation des nouveaux dons
@@ -80,17 +65,18 @@ onMounted(() => {
     newDonationIds.value.add(data.donation.id);
 
     // Pause scroll and go to top for new donation
-    stopAutoScroll();
-    scrollToTop();
+    isPaused.value = true;
+    scrollPosition.value = 0;
+    if (gridRef.value) {
+      gridRef.value.scrollTop = 0;
+    }
 
     nextTick(() => {
       setTimeout(() => {
         newDonationIds.value.delete(data.donation.id);
-        // Resume auto-scroll after showing new donation
-        scrollDirection.value = 'down';
+        // Resume infinite scroll after showing new donation
         isPaused.value = false;
-        startAutoScroll();
-      }, 3000);
+      }, 5000);
     });
   });
 
@@ -104,15 +90,6 @@ onUnmounted(() => {
   stopAutoScroll();
 });
 
-function scrollToTop(): void {
-  if (gridRef.value) {
-    gridRef.value.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  }
-}
-
 function isNewDonation(id: number): boolean {
   return newDonationIds.value.has(id);
 }
@@ -121,16 +98,22 @@ function isNewDonation(id: number): boolean {
 <template>
   <div class="donor-wall-wrapper">
     <div ref="gridRef" class="donor-wall">
-      <!-- Bento Grid - All donations in interlocking horizontal layout -->
+      <!-- Infinite scroll grid - donations duplicated for seamless loop -->
       <div v-if="sortedDonations.length > 0" class="plates-grid">
-        <TransitionGroup name="plate">
-          <DonorPlate
-            v-for="donation in sortedDonations"
-            :key="donation.id"
-            :donation="donation"
-            :is-new="isNewDonation(donation.id)"
-          />
-        </TransitionGroup>
+        <!-- First set of donations -->
+        <DonorPlate
+          v-for="donation in sortedDonations"
+          :key="`a-${donation.id}`"
+          :donation="donation"
+          :is-new="isNewDonation(donation.id)"
+        />
+        <!-- Duplicate set for seamless infinite scroll -->
+        <DonorPlate
+          v-for="donation in sortedDonations"
+          :key="`b-${donation.id}`"
+          :donation="donation"
+          :is-new="false"
+        />
       </div>
 
       <!-- Empty State -->
@@ -183,28 +166,6 @@ function isNewDonation(id: number): boolean {
 }
 
 
-/* Transition animations */
-.plate-enter-active {
-  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.plate-leave-active {
-  transition: all 0.3s ease-out;
-}
-
-.plate-enter-from {
-  opacity: 0;
-  transform: scale(0.8) translateY(20px);
-}
-
-.plate-leave-to {
-  opacity: 0;
-  transform: scale(0.8);
-}
-
-.plate-move {
-  transition: transform 0.3s ease;
-}
 
 /* Empty State */
 .empty-state {

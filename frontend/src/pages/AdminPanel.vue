@@ -5,6 +5,8 @@ import { useDonations, type Donation } from '../composables/useDonations';
 import DonationForm from '../components/admin/DonationForm.vue';
 import DonationList from '../components/admin/DonationList.vue';
 import ConfigPanel from '../components/admin/ConfigPanel.vue';
+import GifManager from '../components/admin/GifManager.vue';
+import DisplaySettingsPanel from '../components/admin/DisplaySettingsPanel.vue';
 
 const { on } = useSocket();
 const {
@@ -48,7 +50,7 @@ const premiumWordsStatus = computed(() => {
 });
 
 const editingDonation = ref<Donation | null>(null);
-const activeTab = ref<'donations' | 'config'>('donations');
+const activeTab = ref<'donations' | 'gifs' | 'display' | 'config'>('donations');
 
 // Load initial data
 onMounted(async () => {
@@ -214,6 +216,28 @@ function handleCancel(): void {
           Gestion des dons
         </button>
         <button
+          :class="['tab', { active: activeTab === 'gifs' }]"
+          @click="activeTab = 'gifs'"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="m21 15-5-5L5 21"/>
+          </svg>
+          GIFs Animation
+        </button>
+        <button
+          :class="['tab', { active: activeTab === 'display' }]"
+          @click="activeTab = 'display'"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
+          </svg>
+          Affichage
+        </button>
+        <button
           :class="['tab', { active: activeTab === 'config' }]"
           @click="activeTab = 'config'"
         >
@@ -240,6 +264,14 @@ function handleCancel(): void {
         <section class="list-section">
           <DonationList @edit="handleEdit" />
         </section>
+      </div>
+
+      <div v-else-if="activeTab === 'gifs'" class="gifs-layout animate-fade-in">
+        <GifManager />
+      </div>
+
+      <div v-else-if="activeTab === 'display'" class="display-layout animate-fade-in">
+        <DisplaySettingsPanel />
       </div>
 
       <div v-else class="config-layout animate-fade-in">
@@ -647,6 +679,14 @@ h1 {
 }
 
 .config-layout {
+  max-width: 700px;
+}
+
+.gifs-layout {
+  max-width: 900px;
+}
+
+.display-layout {
   max-width: 700px;
 }
 

@@ -7,7 +7,7 @@ const props = defineProps<{
   isNew?: boolean;
 }>();
 
-const { formatAmount } = useDonations();
+const { config, formatAmount } = useDonations();
 
 // Seuils en centimes (shekels * 100)
 const THRESHOLDS = {
@@ -25,6 +25,17 @@ const plaqueColor = computed(() => {
   return 'bronze';
 });
 
+// Dynamic plate styles from config
+const plateStyles = computed(() => {
+  const settings = config.value.displaySettings;
+  return {
+    '--plate-gold': settings.plateColorGold,
+    '--plate-diamond': settings.plateColorDiamond,
+    '--plate-bronze': settings.plateColorBronze,
+    '--plate-text': settings.plateTextColor
+  };
+});
+
 // Nom complet du donateur
 const fullName = computed(() => {
   return `${props.donation.firstName} ${props.donation.lastName}`.toUpperCase();
@@ -35,6 +46,7 @@ const fullName = computed(() => {
   <div
     class="plaque"
     :class="[plaqueColor, { 'is-new': isNew }]"
+    :style="plateStyles"
   >
     <div class="plaque-inner">
       <div class="nom">{{ fullName }}</div>
@@ -96,12 +108,12 @@ const fullName = computed(() => {
 /* 72,000+ ₪ - Fond or vif */
 /* ===================== */
 .plaque.gold {
-  background: #FFD700;
+  background: var(--plate-gold, #FFD700);
 }
 
 .plaque.gold .nom,
 .plaque.gold .montant {
-  color: #1a1400;
+  color: var(--plate-text, #1a1400);
 }
 
 /* ===================== */
@@ -109,12 +121,12 @@ const fullName = computed(() => {
 /* 36,000+ ₪ - Fond argent brillant */
 /* ===================== */
 .plaque.diamond {
-  background: #E8E8E8;
+  background: var(--plate-diamond, #E8E8E8);
 }
 
 .plaque.diamond .nom,
 .plaque.diamond .montant {
-  color: #1a1a1a;
+  color: var(--plate-text, #1a1a1a);
 }
 
 /* ===================== */
@@ -122,12 +134,12 @@ const fullName = computed(() => {
 /* < 36,000 ₪ - Fond bronze vif */
 /* ===================== */
 .plaque.bronze {
-  background: #CD7F32;
+  background: var(--plate-bronze, #CD7F32);
 }
 
 .plaque.bronze .nom,
 .plaque.bronze .montant {
-  color: #1a0d00;
+  color: var(--plate-text, #1a0d00);
 }
 
 /* ===================== */

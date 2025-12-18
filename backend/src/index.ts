@@ -7,6 +7,7 @@ import { socketService } from './services/socket.service';
 import donationsRouter from './routes/donations';
 import statsRouter from './routes/stats';
 import configRouter from './routes/config';
+import gifsRouter from './routes/gifs';
 
 // Create Express app
 const app = express();
@@ -31,6 +32,7 @@ app.use(express.static(publicPath));
 app.use('/api/donations', donationsRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/config', configRouter);
+app.use('/api/gifs', gifsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

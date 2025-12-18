@@ -63,6 +63,14 @@ class SocketService {
       stats
     });
   }
+
+  // Emit GIF trigger event to all display pages
+  emitGifTrigger(gifUrl: string): void {
+    this.io?.emit('gif:trigger', {
+      type: 'gif:trigger',
+      gifUrl
+    });
+  }
 }
 
 export const socketService = new SocketService();

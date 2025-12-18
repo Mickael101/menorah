@@ -4,6 +4,16 @@ import { useDonations } from '../../composables/useDonations';
 
 const { stats, config, formatAmount } = useDonations();
 
+// Dynamic styles from config
+const statsStyles = computed(() => {
+  const settings = config.value.displaySettings;
+  return {
+    '--stats-text-color': settings.statsTextColor,
+    '--chart-primary-color': settings.chartPrimaryColor,
+    '--chart-secondary-color': settings.chartSecondaryColor
+  };
+});
+
 const displayValue = ref(0);
 const displayPercent = ref(0);
 let animationFrame: number | null = null;
@@ -48,7 +58,7 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
 </script>
 
 <template>
-  <div class="stats-compact">
+  <div class="stats-compact" :style="statsStyles">
     <!-- Main amount -->
     <div class="main-row">
       <div class="amount-block">
@@ -77,7 +87,7 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
 <style scoped>
 .stats-compact {
   background: rgba(10, 10, 26, 0.6);
-  border: 1px solid rgba(212, 175, 55, 0.2);
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #D4AF37) 20%, transparent);
   border-radius: 12px;
   padding: 12px 16px;
 }
@@ -98,14 +108,14 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
 .currency {
   font-size: 18px;
   font-weight: 600;
-  color: rgba(212, 175, 55, 0.6);
+  color: color-mix(in srgb, var(--chart-primary-color, #D4AF37) 60%, transparent);
 }
 
 .amount {
   font-size: 32px;
   font-weight: 800;
-  color: #D4AF37;
-  text-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+  color: var(--chart-primary-color, #D4AF37);
+  text-shadow: 0 0 15px color-mix(in srgb, var(--chart-primary-color, #D4AF37) 40%, transparent);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -117,7 +127,7 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
 .percent {
   font-size: 20px;
   font-weight: 700;
-  color: #D4AF37;
+  color: var(--chart-primary-color, #D4AF37);
 }
 
 .progress-bar {
@@ -130,7 +140,7 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #a67c00, #D4AF37, #ffd700);
+  background: linear-gradient(90deg, var(--chart-secondary-color, #a67c00), var(--chart-primary-color, #D4AF37), var(--chart-primary-color, #ffd700));
   border-radius: 3px;
   transition: width 0.5s ease;
 }
@@ -141,14 +151,14 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
   justify-content: center;
   gap: 8px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: color-mix(in srgb, var(--stats-text-color, #FFFFFF) 50%, transparent);
 }
 
 .separator {
-  color: rgba(212, 175, 55, 0.3);
+  color: color-mix(in srgb, var(--chart-primary-color, #D4AF37) 30%, transparent);
 }
 
 .info-item.goal {
-  color: rgba(212, 175, 55, 0.7);
+  color: color-mix(in srgb, var(--chart-primary-color, #D4AF37) 70%, transparent);
 }
 </style>

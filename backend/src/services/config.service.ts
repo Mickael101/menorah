@@ -1,5 +1,5 @@
 import { getDb, saveDatabase } from '../db/init';
-import { Config } from '../models/types';
+import { Config, DEFAULT_DISPLAY_SETTINGS } from '../models/types';
 import { ConfigRow, rowToConfig } from '../models/config';
 
 class ConfigService {
@@ -16,6 +16,7 @@ class ConfigService {
         goal_amount: values[columns.indexOf('goal_amount')] as number,
         preset_amounts: values[columns.indexOf('preset_amounts')] as string,
         menorah_segments: values[columns.indexOf('menorah_segments')] as string,
+        display_settings: (values[columns.indexOf('display_settings')] as string) || '{}',
         updated_at: values[columns.indexOf('updated_at')] as string
       };
       return rowToConfig(row);
@@ -25,7 +26,8 @@ class ConfigService {
     return {
       goalAmount: 10000000,
       presetAmounts: [1800, 3600, 18000, 36000, 100000],
-      menorahSegments: []
+      menorahSegments: [],
+      displaySettings: { ...DEFAULT_DISPLAY_SETTINGS }
     };
   }
 
@@ -47,6 +49,11 @@ class ConfigService {
     if (data.menorahSegments !== undefined) {
       updates.push('menorah_segments = ?');
       values.push(JSON.stringify(data.menorahSegments));
+    }
+
+    if (data.displaySettings !== undefined) {
+      updates.push('display_settings = ?');
+      values.push(JSON.stringify(data.displaySettings));
     }
 
     if (updates.length === 0) {
