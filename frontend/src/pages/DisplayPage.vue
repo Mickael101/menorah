@@ -161,7 +161,6 @@ function toggleFullscreen(): void {
     <!-- GIF Explosion Effect (Admin triggered) -->
     <Transition name="gif-explosion">
       <div v-if="showGifExplosion" class="gif-explosion-container">
-        <div class="gif-explosion-overlay"></div>
         <div class="gif-explosion-content">
           <img :src="currentGif" alt="Celebration" class="explosion-gif" />
         </div>
@@ -757,19 +756,6 @@ function toggleFullscreen(): void {
   align-items: center;
   justify-content: center;
   pointer-events: none;
-}
-
-.gif-explosion-overlay {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.2) 0%, rgba(0, 0, 0, 0.3) 70%);
-  animation: gif-overlay-pulse 0.5s ease-out forwards;
-}
-
-@keyframes gif-overlay-pulse {
-  0% { opacity: 0; transform: scale(0.5); }
-  50% { opacity: 0.8; }
-  100% { opacity: 0.5; }
 }
 
 .gif-explosion-content {
