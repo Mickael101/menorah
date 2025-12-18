@@ -11,18 +11,18 @@ const { formatAmount } = useDonations();
 
 // Seuils en centimes (shekels * 100)
 const THRESHOLDS = {
-  XL: 7200000,  // 72,000 ₪
-  L: 3600000,   // 36,000 ₪
-  M: 2600000,   // 26,000 ₪
+  GOLD: 7200000,     // 72,000 ₪ - Or
+  DIAMOND: 3600000,  // 36,000 ₪ - Diamant
+  BRONZE: 2600000,   // 26,000 ₪ - Bronze
 };
 
-// Déterminer la taille de la plaque selon le montant
-const plaqueSize = computed(() => {
+// Déterminer la couleur de la plaque selon le montant (3 niveaux)
+const plaqueColor = computed(() => {
   const amount = props.donation.amount;
-  if (amount >= THRESHOLDS.XL) return 'xl';
-  if (amount >= THRESHOLDS.L) return 'l';
-  if (amount >= THRESHOLDS.M) return 'm';
-  return 's';
+  if (amount >= THRESHOLDS.GOLD) return 'gold';
+  if (amount >= THRESHOLDS.DIAMOND) return 'diamond';
+  if (amount >= THRESHOLDS.BRONZE) return 'bronze';
+  return 'bronze'; // Default to bronze for smaller donations
 });
 
 // Nom complet du donateur
@@ -34,7 +34,7 @@ const fullName = computed(() => {
 <template>
   <div
     class="plaque"
-    :class="[plaqueSize, { 'is-new': isNew }]"
+    :class="[plaqueColor, { 'is-new': isNew }]"
   >
     <div class="plaque-inner">
       <div class="nom">{{ fullName }}</div>
@@ -46,18 +46,16 @@ const fullName = computed(() => {
 </template>
 
 <style scoped>
-/* Base plaque styles - Style doré fidèle à l'inspiration */
+/* ===================== */
+/* Base plaque - Taille unique */
+/* ===================== */
 .plaque {
   position: relative;
-  background: linear-gradient(145deg,
-    #d4af37 0%,
-    #f5d67b 15%,
-    #c9a227 30%,
-    #f5d67b 45%,
-    #d4af37 60%,
-    #b8960c 75%,
-    #d4af37 90%,
-    #f5d67b 100%);
+  width: 100%;
+  max-width: 320px;
+  height: 70px;
+  border-radius: 6px;
+  padding: 12px 20px;
   box-shadow:
     0 4px 8px rgba(0, 0, 0, 0.4),
     0 8px 16px rgba(0, 0, 0, 0.3),
@@ -71,174 +69,161 @@ const fullName = computed(() => {
 }
 
 .plaque:hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   box-shadow:
     0 8px 16px rgba(0, 0, 0, 0.4),
     0 16px 32px rgba(0, 0, 0, 0.3),
     inset 0 2px 4px rgba(255, 255, 255, 0.5),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
-    0 0 40px rgba(212, 175, 55, 0.25);
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Bordure intérieure */
 .plaque::before {
   content: '';
   position: absolute;
-  top: 8px;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  border: 2px solid rgba(139, 109, 26, 0.5);
-  pointer-events: none;
-}
-
-.plaque-inner {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  padding: 10px;
-}
-
-.nom {
-  font-family: 'Cinzel', serif;
-  font-weight: 600;
-  color: #3d2e06;
-  letter-spacing: 2px;
-  text-shadow:
-    1px 1px 0 rgba(255, 255, 255, 0.3),
-    -1px -1px 0 rgba(0, 0, 0, 0.1);
-  margin-bottom: 4px;
-  line-height: 1.2;
-}
-
-.montant {
-  font-family: 'Cormorant Garamond', Georgia, serif;
-  font-style: italic;
-  color: #4a3b10;
-  line-height: 1.4;
-}
-
-/* ===================== */
-/* TAILLE XL - Niveau 3  */
-/* 72,000+ ₪            */
-/* ===================== */
-.plaque.xl {
-  width: 100%;
-  max-width: 500px;
-  height: 120px;
-  border-radius: 8px;
-  padding: 18px 30px;
-}
-
-.plaque.xl::before {
-  top: 12px;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  border-width: 3px;
-  border-radius: 5px;
-}
-
-.plaque.xl .nom {
-  font-size: 2.2rem;
-  letter-spacing: 4px;
-  margin-bottom: 8px;
-}
-
-.plaque.xl .montant {
-  font-size: 1.4rem;
-}
-
-/* ===================== */
-/* TAILLE L - Niveau 2   */
-/* 36,000+ ₪            */
-/* ===================== */
-.plaque.l {
-  width: 100%;
-  max-width: 400px;
-  height: 100px;
-  border-radius: 6px;
-  padding: 14px 24px;
-}
-
-.plaque.l::before {
-  top: 10px;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  border-radius: 4px;
-}
-
-.plaque.l .nom {
-  font-size: 1.8rem;
-  letter-spacing: 3px;
-  margin-bottom: 6px;
-}
-
-.plaque.l .montant {
-  font-size: 1.2rem;
-}
-
-/* ===================== */
-/* TAILLE M - Niveau 1   */
-/* 26,000+ ₪            */
-/* ===================== */
-.plaque.m {
-  width: 100%;
-  max-width: 320px;
-  height: 85px;
-  border-radius: 5px;
-  padding: 12px 20px;
-}
-
-.plaque.m::before {
-  top: 8px;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
-  border-width: 2px;
-  border-radius: 3px;
-}
-
-.plaque.m .nom {
-  font-size: 1.5rem;
-  letter-spacing: 2px;
-  margin-bottom: 5px;
-}
-
-.plaque.m .montant {
-  font-size: 1.1rem;
-}
-
-/* ===================== */
-/* TAILLE S - Niveau 0   */
-/* < 26,000 ₪           */
-/* ===================== */
-.plaque.s {
-  width: 100%;
-  max-width: 260px;
-  height: 70px;
-  border-radius: 4px;
-  padding: 10px 16px;
-}
-
-.plaque.s::before {
   top: 6px;
   left: 6px;
   right: 6px;
   bottom: 6px;
-  border-width: 1.5px;
-  border-radius: 2px;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  pointer-events: none;
 }
 
-.plaque.s .nom {
-  font-size: 1.2rem;
+/* Layout horizontal: nom à gauche, montant à droite */
+.plaque-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.nom {
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 1.3rem;
   letter-spacing: 1.5px;
-  margin-bottom: 4px;
+  text-shadow:
+    1px 1px 0 rgba(255, 255, 255, 0.3),
+    -1px -1px 0 rgba(0, 0, 0, 0.1);
+  line-height: 1.2;
+  flex: 1;
+  text-align: left;
 }
 
-.plaque.s .montant {
-  font-size: 1rem;
+.montant {
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  font-size: 1.2rem;
+  line-height: 1.4;
+  text-align: right;
+  margin-left: 15px;
+  white-space: nowrap;
+}
+
+/* ===================== */
+/* COULEUR OR - Niveau 3 */
+/* 72,000+ ₪             */
+/* ===================== */
+.plaque.gold {
+  background: linear-gradient(145deg,
+    #d4af37 0%,
+    #f5d67b 15%,
+    #c9a227 30%,
+    #f5d67b 45%,
+    #d4af37 60%,
+    #b8960c 75%,
+    #d4af37 90%,
+    #f5d67b 100%);
+}
+
+.plaque.gold::before {
+  border-color: rgba(139, 109, 26, 0.5);
+}
+
+.plaque.gold .nom,
+.plaque.gold .montant {
+  color: #3d2e06;
+}
+
+.plaque.gold:hover {
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.4),
+    0 16px 32px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+    0 0 40px rgba(212, 175, 55, 0.3);
+}
+
+/* ===================== */
+/* COULEUR DIAMANT - Niveau 2 */
+/* 36,000+ ₪             */
+/* ===================== */
+.plaque.diamond {
+  background: linear-gradient(145deg,
+    #e8e8e8 0%,
+    #ffffff 15%,
+    #d0d0d0 30%,
+    #ffffff 45%,
+    #e8e8e8 60%,
+    #c0c0c0 75%,
+    #e8e8e8 90%,
+    #ffffff 100%);
+}
+
+.plaque.diamond::before {
+  border-color: rgba(150, 150, 150, 0.5);
+}
+
+.plaque.diamond .nom,
+.plaque.diamond .montant {
+  color: #2a2a2a;
+}
+
+.plaque.diamond:hover {
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.4),
+    0 16px 32px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+    0 0 40px rgba(200, 200, 255, 0.4);
+}
+
+/* ===================== */
+/* COULEUR BRONZE - Niveau 1 */
+/* < 36,000 ₪            */
+/* ===================== */
+.plaque.bronze {
+  background: linear-gradient(145deg,
+    #cd7f32 0%,
+    #e6a855 15%,
+    #b87333 30%,
+    #e6a855 45%,
+    #cd7f32 60%,
+    #8b5a2b 75%,
+    #cd7f32 90%,
+    #e6a855 100%);
+}
+
+.plaque.bronze::before {
+  border-color: rgba(100, 60, 30, 0.5);
+}
+
+.plaque.bronze .nom,
+.plaque.bronze .montant {
+  color: #3d2810;
+}
+
+.plaque.bronze:hover {
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.4),
+    0 16px 32px rgba(0, 0, 0, 0.3),
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+    0 0 40px rgba(205, 127, 50, 0.3);
 }
 
 /* ===================== */
@@ -257,7 +242,7 @@ const fullName = computed(() => {
   background: linear-gradient(
     45deg,
     transparent 30%,
-    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.5) 50%,
     transparent 70%
   );
   animation: shine 1.5s ease-out;
@@ -289,75 +274,33 @@ const fullName = computed(() => {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .plaque.xl {
+  .plaque {
     max-width: 100%;
-    height: 110px;
+    height: 60px;
   }
 
-  .plaque.xl .nom {
-    font-size: 1.8rem;
-  }
-
-  .plaque.l {
-    max-width: 100%;
-    height: 95px;
-  }
-
-  .plaque.l .nom {
-    font-size: 1.5rem;
-  }
-
-  .plaque.m {
-    max-width: 100%;
-    height: 80px;
-  }
-
-  .plaque.m .nom {
-    font-size: 1.3rem;
-  }
-
-  .plaque.s {
-    max-width: 100%;
-    height: 65px;
-  }
-
-  .plaque.s .nom {
+  .nom {
     font-size: 1.1rem;
+  }
+
+  .montant {
+    font-size: 1rem;
   }
 }
 
-/* Large screens - even bigger fonts */
+/* Large screens */
 @media (min-width: 1920px) {
-  .plaque.xl .nom {
-    font-size: 2.8rem;
+  .plaque {
+    max-width: 380px;
+    height: 80px;
   }
 
-  .plaque.xl .montant {
-    font-size: 1.8rem;
-  }
-
-  .plaque.l .nom {
-    font-size: 2.2rem;
-  }
-
-  .plaque.l .montant {
+  .nom {
     font-size: 1.5rem;
   }
 
-  .plaque.m .nom {
-    font-size: 1.8rem;
-  }
-
-  .plaque.m .montant {
-    font-size: 1.3rem;
-  }
-
-  .plaque.s .nom {
-    font-size: 1.5rem;
-  }
-
-  .plaque.s .montant {
-    font-size: 1.2rem;
+  .montant {
+    font-size: 1.4rem;
   }
 }
 </style>

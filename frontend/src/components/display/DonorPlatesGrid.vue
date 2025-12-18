@@ -15,25 +15,10 @@ const scrollDirection = ref<'down' | 'up'>('down');
 let scrollInterval: number | null = null;
 let pauseTimeout: number | null = null;
 
-// Seuils en centimes (shekels * 100)
-const THRESHOLDS = {
-  XL: 7200000,  // 72,000 ₪
-  L: 3600000,   // 36,000 ₪
-  M: 2600000,   // 26,000 ₪
-};
-
 // Sorted donations by amount (descending)
 const sortedDonations = computed(() => {
   return [...donations.value].sort((a, b) => b.amount - a.amount);
 });
-
-// Get CSS class for plate size based on amount
-function getPlateSize(amount: number): string {
-  if (amount >= THRESHOLDS.XL) return 'plate-xl';
-  if (amount >= THRESHOLDS.L) return 'plate-l';
-  if (amount >= THRESHOLDS.M) return 'plate-m';
-  return 'plate-s';
-}
 
 // Auto-scroll function
 function autoScroll(): void {
@@ -137,14 +122,13 @@ function isNewDonation(id: number): boolean {
   <div class="donor-wall-wrapper">
     <div ref="gridRef" class="donor-wall">
       <!-- Bento Grid - All donations in interlocking horizontal layout -->
-      <div v-if="sortedDonations.length > 0" class="bento-grid">
+      <div v-if="sortedDonations.length > 0" class="plates-grid">
         <TransitionGroup name="plate">
           <DonorPlate
             v-for="donation in sortedDonations"
             :key="donation.id"
             :donation="donation"
             :is-new="isNewDonation(donation.id)"
-            :class="getPlateSize(donation.amount)"
           />
         </TransitionGroup>
       </div>
@@ -186,35 +170,19 @@ function isNewDonation(id: number): boolean {
   display: none;
 }
 
-/* Bento Grid - Interlocking horizontal layout */
-.bento-grid {
+/* Grille uniforme pour toutes les plaques */
+.plates-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 8px;
   justify-content: center;
   align-items: flex-start;
   align-content: flex-start;
 }
 
-/* Plate sizes for bento effect */
-.bento-grid :deep(.plate-xl) {
-  flex: 0 0 calc(100% - 6px);
-  max-width: calc(100% - 6px);
-}
-
-.bento-grid :deep(.plate-l) {
-  flex: 0 0 calc(50% - 6px);
-  max-width: calc(50% - 6px);
-}
-
-.bento-grid :deep(.plate-m) {
-  flex: 0 0 calc(33.333% - 6px);
-  max-width: calc(33.333% - 6px);
-}
-
-.bento-grid :deep(.plate-s) {
-  flex: 0 0 calc(25% - 6px);
-  max-width: calc(25% - 6px);
+.plates-grid :deep(.plaque) {
+  flex: 0 0 calc(33.333% - 8px);
+  max-width: calc(33.333% - 8px);
 }
 
 
@@ -277,30 +245,14 @@ function isNewDonation(id: number): boolean {
 
 /* Responsive */
 @media (max-width: 800px) {
-  .bento-grid :deep(.plate-xl) {
-    flex: 0 0 100%;
-    max-width: 100%;
-  }
-
-  .bento-grid :deep(.plate-l) {
-    flex: 0 0 100%;
-    max-width: 100%;
-  }
-
-  .bento-grid :deep(.plate-m) {
-    flex: 0 0 calc(50% - 6px);
-    max-width: calc(50% - 6px);
-  }
-
-  .bento-grid :deep(.plate-s) {
-    flex: 0 0 calc(50% - 6px);
-    max-width: calc(50% - 6px);
+  .plates-grid :deep(.plaque) {
+    flex: 0 0 calc(50% - 8px);
+    max-width: calc(50% - 8px);
   }
 }
 
 @media (max-width: 500px) {
-  .bento-grid :deep(.plate-m),
-  .bento-grid :deep(.plate-s) {
+  .plates-grid :deep(.plaque) {
     flex: 0 0 100%;
     max-width: 100%;
   }

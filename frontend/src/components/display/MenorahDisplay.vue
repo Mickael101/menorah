@@ -134,6 +134,10 @@ function updateMenorahLighting(): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
+  // Stop all existing breathing animations
+  breathingAnimations.value.forEach(anim => anim.kill());
+  breathingAnimations.value = [];
+
   const groups = Array.from(svg.querySelectorAll(':scope > g[mask]')) as SVGGElement[];
 
   const regularGroups = groups.filter(g => {
@@ -156,19 +160,48 @@ function updateMenorahLighting(): void {
     const paths = group.querySelectorAll('path');
     const shouldLight = index < groupsToLight;
 
-    // Extremely vivid bright yellow
-    paths.forEach(path => {
-      gsap.to(path, {
-        fill: shouldLight ? '#FFFF00' : '#A79085',
-        duration: 0.8,
-        ease: 'power2.out'
+    if (shouldLight) {
+      // Vivid gold color
+      paths.forEach(path => {
+        gsap.to(path, {
+          fill: '#FFD700',
+          duration: 0.5,
+          ease: 'power2.out'
+        });
       });
-    });
-  });
 
-  // Stop all existing breathing animations
-  breathingAnimations.value.forEach(anim => anim.kill());
-  breathingAnimations.value = [];
+      // Breathing effect for all lit segments
+      const breathingTl = gsap.timeline({ repeat: -1 });
+      const randomOffset = Math.random() * 0.4;
+      breathingTl
+        .to(paths, {
+          fill: '#FFDF00',
+          duration: 1.2 + randomOffset,
+          ease: 'sine.inOut'
+        })
+        .to(paths, {
+          fill: '#FFD700',
+          duration: 1.0 + randomOffset,
+          ease: 'sine.inOut'
+        })
+        .to(paths, {
+          fill: '#FFC800',
+          duration: 1.1 + randomOffset,
+          ease: 'sine.inOut'
+        });
+
+      breathingAnimations.value.push(breathingTl);
+    } else {
+      // Unlit - gray
+      paths.forEach(path => {
+        gsap.to(path, {
+          fill: '#A79085',
+          duration: 0.8,
+          ease: 'power2.out'
+        });
+      });
+    }
+  });
 
   groups.forEach(group => {
     const maskAttr = group.getAttribute('mask');
