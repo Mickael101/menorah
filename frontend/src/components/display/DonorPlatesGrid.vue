@@ -19,21 +19,21 @@ const sortedDonations = computed(() => {
   return [...donations.value].sort((a, b) => b.amount - a.amount);
 });
 
-// Auto scroll - scroll down then reset to top
+// Infinite scroll - seamless continuous loop
 function infiniteScroll(): void {
   if (!gridRef.value || isPaused.value) return;
 
   const el = gridRef.value;
-  const maxScroll = el.scrollHeight - el.clientHeight;
+  const contentHeight = el.scrollHeight / 2; // Half because content is duplicated
 
-  if (maxScroll <= 0) return; // Nothing to scroll
+  if (contentHeight <= el.clientHeight) return; // Nothing to scroll
 
-  const scrollSpeed = 0.8; // pixels per frame
+  const scrollSpeed = 0.5; // pixels per frame (slower for smoother effect)
 
   scrollPosition.value += scrollSpeed;
 
-  // When we've reached the end, pause and reset to top
-  if (scrollPosition.value >= maxScroll) {
+  // Seamless reset: when scrolled past first set, jump back invisibly
+  if (scrollPosition.value >= contentHeight) {
     scrollPosition.value = 0;
   }
 
@@ -98,13 +98,21 @@ function isNewDonation(id: number): boolean {
 <template>
   <div class="donor-wall-wrapper">
     <div ref="gridRef" class="donor-wall">
-      <!-- Donations grid -->
+      <!-- Infinite scroll grid - duplicated for seamless loop -->
       <div v-if="sortedDonations.length > 0" class="plates-grid">
+        <!-- First set -->
         <DonorPlate
           v-for="donation in sortedDonations"
-          :key="donation.id"
+          :key="`a-${donation.id}`"
           :donation="donation"
           :is-new="isNewDonation(donation.id)"
+        />
+        <!-- Duplicate for seamless infinite scroll -->
+        <DonorPlate
+          v-for="donation in sortedDonations"
+          :key="`b-${donation.id}`"
+          :donation="donation"
+          :is-new="false"
         />
       </div>
 

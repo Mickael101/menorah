@@ -16,6 +16,7 @@ const { config, premiumWords, premiumTiers, createDonation, updateDonation, fetc
 const firstName = ref(props.donation?.firstName || '');
 const lastName = ref(props.donation?.lastName || '');
 const email = ref(props.donation?.email || '');
+const phone = ref(props.donation?.phone || '');
 const amount = ref(props.donation?.amount || 0);
 const reference = ref(props.donation?.reference || '');
 const selectedWordId = ref<string | null>(props.donation?.premiumWordId || null);
@@ -63,6 +64,7 @@ watch(() => props.donation, (newDonation) => {
     firstName.value = newDonation.firstName;
     lastName.value = newDonation.lastName;
     email.value = newDonation.email || '';
+    phone.value = newDonation.phone || '';
     amount.value = newDonation.amount;
     reference.value = newDonation.reference || '';
     selectedWordId.value = newDonation.premiumWordId || null;
@@ -106,6 +108,7 @@ async function submit(): Promise<void> {
     firstName: firstName.value.trim(),
     lastName: lastName.value.trim(),
     email: email.value.trim() || undefined,
+    phone: phone.value.trim() || undefined,
     amount: amount.value,
     reference: reference.value.trim() || undefined,
     premiumWordId: selectedWordId.value || undefined
@@ -132,6 +135,7 @@ async function submit(): Promise<void> {
     firstName.value = '';
     lastName.value = '';
     email.value = '';
+    phone.value = '';
     amount.value = 0;
     reference.value = '';
     selectedWordId.value = null;
@@ -212,6 +216,23 @@ function cancel(): void {
           v-model="email"
           type="email"
           placeholder="exemple@email.com"
+          class="input"
+        />
+      </div>
+
+      <!-- Phone Field -->
+      <div class="form-group">
+        <label for="phone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+          Téléphone <span class="optional">(optionnel)</span>
+        </label>
+        <input
+          id="phone"
+          v-model="phone"
+          type="tel"
+          placeholder="05X XXX XXXX"
           class="input"
         />
       </div>

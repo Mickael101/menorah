@@ -4,6 +4,7 @@ export interface Donation {
   firstName: string;
   lastName: string;
   email: string | null;
+  phone: string | null;
   amount: number; // in cents (18000 = 180€)
   reference: string | null;
   premiumWordId: string | null; // ID of the premium word (e.g., "L1_W1" for Level 1 Word 1)
@@ -16,6 +17,7 @@ export interface CreateDonationRequest {
   firstName: string;
   lastName: string;
   email?: string;
+  phone?: string;
   amount: number;
   reference?: string;
   premiumWordId?: string;
@@ -26,6 +28,7 @@ export interface UpdateDonationRequest {
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
   amount?: number;
   reference?: string;
   premiumWordId?: string;

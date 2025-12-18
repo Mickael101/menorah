@@ -6,6 +6,7 @@ export interface DonationRow {
   first_name: string;
   last_name: string;
   email: string | null;
+  phone: string | null;
   amount: number;
   reference: string | null;
   premium_word_id: string | null;
@@ -20,6 +21,7 @@ export function rowToDonation(row: DonationRow): Donation {
     firstName: row.first_name,
     lastName: row.last_name,
     email: row.email,
+    phone: row.phone,
     amount: row.amount,
     reference: row.reference,
     premiumWordId: row.premium_word_id,
@@ -78,10 +80,17 @@ export function validateCreateRequest(data: unknown): CreateDonationRequest {
     email = trimmedEmail.slice(0, 255);
   }
 
+  // Validate phone if provided
+  let phone: string | undefined;
+  if (req.phone && typeof req.phone === 'string' && req.phone.trim()) {
+    phone = req.phone.trim().slice(0, 20);
+  }
+
   return {
     firstName: req.firstName.trim().slice(0, 100),
     lastName: req.lastName.trim().slice(0, 100),
     email,
+    phone,
     amount,
     reference: req.reference ? String(req.reference).trim().slice(0, 100) : undefined,
     premiumWordId: premiumWordId || undefined
@@ -116,6 +125,14 @@ export function validateUpdateRequest(data: unknown, currentAmount?: number): Up
       result.email = trimmedEmail.slice(0, 255);
     } else {
       result.email = undefined;
+    }
+  }
+
+  if (req.phone !== undefined) {
+    if (req.phone && typeof req.phone === 'string' && req.phone.trim()) {
+      result.phone = req.phone.trim().slice(0, 20);
+    } else {
+      result.phone = undefined;
     }
   }
 

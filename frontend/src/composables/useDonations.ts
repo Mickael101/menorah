@@ -6,6 +6,7 @@ export interface Donation {
   firstName: string;
   lastName: string;
   email: string | null;
+  phone: string | null;
   amount: number;
   reference: string | null;
   premiumWordId: string | null;
@@ -141,6 +142,7 @@ export function useDonations() {
     firstName: string;
     lastName: string;
     email?: string;
+    phone?: string;
     amount: number;
     reference?: string;
     premiumWordId?: string;
