@@ -93,6 +93,13 @@ function validateDisplaySettings(settings: unknown): DisplaySettings {
     }
   }
 
+  // Validate donation sound (URL or null)
+  if (s.donationSound !== undefined) {
+    if (s.donationSound === null || typeof s.donationSound === 'string') {
+      result.donationSound = s.donationSound;
+    }
+  }
+
   return result;
 }
 

@@ -72,8 +72,40 @@ const audioUpload = multer({
   }
 });
 
-// Store GIF-audio associations in memory (could be moved to DB)
-const gifAudioMap = new Map<string, string>();
+// GIF-audio associations persistence
+const gifAudioFile = path.join(__dirname, '../../data/gif-audio.json');
+
+// Ensure data directory exists
+const dataDir = path.dirname(gifAudioFile);
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+// Load GIF-audio associations from file
+function loadGifAudioMap(): Map<string, string> {
+  try {
+    if (fs.existsSync(gifAudioFile)) {
+      const data = JSON.parse(fs.readFileSync(gifAudioFile, 'utf-8'));
+      return new Map(Object.entries(data));
+    }
+  } catch (e) {
+    console.error('Error loading GIF-audio associations:', e);
+  }
+  return new Map();
+}
+
+// Save GIF-audio associations to file
+function saveGifAudioMap(): void {
+  try {
+    const data = Object.fromEntries(gifAudioMap);
+    fs.writeFileSync(gifAudioFile, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error('Error saving GIF-audio associations:', e);
+  }
+}
+
+// Load associations on startup
+const gifAudioMap = loadGifAudioMap();
 const uploadDir = gifUploadDir; // Keep for backward compatibility
 
 // GET /api/gifs - List all uploaded GIFs with their associated audio
@@ -157,6 +189,9 @@ router.post('/associate-audio', (req: Request, res: Response) => {
       gifAudioMap.delete(gifFilename);
     }
 
+    // Persist to file
+    saveGifAudioMap();
+
     res.json({ success: true, gifFilename, audioUrl });
   } catch (error) {
     console.error('Error associating audio:', error);
@@ -228,10 +263,15 @@ router.delete('/audio/:filename', (req: Request, res: Response) => {
     fs.unlinkSync(filePath);
 
     // Remove from any GIF associations
+    let associationsChanged = false;
     for (const [gifFile, audioUrl] of gifAudioMap.entries()) {
       if (audioUrl.includes(filename)) {
         gifAudioMap.delete(gifFile);
+        associationsChanged = true;
       }
+    }
+    if (associationsChanged) {
+      saveGifAudioMap();
     }
 
     res.json({ success: true, message: 'Audio file deleted' });
@@ -256,7 +296,10 @@ router.delete('/:filename', (req: Request, res: Response) => {
     }
 
     fs.unlinkSync(filePath);
-    gifAudioMap.delete(filename);
+    if (gifAudioMap.has(filename)) {
+      gifAudioMap.delete(filename);
+      saveGifAudioMap();
+    }
 
     res.json({ success: true, message: 'GIF deleted' });
   } catch (error) {
