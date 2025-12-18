@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
 import { useDonations, type Donation } from '../../composables/useDonations';
 import { useSocket } from '../../composables/useSocket';
 import DonorPlate from './DonorPlate.vue';
@@ -14,33 +14,56 @@ const isPaused = ref(false);
 let animationFrameId: number | null = null;
 let lastTime = 0;
 
-// Sorted donations by amount (descending)
-const sortedDonations = computed(() => {
-  return [...donations.value].sort((a, b) => b.amount - a.amount);
+// Rotation order - IDs in display order (first element shown first)
+const rotationOrder = ref<number[]>([]);
+
+// Initialize rotation order when donations change
+watch(() => donations.value, (newDonations) => {
+  const sortedIds = [...newDonations]
+    .sort((a, b) => b.amount - a.amount)
+    .map(d => d.id);
+
+  // Only reset if we have new donations not in the current order
+  const currentSet = new Set(rotationOrder.value);
+  const hasNewDonations = sortedIds.some(id => !currentSet.has(id));
+
+  if (hasNewDonations || rotationOrder.value.length === 0) {
+    rotationOrder.value = sortedIds;
+  }
+}, { immediate: true });
+
+// Get donations in rotation order
+const displayDonations = computed(() => {
+  const donationMap = new Map(donations.value.map(d => [d.id, d]));
+  return rotationOrder.value
+    .map(id => donationMap.get(id))
+    .filter((d): d is Donation => d !== undefined);
 });
 
-// Infinite scroll - seamless continuous downward loop using requestAnimationFrame
-function infiniteScroll(currentTime: number): void {
-  if (!gridRef.value) {
-    animationFrameId = requestAnimationFrame(infiniteScroll);
-    return;
-  }
+// Rotate: move first element to end
+function rotateFirst(): void {
+  if (rotationOrder.value.length <= 1) return;
+  const first = rotationOrder.value.shift()!;
+  rotationOrder.value.push(first);
+}
 
-  if (isPaused.value) {
+// Infinite scroll with element rotation
+function infiniteScroll(currentTime: number): void {
+  if (!gridRef.value || isPaused.value) {
     lastTime = currentTime;
     animationFrameId = requestAnimationFrame(infiniteScroll);
     return;
   }
 
   const el = gridRef.value;
-  const firstSetHeight = el.scrollHeight / 2;
+  const firstPlate = el.querySelector('.plaque') as HTMLElement;
 
-  if (firstSetHeight <= el.clientHeight) {
+  if (!firstPlate || displayDonations.value.length <= 1) {
     animationFrameId = requestAnimationFrame(infiniteScroll);
     return;
   }
 
-  // Calculate time-based scroll for consistent speed regardless of frame rate
+  // Calculate time-based scroll
   const deltaTime = lastTime ? (currentTime - lastTime) / 1000 : 0;
   lastTime = currentTime;
 
@@ -49,9 +72,11 @@ function infiniteScroll(currentTime: number): void {
 
   el.scrollTop += scrollDelta;
 
-  // Seamless loop: when scrolled past first set, jump back invisibly
-  if (el.scrollTop >= firstSetHeight) {
-    el.scrollTop = el.scrollTop - firstSetHeight;
+  // When first element is fully scrolled out, rotate it to end and reset scroll
+  const firstPlateHeight = firstPlate.offsetHeight + 10; // +10 for gap
+  if (el.scrollTop >= firstPlateHeight) {
+    rotateFirst();
+    el.scrollTop = el.scrollTop - firstPlateHeight;
   }
 
   animationFrameId = requestAnimationFrame(infiniteScroll);
@@ -115,21 +140,13 @@ function isNewDonation(id: number): boolean {
 <template>
   <div class="donor-wall-wrapper">
     <div ref="gridRef" class="donor-wall">
-      <!-- Infinite scroll grid - duplicated for seamless loop -->
-      <div v-if="sortedDonations.length > 0" class="plates-grid">
-        <!-- First set -->
+      <!-- Infinite rotating carousel -->
+      <div v-if="displayDonations.length > 0" class="plates-grid">
         <DonorPlate
-          v-for="donation in sortedDonations"
-          :key="`a-${donation.id}`"
+          v-for="donation in displayDonations"
+          :key="donation.id"
           :donation="donation"
           :is-new="isNewDonation(donation.id)"
-        />
-        <!-- Duplicate for seamless infinite scroll -->
-        <DonorPlate
-          v-for="donation in sortedDonations"
-          :key="`b-${donation.id}`"
-          :donation="donation"
-          :is-new="false"
         />
       </div>
 
