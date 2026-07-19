@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="100%" role="img" aria-label="Data flow: an admin enters a donation, the Express API stores it in SQLite and recomputes stats, Socket.IO broadcasts the event, and every display screen updates at once — the menorah lights up, a donor plate drops in, and the counter climbs.">
+  <title>How a pledge reaches every screen</title>
+  <defs>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBF7EA"/>
+      <stop offset="1" stop-color="#F3ECD6"/>
+    </linearGradient>
+    <linearGradient id="gold2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EBD45C"/>
+      <stop offset="1" stop-color="#C99B2E"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="380" rx="18" fill="url(#card)"/>
+  <text x="48" y="58" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#2A241A">One pledge, every screen — in under a second</text>
+  <text x="48" y="86" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#7A6F52">Socket.IO fans a single admin entry out to every connected display, live.</text>
+
+  <!-- Stage 1: Admin -->
+  <g>
+    <rect x="48" y="130" width="230" height="150" rx="14" fill="#ffffff" stroke="#E0D3A6"/>
+    <rect x="48" y="130" width="230" height="6" rx="3" fill="url(#gold2)"/>
+    <text x="72" y="172" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" letter-spacing="1.5" fill="#B08A2E">/admin</text>
+    <text x="72" y="202" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#2A241A">Admin panel</text>
+    <text x="72" y="230" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#6B6047">Name, amount, optional</text>
+    <text x="72" y="250" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#6B6047">reference &#183; premium tiers</text>
+  </g>
+
+  <!-- Stage 2: API + SQLite -->
+  <g>
+    <rect x="342" y="130" width="230" height="150" rx="14" fill="#ffffff" stroke="#E0D3A6"/>
+    <rect x="342" y="130" width="230" height="6" rx="3" fill="url(#gold2)"/>
+    <text x="366" y="172" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" letter-spacing="1.5" fill="#B08A2E">EXPRESS API</text>
+    <text x="366" y="202" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#2A241A">Store &amp; tally</text>
+    <text x="366" y="230" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#6B6047">Persist to SQLite,</text>
+    <text x="366" y="250" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#6B6047">recompute total &amp; lit segments</text>
+  </g>
+
+  <!-- Stage 3: Socket.IO -->
+  <g>
+    <rect x="636" y="130" width="230" height="150" rx="14" fill="#2A241A"/>
+    <rect x="636" y="130" width="230" height="6" rx="3" fill="url(#gold2)"/>
+    <text x="660" y="172" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" letter-spacing="1.5" fill="#EBD45C">SOCKET.IO</text>
+    <text x="660" y="202" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#FBF7EA">Broadcast</text>
+    <text x="660" y="230" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#C9BE9C">donation:new pushed to</text>
+    <text x="660" y="250" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#C9BE9C">every connected display</text>
+  </g>
+
+  <!-- Stage 4: Displays -->
+  <g>
+    <rect x="930" y="130" width="222" height="150" rx="14" fill="#ffffff" stroke="#E0D3A6"/>
+    <rect x="930" y="130" width="222" height="6" rx="3" fill="url(#gold2)"/>
+    <text x="954" y="172" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" letter-spacing="1.5" fill="#B08A2E">/display</text>
+    <text x="954" y="202" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#2A241A">Screens react</text>
+    <text x="954" y="230" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#6B6047">Menorah glows up &#183; plate</text>
+    <text x="954" y="250" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" fill="#6B6047">drops &#183; counter climbs</text>
+  </g>
+
+  <!-- arrows -->
+  <g fill="url(#gold2)">
+    <path d="M286 205 h44 l0 -8 l18 12 l-18 12 l0 -8 h-44 z"/>
+    <path d="M580 205 h44 l0 -8 l18 12 l-18 12 l0 -8 h-44 z"/>
+    <path d="M874 205 h44 l0 -8 l18 12 l-18 12 l0 -8 h-44 z"/>
+  </g>
+
+  <!-- footnote -->
+  <text x="48" y="340" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" fill="#8A7E5F">GSAP drives the menorah's rising glow and the plate animations &#183; edits and deletes recompute the same way, so the wall stays exact.</text>
+</svg>

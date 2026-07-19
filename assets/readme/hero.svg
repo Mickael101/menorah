@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="100%" role="img" aria-label="menorah — a big-screen live donation display where every pledge lights another branch of a golden menorah, built with Vue 3, Socket.IO and GSAP.">
+  <title>menorah — live fundraising display</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0a12"/>
+      <stop offset="0.55" stop-color="#12101d"/>
+      <stop offset="1" stop-color="#08070d"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7ECBE"/>
+      <stop offset="0.45" stop-color="#EBD45C"/>
+      <stop offset="1" stop-color="#B8871F"/>
+    </linearGradient>
+    <linearGradient id="goldText" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F7ECBE"/>
+      <stop offset="1" stop-color="#D9B84A"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#EBD45C" stop-opacity="0.34"/>
+      <stop offset="0.5" stop-color="#EBD45C" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#EBD45C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EBD45C" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#EBD45C" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#EBD45C" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="flame" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF6D6"/>
+      <stop offset="0.4" stop-color="#FFD75E"/>
+      <stop offset="1" stop-color="#F2A93B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="500" fill="url(#bg)"/>
+
+  <!-- ceremonial light beam + halo behind the menorah -->
+  <rect x="770" y="0" width="220" height="500" fill="url(#beam)"/>
+  <ellipse cx="880" cy="285" rx="290" ry="250" fill="url(#halo)"/>
+
+  <!-- fine hairline frame -->
+  <rect x="16" y="16" width="1168" height="468" rx="16" fill="none" stroke="#EBD45C" stroke-opacity="0.16"/>
+
+  <!-- ===================== MENORAH ===================== -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <!-- soft glow halo strokes -->
+    <g stroke="#EBD45C" stroke-opacity="0.16" stroke-width="26">
+      <path d="M825 340 A55 55 0 0 1 935 340"/>
+      <path d="M770 340 A110 110 0 0 1 990 340"/>
+      <path d="M715 340 A165 165 0 0 1 1045 340"/>
+      <path d="M880 430 V152"/>
+      <path d="M825 340 V166 M935 340 V166 M770 340 V166 M990 340 V166 M715 340 V166 M1045 340 V166"/>
+    </g>
+    <!-- crisp gold structure -->
+    <g stroke="url(#gold)" stroke-width="11">
+      <path d="M825 340 A55 55 0 0 1 935 340"/>
+      <path d="M770 340 A110 110 0 0 1 990 340"/>
+      <path d="M715 340 A165 165 0 0 1 1045 340"/>
+      <path d="M880 430 V152"/>
+      <path d="M825 340 V166 M935 340 V166 M770 340 V166 M990 340 V166 M715 340 V166 M1045 340 V166"/>
+    </g>
+  </g>
+
+  <!-- base foot -->
+  <g fill="url(#gold)">
+    <path d="M842 430 h76 l16 22 h-108 z"/>
+    <rect x="792" y="452" width="176" height="15" rx="7"/>
+  </g>
+
+  <!-- lamp cups -->
+  <g fill="url(#gold)">
+    <rect x="702" y="150" width="26" height="12" rx="6"/>
+    <rect x="757" y="150" width="26" height="12" rx="6"/>
+    <rect x="812" y="150" width="26" height="12" rx="6"/>
+    <rect x="867" y="150" width="26" height="12" rx="6"/>
+    <rect x="922" y="150" width="26" height="12" rx="6"/>
+    <rect x="977" y="150" width="26" height="12" rx="6"/>
+    <rect x="1032" y="150" width="26" height="12" rx="6"/>
+  </g>
+
+  <!-- flames: 4 of 7 lit, illumination rising from the centre outward -->
+  <g>
+    <!-- lit -->
+    <g>
+      <circle cx="880" cy="132" r="26" fill="url(#flame)"/>
+      <circle cx="825" cy="132" r="24" fill="url(#flame)"/>
+      <circle cx="935" cy="132" r="24" fill="url(#flame)"/>
+      <circle cx="770" cy="134" r="20" fill="url(#flame)"/>
+      <path d="M880 122 c7 7 7 18 0 24 c-7 -6 -7 -17 0 -24z" fill="#FFF3C8"/>
+      <path d="M825 124 c6 6 6 16 0 22 c-6 -6 -6 -16 0 -22z" fill="#FFF3C8"/>
+      <path d="M935 124 c6 6 6 16 0 22 c-6 -6 -6 -16 0 -22z" fill="#FFF3C8"/>
+      <path d="M770 128 c5 5 5 14 0 19 c-5 -5 -5 -14 0 -19z" fill="#FFF3C8"/>
+    </g>
+    <!-- unlit (awaiting pledges) -->
+    <g fill="#EBD45C" fill-opacity="0.22">
+      <circle cx="715" cy="140" r="6"/>
+      <circle cx="990" cy="140" r="6"/>
+      <circle cx="1045" cy="140" r="6"/>
+    </g>
+  </g>
+
+  <!-- ===================== WORDMARK / COPY ===================== -->
+  <g font-family="Georgia, 'Times New Roman', serif">
+    <text x="92" y="96" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" letter-spacing="3.5" fill="#EBD45C" fill-opacity="0.85">OHEL&#160;YEOCHOUA &#183; LIVE FUNDRAISING DISPLAY</text>
+    <text x="88" y="196" font-size="116" font-weight="700" fill="url(#goldText)">menorah</text>
+    <text x="92" y="248" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" fill="#EAE6F2">Every pledge lights another branch.</text>
+    <text x="92" y="278" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#A9A4BC">A big-screen donation display that fills in real time,</text>
+    <text x="92" y="301" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" fill="#A9A4BC">broadcasting every gift to every screen the instant it lands.</text>
+  </g>
+
+  <!-- live progress bar -->
+  <g font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+    <rect x="92" y="338" width="470" height="16" rx="8" fill="#ffffff" fill-opacity="0.07"/>
+    <rect x="92" y="338" width="245" height="16" rx="8" fill="url(#gold)"/>
+    <text x="92" y="382" font-size="15" fill="#EAE6F2"><tspan fill="#EBD45C" font-weight="700">&#8362; 260,000</tspan> raised &#183; 52% of goal &#183; 143 donors</text>
+  </g>
+
+  <!-- tech chips -->
+  <g font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="13.5" fill="#CFC9DE">
+    <g>
+      <rect x="92" y="416" width="78" height="30" rx="15" fill="#ffffff" fill-opacity="0.06" stroke="#EBD45C" stroke-opacity="0.28"/>
+      <text x="131" y="435" text-anchor="middle">Vue 3</text>
+    </g>
+    <g>
+      <rect x="178" y="416" width="104" height="30" rx="15" fill="#ffffff" fill-opacity="0.06" stroke="#EBD45C" stroke-opacity="0.28"/>
+      <text x="230" y="435" text-anchor="middle">Socket.IO</text>
+    </g>
+    <g>
+      <rect x="290" y="416" width="72" height="30" rx="15" fill="#ffffff" fill-opacity="0.06" stroke="#EBD45C" stroke-opacity="0.28"/>
+      <text x="326" y="435" text-anchor="middle">GSAP</text>
+    </g>
+    <g>
+      <rect x="370" y="416" width="80" height="30" rx="15" fill="#ffffff" fill-opacity="0.06" stroke="#EBD45C" stroke-opacity="0.28"/>
+      <text x="410" y="435" text-anchor="middle">SQLite</text>
+    </g>
+    <g>
+      <rect x="458" y="416" width="86" height="30" rx="15" fill="#ffffff" fill-opacity="0.06" stroke="#EBD45C" stroke-opacity="0.28"/>
+      <text x="501" y="435" text-anchor="middle">Railway</text>
+    </g>
+  </g>
+</svg>
