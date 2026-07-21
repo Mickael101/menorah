@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useDonations } from '../composables/useDonations';
+import { useDonations, DEFAULT_PLEDGE_TEXTS, type PledgePageCopy } from '../composables/useDonations';
 
 const { config, fetchConfig, createDonation, formatAmount, isLoading, error } = useDonations();
 
@@ -9,9 +9,6 @@ const locale = ref<Locale>('fr');
 
 const MESSAGES: Record<Locale, Record<string, string>> = {
   fr: {
-    kicker: 'CAMPAGNE DE DONS',
-    title: 'Faites briller la Menorah',
-    subtitle: 'Vous étiez absent lors de la soirée ? Enregistrez votre don ici, il rejoindra immédiatement le tableau des donateurs.',
     firstName: 'Prénom',
     firstNamePlaceholder: 'Votre prénom',
     lastName: 'Nom',
@@ -24,16 +21,11 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     customAmount: 'Autre montant (₪)',
     submit: 'Valider mon don',
     submitting: 'Envoi en cours...',
-    thankTitle: 'Merci',
-    thankMessage: 'Votre générosité illumine notre communauté. Votre don a bien été enregistré.',
     newDonation: 'Enregistrer un autre don',
     required: 'Veuillez saisir votre prénom et un montant.',
     raised: 'déjà collectés'
   },
   he: {
-    kicker: 'קמפיין תרומות',
-    title: 'הדליקו את המנורה',
-    subtitle: 'לא הייתם בערב ההתרמה? רשמו כאן את תרומתכם והיא תצטרף מיד ללוח התורמים.',
     firstName: 'שם פרטי',
     firstNamePlaceholder: 'השם הפרטי שלך',
     lastName: 'שם משפחה',
@@ -46,16 +38,11 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     customAmount: 'סכום אחר (₪)',
     submit: 'אישור התרומה',
     submitting: 'שולח...',
-    thankTitle: 'תודה רבה',
-    thankMessage: 'נדיבותכם מאירה את הקהילה שלנו. התרומה נרשמה בהצלחה.',
     newDonation: 'רישום תרומה נוספת',
     required: 'נא למלא שם פרטי וסכום.',
     raised: 'נאספו עד כה'
   },
   en: {
-    kicker: 'DONATION CAMPAIGN',
-    title: 'Light up the Menorah',
-    subtitle: 'Missed the event? Record your donation here and it will instantly join the donor board.',
     firstName: 'First name',
     firstNamePlaceholder: 'Your first name',
     lastName: 'Last name',
@@ -68,8 +55,6 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     customAmount: 'Other amount (₪)',
     submit: 'Confirm my donation',
     submitting: 'Sending...',
-    thankTitle: 'Thank you',
-    thankMessage: 'Your generosity lights up our community. Your donation has been recorded.',
     newDonation: 'Record another donation',
     required: 'Please enter your first name and an amount.',
     raised: 'raised so far'
@@ -105,6 +90,11 @@ const confetti = ref<ConfettiPiece[]>([]);
 
 const organizationName = computed(() =>
   config.value.displaySettings?.texts?.organizationName || 'OHEL YEHOSHUA'
+);
+
+// Editorial copy comes from the admin config (per locale); empty fields hide the element
+const pledgeCopy = computed<PledgePageCopy>(() =>
+  config.value.displaySettings?.pledgeTexts?.[locale.value] ?? DEFAULT_PLEDGE_TEXTS[locale.value]
 );
 
 const presets = computed(() => config.value.presetAmounts || []);
@@ -214,10 +204,10 @@ function reset(): void {
             <path d="M12 2c0 4-5 5.5-5 10a5 5 0 0 0 10 0c0-1.5-.5-2.7-1.2-3.8C15.2 9.8 14 11 14 12.5c0 0-2-1.6-2-4.5 0-2.4 0-4.5 0-6z"/>
           </svg>
         </div>
-        <p class="kicker">{{ t('kicker') }}</p>
+        <p v-if="pledgeCopy.kicker" class="kicker">{{ pledgeCopy.kicker }}</p>
         <h1 class="org-name">{{ organizationName }}</h1>
-        <h2 class="title">{{ t('title') }}</h2>
-        <p class="subtitle">{{ t('subtitle') }}</p>
+        <h2 v-if="pledgeCopy.title" class="title">{{ pledgeCopy.title }}</h2>
+        <p v-if="pledgeCopy.subtitle" class="subtitle">{{ pledgeCopy.subtitle }}</p>
       </header>
 
       <form class="card" @submit.prevent="submit">
@@ -311,9 +301,9 @@ function reset(): void {
             <path d="M12 2c0 4-5 5.5-5 10a5 5 0 0 0 10 0c0-1.5-.5-2.7-1.2-3.8C15.2 9.8 14 11 14 12.5c0 0-2-1.6-2-4.5 0-2.4 0-4.5 0-6z"/>
           </svg>
         </div>
-        <h2 class="thank-title">{{ t('thankTitle') }} {{ celebratedName }} !</h2>
+        <h2 class="thank-title">{{ pledgeCopy.thankTitle }} {{ celebratedName }} !</h2>
         <p class="thank-amount">{{ formatAmount(displayedAmount) }}</p>
-        <p class="thank-message">{{ t('thankMessage') }}</p>
+        <p v-if="pledgeCopy.thankMessage" class="thank-message">{{ pledgeCopy.thankMessage }}</p>
         <button class="submit-btn again-btn" @click="reset">{{ t('newDonation') }}</button>
       </div>
     </div>

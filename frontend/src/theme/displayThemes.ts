@@ -2,6 +2,7 @@ import {
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_DISPLAY_TEXTS,
   DEFAULT_ADMIN_BRANDING,
+  DEFAULT_PLEDGE_TEXTS,
   DEFAULT_THEME_PALETTES,
   DISPLAY_THEME_IDS,
   DISPLAY_VISUAL_MODES,
@@ -126,6 +127,11 @@ export function cloneDisplaySettings(settings?: Partial<DisplaySettings>): Displ
       fr: { ...DEFAULT_ADMIN_BRANDING.fr, ...(source.adminBranding?.fr ?? {}) },
       en: { ...DEFAULT_ADMIN_BRANDING.en, ...(source.adminBranding?.en ?? {}) },
       he: { ...DEFAULT_ADMIN_BRANDING.he, ...(source.adminBranding?.he ?? {}) }
+    },
+    pledgeTexts: {
+      fr: { ...DEFAULT_PLEDGE_TEXTS.fr, ...(source.pledgeTexts?.fr ?? {}) },
+      en: { ...DEFAULT_PLEDGE_TEXTS.en, ...(source.pledgeTexts?.en ?? {}) },
+      he: { ...DEFAULT_PLEDGE_TEXTS.he, ...(source.pledgeTexts?.he ?? {}) }
     },
     themePalettes,
     ...themePalettes[theme]

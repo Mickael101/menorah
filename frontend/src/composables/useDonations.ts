@@ -75,6 +75,42 @@ export const DEFAULT_ADMIN_BRANDING: AdminBrandingSettings = {
   }
 };
 
+// Editable copy of the public /don pledge page, per locale.
+// Empty strings hide the corresponding element on the page.
+export interface PledgePageCopy {
+  kicker: string;
+  title: string;
+  subtitle: string;
+  thankTitle: string;
+  thankMessage: string;
+}
+
+export type PledgeTextsSettings = Record<AdminBrandingLocale, PledgePageCopy>;
+
+export const DEFAULT_PLEDGE_TEXTS: PledgeTextsSettings = {
+  fr: {
+    kicker: 'CAMPAGNE DE DONS',
+    title: '',
+    subtitle: 'Vous étiez absent lors de la soirée ? Enregistrez votre don ici, il rejoindra immédiatement le tableau des donateurs.',
+    thankTitle: 'Merci',
+    thankMessage: 'Votre générosité illumine notre communauté. Votre don a bien été enregistré.'
+  },
+  en: {
+    kicker: 'DONATION CAMPAIGN',
+    title: '',
+    subtitle: 'Missed the event? Record your donation here and it will instantly join the donor board.',
+    thankTitle: 'Thank you',
+    thankMessage: 'Your generosity lights up our community. Your donation has been recorded.'
+  },
+  he: {
+    kicker: 'קמפיין תרומות',
+    title: '',
+    subtitle: 'לא הייתם בערב ההתרמה? רשמו כאן את תרומתכם והיא תצטרף מיד ללוח התורמים.',
+    thankTitle: 'תודה רבה',
+    thankMessage: 'נדיבותכם מאירה את הקהילה שלנו. התרומה נרשמה בהצלחה.'
+  }
+};
+
 export interface DisplayTextSettings {
   eventTitle: string;
   organizationName: string;
@@ -168,6 +204,7 @@ export interface DisplaySettings extends DisplayThemePalette {
   textDirection: DisplayTextDirection;
   texts: DisplayTextSettings;
   adminBranding: AdminBrandingSettings;
+  pledgeTexts: PledgeTextsSettings;
   donationSound: string | null;
 }
 
@@ -181,6 +218,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   textDirection: 'auto',
   texts: structuredClone(DEFAULT_DISPLAY_TEXTS),
   adminBranding: structuredClone(DEFAULT_ADMIN_BRANDING),
+  pledgeTexts: structuredClone(DEFAULT_PLEDGE_TEXTS),
   donationSound: null
 };
 

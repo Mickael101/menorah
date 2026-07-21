@@ -98,6 +98,14 @@ function selectDonationAnimation(animation: DonationAnimationStyle): void {
   settings.value.donationAnimation = animation;
 }
 
+// Locale being edited in the public pledge page section
+const pledgeLocale = ref<'fr' | 'en' | 'he'>('fr');
+const PLEDGE_LOCALE_TABS = [
+  { id: 'fr', label: 'Français' },
+  { id: 'en', label: 'English' },
+  { id: 'he', label: 'עברית' }
+] as const;
+
 async function uploadCustomSvg(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
   if (!input.files?.length) return;
@@ -436,6 +444,61 @@ function playSound(url: string): void {
             <label class="copy-field wide">
               <span>{{ t('display.copy.thankYouMessage') }}</span>
               <textarea v-model="settings.texts.thankYouMessage" maxlength="240" rows="3" dir="auto"></textarea>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Public pledge page (/don) texts -->
+      <section class="settings-section">
+        <div class="section-heading-row">
+          <div>
+            <h3>{{ t('pledge.sectionTitle') }}</h3>
+            <p class="section-description content-description">
+              {{ t('pledge.sectionDescription') }}
+            </p>
+          </div>
+          <a class="pledge-open-link" href="/don" target="_blank" rel="noopener">
+            {{ t('pledge.openPage') }} ↗
+          </a>
+        </div>
+
+        <div class="copy-group">
+          <h4>{{ t('pledge.langLabel') }}</h4>
+          <div class="pledge-locale-tabs" role="tablist">
+            <button
+              v-for="tab in PLEDGE_LOCALE_TABS"
+              :key="tab.id"
+              type="button"
+              class="pledge-locale-tab"
+              :class="{ selected: pledgeLocale === tab.id }"
+              :aria-pressed="pledgeLocale === tab.id"
+              @click="pledgeLocale = tab.id"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <div class="copy-grid" :key="pledgeLocale">
+            <label class="copy-field">
+              <span>{{ t('pledge.kicker') }}</span>
+              <input v-model="settings.pledgeTexts[pledgeLocale].kicker" type="text" maxlength="120" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('pledge.title') }}</span>
+              <input v-model="settings.pledgeTexts[pledgeLocale].title" type="text" maxlength="120" dir="auto" />
+            </label>
+            <label class="copy-field wide">
+              <span>{{ t('pledge.subtitle') }}</span>
+              <textarea v-model="settings.pledgeTexts[pledgeLocale].subtitle" maxlength="300" rows="3" dir="auto"></textarea>
+            </label>
+            <label class="copy-field">
+              <span>{{ t('pledge.thankTitle') }}</span>
+              <input v-model="settings.pledgeTexts[pledgeLocale].thankTitle" type="text" maxlength="120" dir="auto" />
+            </label>
+            <label class="copy-field wide">
+              <span>{{ t('pledge.thankMessage') }}</span>
+              <textarea v-model="settings.pledgeTexts[pledgeLocale].thankMessage" maxlength="300" rows="3" dir="auto"></textarea>
             </label>
           </div>
         </div>
@@ -885,6 +948,50 @@ function playSound(url: string): void {
 
 .copy-grid.three-columns {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.pledge-locale-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pledge-locale-tab {
+  padding: 8px 16px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--gray-600);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.pledge-locale-tab:hover {
+  border-color: var(--primary-300);
+}
+
+.pledge-locale-tab.selected {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.pledge-open-link {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-600);
+  text-decoration: none;
+  padding: 8px 14px;
+  border: 1px solid var(--primary-200);
+  border-radius: var(--radius);
+  transition: var(--transition);
+}
+
+.pledge-open-link:hover {
+  background: var(--primary-50);
 }
 
 .copy-field {

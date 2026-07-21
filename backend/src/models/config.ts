@@ -9,9 +9,12 @@ import {
   DisplayTextDirection,
   DisplayTextSettings,
   AdminBrandingSettings,
+  PledgeTextsSettings,
+  PledgePageCopy,
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_DISPLAY_TEXTS,
   DEFAULT_ADMIN_BRANDING,
+  DEFAULT_PLEDGE_TEXTS,
   DEFAULT_THEME_PALETTES,
   ADMIN_BRANDING_LOCALES,
   DISPLAY_THEME_IDS,
@@ -134,6 +137,23 @@ function normalizeAdminBranding(value: unknown): AdminBrandingSettings {
   return result;
 }
 
+function normalizePledgeTexts(value: unknown): PledgeTextsSettings {
+  const source = isRecord(value) ? value : {};
+  const result = structuredClone(DEFAULT_PLEDGE_TEXTS);
+
+  for (const locale of ADMIN_BRANDING_LOCALES) {
+    const localizedSource = isRecord(source[locale]) ? source[locale] : {};
+    for (const key of Object.keys(result[locale]) as (keyof PledgePageCopy)[]) {
+      const text = localizedSource[key];
+      if (typeof text === 'string') {
+        result[locale][key] = text.slice(0, key === 'subtitle' || key === 'thankMessage' ? 300 : 120);
+      }
+    }
+  }
+
+  return result;
+}
+
 function validateThemePalette(
   palette: unknown,
   defaults: DisplayThemePalette
@@ -199,6 +219,7 @@ export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
     : 'auto';
   const texts = normalizeDisplayTexts(source.texts);
   const adminBranding = normalizeAdminBranding(source.adminBranding);
+  const pledgeTexts = normalizePledgeTexts(source.pledgeTexts);
   const donationSound = source.donationSound === null || typeof source.donationSound === 'string'
     ? source.donationSound
     : null;
@@ -213,6 +234,7 @@ export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
     textDirection,
     texts,
     adminBranding,
+    pledgeTexts,
     donationSound
   };
 }
