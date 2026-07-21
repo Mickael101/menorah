@@ -390,6 +390,10 @@ function playSound(url: string): void {
               <input v-model="settings.texts.organizationName" type="text" maxlength="100" dir="auto" />
             </label>
             <label class="copy-field">
+              <span>{{ t('display.copy.browserTitle') }}</span>
+              <input v-model="settings.texts.browserTitle" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
               <span>{{ t('display.copy.boardKicker') }}</span>
               <input v-model="settings.texts.boardKicker" type="text" maxlength="100" dir="auto" />
             </label>

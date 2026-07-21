@@ -151,6 +151,7 @@ export const DEFAULT_PLEDGE_TEXTS: PledgeTextsSettings = {
 export interface DisplayTextSettings {
   eventTitle: string;
   organizationName: string;
+  browserTitle: string;
   boardKicker: string;
   boardTitle: string;
   liveLabel: string;
@@ -167,6 +168,7 @@ export interface DisplayTextSettings {
 export const DEFAULT_DISPLAY_TEXTS: DisplayTextSettings = {
   eventTitle: 'SOIRÉE DE GÉNÉROSITÉ',
   organizationName: 'OHEL YEHOSHUA',
+  browserTitle: 'OROT NETANEL',
   boardKicker: 'TABLEAU EN DIRECT',
   boardTitle: 'MERCI À NOS DONATEURS',
   liveLabel: 'EN DIRECT',
