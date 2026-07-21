@@ -1,303 +1,607 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import type { Donation } from '../../composables/useDonations';
+import { computed, onUnmounted, ref, watch } from 'vue';
+import type {
+  Donation,
+  DonationAnimationStyle,
+  DisplayTextDirection
+} from '../../composables/useDonations';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   donation: Donation | null;
   show: boolean;
-}>();
+  animationStyle?: DonationAnimationStyle;
+  thankYouTitle?: string;
+  thankYouMessage?: string;
+  textDirection?: DisplayTextDirection;
+}>(), {
+  animationStyle: 'prestige',
+  thankYouTitle: 'Un grand merci',
+  thankYouMessage: 'Votre générosité fait avancer la campagne',
+  textDirection: 'auto'
+});
 
 const emit = defineEmits<{
   (e: 'animationEnd'): void;
 }>();
 
-// Seuils en centimes
 const THRESHOLDS = {
   GOLD: 7200000,
-  DIAMOND: 3600000,
-  BRONZE: 2600000,
+  DIAMOND: 3600000
 };
 
-function getPlateColor(amount: number): string {
+const displayedAmount = ref(0);
+let autoHideTimer: number | null = null;
+let amountDelayTimer: number | null = null;
+let amountAnimationFrame: number | null = null;
+
+const fullName = computed(() => {
+  if (!props.donation) return '';
+  return `${props.donation.firstName} ${props.donation.lastName}`.trim();
+});
+
+const tierClass = computed(() => {
+  const amount = props.donation?.amount ?? 0;
   if (amount >= THRESHOLDS.GOLD) return 'gold';
   if (amount >= THRESHOLDS.DIAMOND) return 'diamond';
   return 'bronze';
-}
+});
 
 function formatAmount(cents: number): string {
-  const shekels = cents / 100;
+  const hasAgorot = Math.abs(cents) % 100 !== 0;
   return new Intl.NumberFormat('he-IL', {
     style: 'currency',
     currency: 'ILS',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(shekels);
+    minimumFractionDigits: hasAgorot ? 2 : 0,
+    maximumFractionDigits: hasAgorot ? 2 : 0
+  }).format(cents / 100);
 }
 
-watch(() => props.show, (newVal) => {
-  if (newVal) {
-    // Auto-hide after 4 seconds
-    setTimeout(() => {
+function clearAnimationTimers(): void {
+  if (autoHideTimer !== null) window.clearTimeout(autoHideTimer);
+  if (amountDelayTimer !== null) window.clearTimeout(amountDelayTimer);
+  if (amountAnimationFrame !== null) window.cancelAnimationFrame(amountAnimationFrame);
+  autoHideTimer = null;
+  amountDelayTimer = null;
+  amountAnimationFrame = null;
+}
+
+function animateAmount(target: number): void {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    displayedAmount.value = target;
+    return;
+  }
+
+  const duration = 950;
+  const startedAt = performance.now();
+
+  const update = (now: number) => {
+    const progress = Math.min((now - startedAt) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 4);
+    displayedAmount.value = Math.round(target * eased);
+    if (progress < 1) amountAnimationFrame = window.requestAnimationFrame(update);
+  };
+
+  amountAnimationFrame = window.requestAnimationFrame(update);
+}
+
+watch(
+  () => [props.show, props.donation?.id] as const,
+  ([show]) => {
+    clearAnimationTimers();
+    if (!show || !props.donation) return;
+
+    displayedAmount.value = 0;
+    amountDelayTimer = window.setTimeout(() => {
+      animateAmount(props.donation?.amount ?? 0);
+      amountDelayTimer = null;
+    }, 420);
+
+    autoHideTimer = window.setTimeout(() => {
       emit('animationEnd');
+      autoHideTimer = null;
     }, 4000);
   }
-});
+);
+
+onUnmounted(clearAnimationTimers);
 </script>
 
 <template>
-  <Transition name="plate-anim">
-    <div v-if="show && donation" class="plate-animation-container">
-      <!-- Dark overlay -->
-      <div class="plate-overlay"></div>
+  <Transition name="donation-moment">
+    <div
+      v-if="show && donation"
+      class="donation-moment"
+      :class="`animation-${animationStyle}`"
+      :dir="textDirection"
+    >
+      <div class="moment-overlay"></div>
+      <div class="moment-bloom"></div>
+      <div class="moment-watermark" aria-hidden="true">{{ fullName }}</div>
 
-      <!-- Explosion rings -->
-      <div class="explosion-rings">
-        <div class="ring ring-1"></div>
-        <div class="ring ring-2"></div>
-        <div class="ring ring-3"></div>
+      <div class="moment-rings" aria-hidden="true">
+        <span class="moment-ring ring-one"></span>
+        <span class="moment-ring ring-two"></span>
       </div>
 
-      <!-- Particles -->
-      <div class="explosion-particles">
-        <span v-for="i in 30" :key="i" class="particle"></span>
+      <div class="moment-particles" aria-hidden="true">
+        <span v-for="i in 14" :key="i" class="moment-particle"></span>
       </div>
 
-      <!-- The plate itself -->
-      <div class="plate-showcase" :class="getPlateColor(donation.amount)">
-        <div class="plate-glow"></div>
-        <div class="plate-content">
-          <div class="donor-name">{{ donation.firstName }} {{ donation.lastName }}</div>
-          <div class="donor-amount">{{ formatAmount(donation.amount) }}</div>
+      <div class="moment-stage">
+        <div class="moment-eyebrow">
+          <span class="eyebrow-line"></span>
+          <span :dir="textDirection">{{ thankYouTitle }}</span>
+          <span class="eyebrow-line"></span>
         </div>
-      </div>
 
-      <!-- Celebration text -->
-      <div class="celebration-text">NOUVEAU DON !</div>
+        <div class="showcase-plate" :class="tierClass">
+          <span class="corner corner-top-left"></span>
+          <span class="corner corner-top-right"></span>
+          <span class="corner corner-bottom-left"></span>
+          <span class="corner corner-bottom-right"></span>
+          <div class="plate-light-sweep"></div>
+
+          <div class="showcase-content">
+            <div class="showcase-name">{{ fullName }}</div>
+            <div class="showcase-amount">{{ formatAmount(displayedAmount) }}</div>
+          </div>
+        </div>
+
+        <div class="moment-thanks" :dir="textDirection">{{ thankYouMessage }}</div>
+      </div>
     </div>
   </Transition>
 </template>
 
 <style scoped>
-.plate-animation-container {
+.donation-moment {
   position: fixed;
   inset: 0;
   z-index: 2000;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--theme-font-body, 'Inter', sans-serif);
+}
+
+.moment-overlay {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-color, #070914) 88%, transparent);
+  backdrop-filter: blur(8px);
+  animation: overlay-enter 420ms ease-out both;
+}
+
+.moment-bloom {
+  position: absolute;
+  width: min(94vw, 1100px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--chart-primary-color) 25%, transparent), transparent 66%);
+  animation: bloom-sequence 3.6s ease-out both;
+}
+
+.moment-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120vw;
+  transform: translate(-50%, -50%);
+  color: transparent;
+  font-family: var(--theme-font-display, 'Poppins', sans-serif);
+  font-size: clamp(5rem, 12vw, 12rem);
+  font-weight: 900;
+  line-height: 0.9;
+  text-align: center;
+  text-transform: uppercase;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--header-text-color) 13%, transparent);
+  opacity: 0;
+  animation: watermark-sequence 3.5s 120ms ease-out both;
+}
+
+.moment-stage {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  width: min(86vw, 980px);
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.moment-eyebrow {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 30px;
+  gap: 16px;
+  color: var(--header-text-color);
+  font-size: clamp(0.82rem, 1.35vw, 1.05rem);
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  animation: eyebrow-enter 650ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.eyebrow-line {
+  width: clamp(28px, 5vw, 72px);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--header-text-color));
+}
+
+.eyebrow-line:last-child {
+  transform: scaleX(-1);
+}
+
+.showcase-plate {
+  --showcase-accent: var(--plate-bronze, #B67846);
+  position: relative;
+  width: 100%;
+  min-height: clamp(170px, 24vh, 250px);
+  display: grid;
+  place-items: center;
+  padding: clamp(34px, 5vw, 68px);
+  border: 1px solid color-mix(in srgb, var(--showcase-accent) 52%, transparent);
+  border-radius: calc(var(--theme-radius, 16px) * 1.15);
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--showcase-accent) 10%, transparent), transparent 35%),
+    var(--theme-plate-surface, linear-gradient(135deg, #202333, #0c0e1c));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 30px 90px rgba(0, 0, 0, 0.46),
+    0 0 70px color-mix(in srgb, var(--showcase-accent) 18%, transparent);
+  overflow: hidden;
+  animation: plate-sequence 3.55s 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.showcase-plate.gold { --showcase-accent: var(--plate-gold); }
+.showcase-plate.diamond { --showcase-accent: var(--plate-diamond); }
+.showcase-plate.bronze { --showcase-accent: var(--plate-bronze); }
+
+.showcase-plate::before,
+.showcase-plate::after {
+  content: '';
+  position: absolute;
   pointer-events: none;
 }
 
-.plate-overlay {
+.showcase-plate::before {
+  inset: 12px;
+  border: 1px solid color-mix(in srgb, var(--showcase-accent) 18%, transparent);
+  border-radius: calc(var(--theme-radius, 16px) * 0.75);
+}
+
+.showcase-plate::after {
+  left: 8%;
+  right: 8%;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--showcase-accent), transparent);
+  box-shadow: 0 0 24px var(--showcase-accent);
+}
+
+.plate-light-sweep {
   position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, rgba(255, 215, 0, 0.2) 0%, rgba(0, 0, 0, 0.85) 70%);
-  animation: overlay-fade 0.4s ease-out;
+  inset: -30% -60%;
+  transform: translateX(-65%) skewX(-18deg);
+  background: linear-gradient(90deg, transparent 42%, rgba(255, 255, 255, 0.17), transparent 58%);
+  animation: light-sweep 1.25s 620ms ease-out both;
 }
 
-@keyframes overlay-fade {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-/* Explosion Rings */
-.explosion-rings {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border: 4px solid rgba(255, 215, 0, 0.8);
-  border-radius: 50%;
-  animation: ring-expand 2s ease-out forwards;
-}
-
-.ring-1 { animation-delay: 0ms; }
-.ring-2 { animation-delay: 200ms; }
-.ring-3 { animation-delay: 400ms; }
-
-@keyframes ring-expand {
-  0% { width: 50px; height: 50px; opacity: 1; border-width: 4px; }
-  100% { width: 150vw; height: 150vw; opacity: 0; border-width: 1px; }
-}
-
-/* Particles */
-.explosion-particles {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-}
-
-.particle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  background: linear-gradient(135deg, #FFD700, #FFA500);
-  border-radius: 50%;
-  box-shadow: 0 0 15px #FFD700;
-  animation: particle-explode 2s ease-out forwards;
-}
-
-.particle:nth-child(1) { --angle: 0deg; --dist: 350px; animation-delay: 0ms; }
-.particle:nth-child(2) { --angle: 12deg; --dist: 400px; animation-delay: 30ms; }
-.particle:nth-child(3) { --angle: 24deg; --dist: 320px; animation-delay: 60ms; }
-.particle:nth-child(4) { --angle: 36deg; --dist: 380px; animation-delay: 90ms; }
-.particle:nth-child(5) { --angle: 48deg; --dist: 420px; animation-delay: 120ms; }
-.particle:nth-child(6) { --angle: 60deg; --dist: 340px; animation-delay: 150ms; }
-.particle:nth-child(7) { --angle: 72deg; --dist: 390px; animation-delay: 180ms; }
-.particle:nth-child(8) { --angle: 84deg; --dist: 360px; animation-delay: 210ms; }
-.particle:nth-child(9) { --angle: 96deg; --dist: 410px; animation-delay: 240ms; }
-.particle:nth-child(10) { --angle: 108deg; --dist: 330px; animation-delay: 270ms; }
-.particle:nth-child(11) { --angle: 120deg; --dist: 400px; animation-delay: 300ms; }
-.particle:nth-child(12) { --angle: 132deg; --dist: 350px; animation-delay: 330ms; }
-.particle:nth-child(13) { --angle: 144deg; --dist: 420px; animation-delay: 360ms; }
-.particle:nth-child(14) { --angle: 156deg; --dist: 340px; animation-delay: 390ms; }
-.particle:nth-child(15) { --angle: 168deg; --dist: 380px; animation-delay: 420ms; }
-.particle:nth-child(16) { --angle: 180deg; --dist: 360px; animation-delay: 450ms; }
-.particle:nth-child(17) { --angle: 192deg; --dist: 400px; animation-delay: 480ms; }
-.particle:nth-child(18) { --angle: 204deg; --dist: 320px; animation-delay: 510ms; }
-.particle:nth-child(19) { --angle: 216deg; --dist: 410px; animation-delay: 540ms; }
-.particle:nth-child(20) { --angle: 228deg; --dist: 370px; animation-delay: 570ms; }
-.particle:nth-child(21) { --angle: 240deg; --dist: 430px; animation-delay: 600ms; }
-.particle:nth-child(22) { --angle: 252deg; --dist: 345px; animation-delay: 630ms; }
-.particle:nth-child(23) { --angle: 264deg; --dist: 395px; animation-delay: 660ms; }
-.particle:nth-child(24) { --angle: 276deg; --dist: 355px; animation-delay: 690ms; }
-.particle:nth-child(25) { --angle: 288deg; --dist: 405px; animation-delay: 720ms; }
-.particle:nth-child(26) { --angle: 300deg; --dist: 335px; animation-delay: 750ms; }
-.particle:nth-child(27) { --angle: 312deg; --dist: 395px; animation-delay: 780ms; }
-.particle:nth-child(28) { --angle: 324deg; --dist: 365px; animation-delay: 810ms; }
-.particle:nth-child(29) { --angle: 336deg; --dist: 415px; animation-delay: 840ms; }
-.particle:nth-child(30) { --angle: 348deg; --dist: 375px; animation-delay: 870ms; }
-
-@keyframes particle-explode {
-  0% { transform: translate(0, 0) scale(0); opacity: 1; }
-  30% { transform: translate(calc(cos(var(--angle)) * calc(var(--dist) * 0.3)), calc(sin(var(--angle)) * calc(var(--dist) * 0.3))) scale(1.5); opacity: 1; }
-  100% { transform: translate(calc(cos(var(--angle)) * var(--dist)), calc(sin(var(--angle)) * var(--dist))) scale(0); opacity: 0; }
-}
-
-/* The Plate */
-.plate-showcase {
+.showcase-content {
   position: relative;
-  z-index: 10;
-  width: 80vw;
-  max-width: 900px;
-  padding: 40px 60px;
-  border-radius: 15px;
-  animation: plate-entrance 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-@keyframes plate-entrance {
-  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
-  50% { transform: scale(1.1) rotate(3deg); }
-  100% { transform: scale(1) rotate(0deg); opacity: 1; }
-}
-
-.plate-showcase.gold {
-  background: #FFD700;
-}
-
-.plate-showcase.diamond {
-  background: #E8E8E8;
-}
-
-.plate-showcase.bronze {
-  background: #CD7F32;
-}
-
-.plate-glow {
-  position: absolute;
-  inset: -20px;
-  border-radius: 25px;
-  z-index: -1;
-  animation: plate-glow 1s ease-in-out infinite alternate;
-}
-
-.plate-showcase.gold .plate-glow {
-  background: radial-gradient(ellipse, rgba(255, 215, 0, 0.6) 0%, transparent 70%);
-  box-shadow: 0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.5);
-}
-
-.plate-showcase.diamond .plate-glow {
-  background: radial-gradient(ellipse, rgba(200, 200, 255, 0.6) 0%, transparent 70%);
-  box-shadow: 0 0 60px rgba(200, 200, 255, 0.8), 0 0 120px rgba(150, 150, 200, 0.5);
-}
-
-.plate-showcase.bronze .plate-glow {
-  background: radial-gradient(ellipse, rgba(205, 127, 50, 0.6) 0%, transparent 70%);
-  box-shadow: 0 0 60px rgba(205, 127, 50, 0.8), 0 0 120px rgba(180, 100, 30, 0.5);
-}
-
-@keyframes plate-glow {
-  0% { opacity: 0.8; transform: scale(1); }
-  100% { opacity: 1; transform: scale(1.05); }
-}
-
-.plate-content {
+  z-index: 2;
   display: flex;
+  width: 100%;
   align-items: center;
   justify-content: space-between;
+  gap: clamp(24px, 5vw, 70px);
 }
 
-.donor-name {
-  font-family: 'Cinzel', 'Arial Black', sans-serif;
-  font-size: clamp(2rem, 5vw, 4rem);
-  font-weight: 900;
-  color: #1a1400;
+.showcase-name,
+.showcase-amount {
+  font-family: var(--theme-font-display, 'Poppins', sans-serif);
+  font-weight: 800;
+}
+
+.showcase-name {
+  min-width: 0;
+  color: var(--plate-text, #F8F3E8);
+  font-size: clamp(2rem, 4.6vw, 4.4rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
   text-transform: uppercase;
-  letter-spacing: 4px;
+  letter-spacing: clamp(1px, 0.22vw, 4px);
+  animation: content-enter 720ms 430ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.donor-amount {
-  font-family: 'Cinzel', 'Arial Black', sans-serif;
-  font-size: clamp(1.8rem, 4vw, 3.5rem);
-  font-weight: 900;
-  color: #1a1400;
+.showcase-amount {
+  flex-shrink: 0;
+  color: var(--showcase-accent);
+  font-size: clamp(1.8rem, 3.8vw, 3.7rem);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  text-shadow: 0 0 28px color-mix(in srgb, var(--showcase-accent) 30%, transparent);
+  animation: content-enter 720ms 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Celebration text */
-.celebration-text {
-  position: relative;
-  z-index: 10;
-  font-family: 'Cinzel', 'Arial Black', sans-serif;
-  font-size: clamp(1.5rem, 3vw, 2.5rem);
-  font-weight: 900;
-  color: #FFD700;
-  text-transform: uppercase;
-  letter-spacing: 8px;
-  text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 165, 0, 0.5);
-  animation: text-pulse 0.8s ease-in-out infinite alternate;
+.moment-thanks {
+  color: color-mix(in srgb, var(--stats-text-color) 72%, transparent);
+  font-size: clamp(0.9rem, 1.5vw, 1.15rem);
+  letter-spacing: 0.14em;
+  max-width: min(90vw, 920px);
+  line-height: 1.5;
+  text-align: center;
+  white-space: pre-line;
+  animation: thanks-enter 650ms 720ms ease-out both;
 }
 
-@keyframes text-pulse {
-  0% { opacity: 0.8; transform: scale(1); }
-  100% { opacity: 1; transform: scale(1.05); }
+/* Four deliberately different announcement moods, selected in the admin. */
+.animation-confetti .moment-overlay {
+  background: color-mix(in srgb, var(--bg-color, #070914) 82%, transparent);
 }
 
-/* Transitions */
-.plate-anim-enter-active {
-  animation: container-in 0.3s ease-out;
+.animation-confetti .moment-particle {
+  width: 9px;
+  height: 15px;
+  border-radius: 2px;
+  background: var(--chart-primary-color);
+  box-shadow: none;
 }
 
-.plate-anim-leave-active {
-  animation: container-out 0.5s ease-in;
+.animation-confetti .moment-particle:nth-child(3n) {
+  background: var(--chart-secondary-color);
 }
 
-@keyframes container-in {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+.animation-confetti .moment-particle:nth-child(3n + 1) {
+  background: var(--plate-gold);
 }
 
-@keyframes container-out {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
+.animation-confetti .showcase-plate {
+  animation-name: confetti-plate-sequence;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animation-ribbons .moment-bloom {
+  width: min(110vw, 1380px);
+  background: conic-gradient(
+    from 20deg,
+    transparent,
+    color-mix(in srgb, var(--chart-primary-color) 18%, transparent),
+    transparent 28%,
+    color-mix(in srgb, var(--chart-secondary-color) 18%, transparent),
+    transparent 60%
+  );
+  animation-name: ribbon-bloom-sequence;
+}
+
+.animation-ribbons .moment-ring {
+  width: 210px;
+  height: 78px;
+  border-width: 3px;
+  border-color: color-mix(in srgb, var(--chart-primary-color) 64%, transparent);
+  border-radius: 50%;
+  animation-name: ribbon-expand;
+}
+
+.animation-ribbons .ring-two {
+  border-color: color-mix(in srgb, var(--chart-secondary-color) 68%, transparent);
+  animation-direction: reverse;
+}
+
+.animation-ribbons .moment-particle {
+  width: 22px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.animation-minimal .moment-overlay {
+  background: color-mix(in srgb, var(--bg-color, #070914) 72%, transparent);
+  backdrop-filter: blur(3px);
+}
+
+.animation-minimal .moment-bloom,
+.animation-minimal .moment-watermark,
+.animation-minimal .moment-rings,
+.animation-minimal .moment-particles,
+.animation-minimal .plate-light-sweep {
+  display: none;
+}
+
+.animation-minimal .showcase-plate {
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+  animation-name: minimal-plate-sequence;
+  animation-timing-function: ease-in-out;
+}
+
+.animation-minimal .moment-eyebrow,
+.animation-minimal .moment-thanks {
+  letter-spacing: 0.08em;
+}
+
+.donation-moment[dir='rtl'] .moment-eyebrow,
+.donation-moment[dir='rtl'] .moment-thanks {
+  letter-spacing: 0.035em;
+}
+
+.corner {
+  position: absolute;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  border-color: var(--showcase-accent);
+  opacity: 0.75;
+}
+
+.corner-top-left { top: 22px; left: 22px; border-top: 2px solid; border-left: 2px solid; }
+.corner-top-right { top: 22px; right: 22px; border-top: 2px solid; border-right: 2px solid; }
+.corner-bottom-left { bottom: 22px; left: 22px; border-bottom: 2px solid; border-left: 2px solid; }
+.corner-bottom-right { right: 22px; bottom: 22px; border-right: 2px solid; border-bottom: 2px solid; }
+
+.moment-rings,
+.moment-particles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+.moment-ring {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color) 55%, transparent);
+  border-radius: 50%;
+  animation: ring-expand 1.9s ease-out both;
+}
+
+.ring-two { animation-delay: 180ms; }
+
+.moment-particle {
+  --angle: 0deg;
+  --distance: 340px;
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--chart-primary-color);
+  box-shadow: 0 0 12px var(--chart-primary-color);
+  animation: particle-drift 1.8s 180ms ease-out both;
+}
+
+.moment-particle:nth-child(2) { --angle: 26deg; --distance: 390px; }
+.moment-particle:nth-child(3) { --angle: 52deg; --distance: 320px; }
+.moment-particle:nth-child(4) { --angle: 78deg; --distance: 370px; }
+.moment-particle:nth-child(5) { --angle: 104deg; --distance: 340px; }
+.moment-particle:nth-child(6) { --angle: 130deg; --distance: 400px; }
+.moment-particle:nth-child(7) { --angle: 156deg; --distance: 330px; }
+.moment-particle:nth-child(8) { --angle: 182deg; --distance: 380px; }
+.moment-particle:nth-child(9) { --angle: 208deg; --distance: 350px; }
+.moment-particle:nth-child(10) { --angle: 234deg; --distance: 390px; }
+.moment-particle:nth-child(11) { --angle: 260deg; --distance: 320px; }
+.moment-particle:nth-child(12) { --angle: 286deg; --distance: 375px; }
+.moment-particle:nth-child(13) { --angle: 312deg; --distance: 345px; }
+.moment-particle:nth-child(14) { --angle: 338deg; --distance: 405px; }
+
+@keyframes overlay-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bloom-sequence {
+  0% { opacity: 0; transform: scale(0.35); }
+  25%, 72% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.18); }
+}
+
+@keyframes watermark-sequence {
+  0% { opacity: 0; transform: translate(-50%, -46%) scale(0.94); }
+  22%, 74% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -54%) scale(1.04); }
+}
+
+@keyframes eyebrow-enter {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes plate-sequence {
+  0% { opacity: 0; transform: translateY(38px) scale(0.94); filter: blur(7px); }
+  16% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  82% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-20px) scale(0.97); }
+}
+
+@keyframes confetti-plate-sequence {
+  0% { opacity: 0; transform: scale(0.7) rotate(-2deg); filter: blur(4px); }
+  18% { opacity: 1; transform: scale(1.035) rotate(0.5deg); filter: blur(0); }
+  28%, 82% { opacity: 1; transform: scale(1) rotate(0); }
+  100% { opacity: 0; transform: scale(0.96) translateY(-16px); }
+}
+
+@keyframes minimal-plate-sequence {
+  0% { opacity: 0; transform: translateY(18px); }
+  18%, 82% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-12px); }
+}
+
+@keyframes ribbon-bloom-sequence {
+  0% { opacity: 0; transform: scale(0.45) rotate(-18deg); }
+  24%, 72% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.15) rotate(45deg); }
+}
+
+@keyframes ribbon-expand {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.35) rotate(-24deg); }
+  18% { opacity: 0.8; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(8) rotate(38deg); }
+}
+
+@keyframes content-enter {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes thanks-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes light-sweep {
+  from { transform: translateX(-65%) skewX(-18deg); }
+  to { transform: translateX(65%) skewX(-18deg); }
+}
+
+@keyframes ring-expand {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  18% { opacity: 0.75; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(9); }
+}
+
+@keyframes particle-drift {
+  0% { opacity: 0; transform: translate(0, 0) scale(0); }
+  18% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% {
+    opacity: 0;
+    transform: translate(
+      calc(cos(var(--angle)) * var(--distance)),
+      calc(sin(var(--angle)) * var(--distance))
+    ) scale(0.35);
+  }
+}
+
+.donation-moment-enter-active { transition: opacity 220ms ease-out; }
+.donation-moment-leave-active { transition: opacity 420ms ease-in; }
+.donation-moment-enter-from,
+.donation-moment-leave-to { opacity: 0; }
+
+@media (max-width: 700px) {
+  .moment-stage { width: 92vw; gap: 16px; }
+  .showcase-plate { min-height: 210px; padding: 42px 25px; }
+  .showcase-content { flex-direction: column; gap: 14px; text-align: center; }
+  .showcase-name { font-size: clamp(1.7rem, 8vw, 2.8rem); }
+  .showcase-amount { font-size: clamp(1.55rem, 7vw, 2.4rem); }
+  .moment-eyebrow { gap: 10px; letter-spacing: 0.18em; }
+  .moment-thanks { text-align: center; letter-spacing: 0.08em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment-bloom,
+  .moment-watermark,
+  .moment-ring,
+  .moment-particle,
+  .plate-light-sweep,
+  .moment-eyebrow,
+  .showcase-plate,
+  .showcase-name,
+  .showcase-amount,
+  .moment-thanks {
+    animation: none !important;
+  }
+
+  .moment-ring,
+  .moment-particle,
+  .plate-light-sweep {
+    display: none;
+  }
 }
 </style>

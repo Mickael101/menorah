@@ -4,6 +4,7 @@ node_modules/
 # Build outputs
 dist/
 build/
+backend/public/
 
 # Database
 *.db
@@ -39,3 +40,6 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Local browser QA artifacts
+.playwright-cli/

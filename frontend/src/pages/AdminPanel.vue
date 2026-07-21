@@ -1,19 +1,26 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useSocket } from '../composables/useSocket';
-import { useDonations, type Donation } from '../composables/useDonations';
+import {
+  useDonations,
+  type Donation,
+  DEFAULT_ADMIN_BRANDING
+} from '../composables/useDonations';
 import DonationForm from '../components/admin/DonationForm.vue';
 import DonationList from '../components/admin/DonationList.vue';
 import ConfigPanel from '../components/admin/ConfigPanel.vue';
 import GifManager from '../components/admin/GifManager.vue';
 import DisplaySettingsPanel from '../components/admin/DisplaySettingsPanel.vue';
+import { useAdminI18n, type AdminLocale } from '../composables/useAdminI18n';
+
+const { locale, direction, setLocale, t } = useAdminI18n();
+const availableLocales: AdminLocale[] = ['fr', 'en', 'he'];
 
 const { on } = useSocket();
 const {
-  donations,
   stats,
+  config,
   premiumWords,
-  premiumTiers,
   fetchDonations,
   fetchConfig,
   fetchPremiumWords,
@@ -51,6 +58,12 @@ const premiumWordsStatus = computed(() => {
 
 const editingDonation = ref<Donation | null>(null);
 const activeTab = ref<'donations' | 'gifs' | 'display' | 'config'>('donations');
+const showPremiumOverview = ref(false);
+const usesMenorahVisual = computed(() => config.value.displaySettings.visualMode === 'menorah');
+const activeAdminBranding = computed(() => ({
+  ...DEFAULT_ADMIN_BRANDING[locale.value],
+  ...(config.value.displaySettings.adminBranding?.[locale.value] ?? {})
+}));
 
 // Load initial data
 onMounted(async () => {
@@ -91,7 +104,7 @@ function handleCancel(): void {
 </script>
 
 <template>
-  <div class="admin-panel">
+  <div class="admin-panel" :dir="direction" :lang="locale">
     <!-- Header with gradient -->
     <header class="header">
       <div class="header-content">
@@ -102,18 +115,34 @@ function handleCancel(): void {
             </svg>
           </div>
           <div>
-            <h1>Ohel Yeochoua</h1>
-            <p class="subtitle">Panel d'administration des dons</p>
+            <h1 v-if="activeAdminBranding.title" dir="auto">{{ activeAdminBranding.title }}</h1>
+            <p v-if="activeAdminBranding.subtitle" class="subtitle" dir="auto">{{ activeAdminBranding.subtitle }}</p>
           </div>
         </div>
 
-        <a href="/display" target="_blank" class="display-link">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="3" width="20" height="14" rx="2"/>
-            <path d="M8 21h8M12 17v4"/>
-          </svg>
-          Affichage
-        </a>
+        <div class="header-actions">
+          <div class="language-switcher" role="group" :aria-label="t('language.label')">
+            <button
+              v-for="language in availableLocales"
+              :key="language"
+              type="button"
+              class="language-btn"
+              :class="{ active: locale === language }"
+              :aria-pressed="locale === language"
+              @click="setLocale(language)"
+            >
+              {{ t(`language.${language}`) }}
+            </button>
+          </div>
+
+          <a href="/display" target="_blank" class="display-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/>
+              <path d="M8 21h8M12 17v4"/>
+            </svg>
+            {{ t('admin.openDisplay') }}
+          </a>
+        </div>
       </div>
 
       <!-- Stats Cards -->
@@ -126,7 +155,7 @@ function handleCancel(): void {
             </svg>
           </div>
           <div class="stat-content">
-            <span class="stat-label">Total collecté</span>
+            <span class="stat-label">{{ t('admin.totalCollected') }}</span>
             <span class="stat-value">{{ formatAmount(stats.totalAmount) }}</span>
           </div>
         </div>
@@ -140,7 +169,7 @@ function handleCancel(): void {
             </svg>
           </div>
           <div class="stat-content">
-            <span class="stat-label">Nombre de dons</span>
+            <span class="stat-label">{{ t('admin.donationCount') }}</span>
             <span class="stat-value">{{ stats.donationCount }}</span>
           </div>
         </div>
@@ -152,7 +181,7 @@ function handleCancel(): void {
             </svg>
           </div>
           <div class="stat-content">
-            <span class="stat-label">Progression</span>
+            <span class="stat-label">{{ t('admin.progress') }}</span>
             <span class="stat-value">{{ stats.percentComplete.toFixed(1) }}%</span>
           </div>
           <div class="progress-ring">
@@ -172,12 +201,30 @@ function handleCancel(): void {
       </div>
 
       <!-- Premium Words Section -->
-      <div class="premium-words-section">
-        <h3 class="premium-title">Mots Sacrés de la Menorah</h3>
-        <div class="premium-tiers">
+      <div v-if="usesMenorahVisual" class="premium-words-section">
+        <button
+          type="button"
+          class="premium-overview-toggle"
+          :aria-expanded="showPremiumOverview"
+          @click="showPremiumOverview = !showPremiumOverview"
+        >
+          <span class="premium-toggle-title">
+            <span class="premium-toggle-icon">&#10017;</span>
+            {{ t('admin.sacredWords') }}
+          </span>
+          <span class="premium-toggle-summary">
+            <span v-for="tier in premiumWordsStatus" :key="tier.level" class="premium-summary-chip">
+              {{ t('admin.levelShort', { level: tier.level }) }} : {{ tier.litCount }}/{{ tier.wordCount }}
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ open: showPremiumOverview }">
+              <path d="m6 9 6 6 6-6"/>
+            </svg>
+          </span>
+        </button>
+        <div v-if="showPremiumOverview" class="premium-tiers">
           <div v-for="tier in premiumWordsStatus" :key="tier.level" class="premium-tier-card">
             <div class="tier-header">
-              <span class="tier-level">Niveau {{ tier.level }}</span>
+              <span class="tier-level">{{ t('admin.level', { level: tier.level }) }}</span>
               <span class="tier-amount">{{ tier.label }}</span>
               <span class="tier-count">{{ tier.litCount }}/{{ tier.wordCount }}</span>
             </div>
@@ -194,7 +241,7 @@ function handleCancel(): void {
                   <span v-if="word.donorName" class="word-donor">
                     {{ word.donorName }}
                   </span>
-                  <span v-else class="word-available">Disponible</span>
+                  <span v-else class="word-available">{{ t('common.available') }}</span>
                 </div>
               </div>
             </div>
@@ -213,7 +260,7 @@ function handleCancel(): void {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
-          Gestion des dons
+          {{ t('admin.tabs.donations') }}
         </button>
         <button
           :class="['tab', { active: activeTab === 'gifs' }]"
@@ -224,7 +271,7 @@ function handleCancel(): void {
             <circle cx="8.5" cy="8.5" r="1.5"/>
             <path d="m21 15-5-5L5 21"/>
           </svg>
-          GIFs Animation
+          {{ t('admin.tabs.gifs') }}
         </button>
         <button
           :class="['tab', { active: activeTab === 'display' }]"
@@ -235,7 +282,7 @@ function handleCancel(): void {
             <circle cx="12" cy="12" r="3"/>
             <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
           </svg>
-          Affichage
+          {{ t('admin.tabs.display') }}
         </button>
         <button
           :class="['tab', { active: activeTab === 'config' }]"
@@ -245,7 +292,7 @@ function handleCancel(): void {
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          Configuration
+          {{ t('admin.tabs.config') }}
         </button>
       </div>
     </nav>
@@ -348,6 +395,48 @@ h1 {
   margin: 4px 0 0;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.language-switcher {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(10px);
+}
+
+.language-btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.language-btn:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.language-btn.active {
+  color: var(--primary-900);
+  background: white;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+}
+
 .display-link {
   display: flex;
   align-items: center;
@@ -407,7 +496,7 @@ h1 {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
+  inset-inline-start: 0;
   width: 4px;
   height: 100%;
 }
@@ -494,25 +583,75 @@ h1 {
 /* Premium Words Section */
 .premium-words-section {
   max-width: 1400px;
-  margin: 24px auto 0;
+  margin: 18px auto 0;
   position: relative;
   z-index: 10;
 }
 
-.premium-title {
+.premium-overview-toggle {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: var(--transition);
+}
+
+.premium-overview-toggle:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.premium-toggle-title,
+.premium-toggle-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.premium-toggle-title {
   color: var(--gold-400);
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 1.5px;
+}
+
+.premium-toggle-icon {
+  font-size: 20px;
+}
+
+.premium-summary-chip {
+  padding: 4px 9px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.premium-toggle-summary svg {
+  width: 20px;
+  height: 20px;
+  transition: transform var(--transition);
+}
+
+.premium-toggle-summary svg.open {
+  transform: rotate(180deg);
 }
 
 .premium-tiers {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  margin-top: 14px;
 }
 
 .premium-tier-card {
@@ -625,7 +764,9 @@ h1 {
 }
 
 .tabs {
-  display: inline-flex;
+  display: flex;
+  width: max-content;
+  max-width: 100%;
   background: white;
   border-radius: var(--radius-md);
   padding: 6px;
@@ -687,7 +828,8 @@ h1 {
 }
 
 .display-layout {
-  max-width: 700px;
+  max-width: 980px;
+  margin: 0 auto;
 }
 
 /* Responsive */
@@ -718,6 +860,11 @@ h1 {
     flex-direction: column;
   }
 
+  .header-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
     padding: 0 20px;
@@ -738,6 +885,102 @@ h1 {
 
   .donations-layout {
     grid-template-columns: 1fr;
+  }
+
+  .premium-overview-toggle {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .premium-toggle-summary {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .premium-toggle-summary svg {
+    margin-inline-start: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .header {
+    padding-inline: 16px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .language-switcher,
+  .display-link {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .language-btn {
+    flex: 1;
+    padding-inline: 7px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0;
+  }
+
+  .stat-card {
+    min-width: 0;
+    padding: 12px 8px;
+    gap: 0;
+  }
+
+  .stat-icon,
+  .progress-ring {
+    display: none;
+  }
+
+  .stat-progress {
+    grid-column: auto;
+    max-width: none;
+    margin: 0;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stat-value {
+    font-size: 17px;
+  }
+
+  .tabs-container {
+    padding: 0 16px;
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .tab {
+    justify-content: center;
+    min-width: 0;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .tab svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .main-content {
+    padding: 16px;
   }
 }
 </style>

@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
-import { useDonations } from '../../composables/useDonations';
+import { useDonations, DEFAULT_DISPLAY_TEXTS } from '../../composables/useDonations';
+import { getActiveThemePalette } from '../../theme/displayThemes';
 
 const { stats, config, formatAmount } = useDonations();
 
+const displayTexts = computed(() => ({
+  ...DEFAULT_DISPLAY_TEXTS,
+  ...(config.value.displaySettings.texts ?? {})
+}));
+const textDirection = computed(() => config.value.displaySettings.textDirection ?? 'auto');
+
 // Dynamic styles from config
 const statsStyles = computed(() => {
-  const settings = config.value.displaySettings;
+  const settings = getActiveThemePalette(config.value.displaySettings);
   return {
     '--stats-text-color': settings.statsTextColor,
     '--chart-primary-color': settings.chartPrimaryColor,
@@ -54,11 +61,26 @@ function formatNumber(cents: number): string {
   return (cents / 100).toLocaleString('he-IL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
+const normalizedProgress = computed(() => Math.max(0, Math.min(displayPercent.value, 100)) / 100);
+const curveEnd = computed(() => {
+  const progress = normalizedProgress.value;
+  return {
+    x: 14 + (612 * progress),
+    y: 70 - (52 * progress)
+  };
+});
+const curvePath = computed(() => {
+  const delta = curveEnd.value.x - 14;
+  return `M 14 70 C ${14 + delta * 0.28} 66, ${14 + delta * 0.66} ${curveEnd.value.y + 10}, ${curveEnd.value.x} ${curveEnd.value.y}`;
+});
+const curveAreaPath = computed(() => `${curvePath.value} L ${curveEnd.value.x} 76 L 14 76 Z`);
+const curveAriaLabel = computed(() => (
+  `${displayPercent.value.toFixed(1)}% — ${displayTexts.value.goalLabel} ${formatAmount(config.value.goalAmount)}`
+));
 </script>
 
 <template>
-  <div class="stats-compact" :style="statsStyles">
+  <div class="stats-compact" :style="statsStyles" :dir="textDirection">
     <!-- Main amount -->
     <div class="main-row">
       <div class="amount-block">
@@ -70,26 +92,66 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
       </div>
     </div>
 
-    <!-- Progress bar -->
-    <div class="progress-bar">
-      <div class="progress-fill" :style="{ width: progressWidth }"></div>
+    <!-- Goal curve -->
+    <div class="goal-curve">
+      <svg
+        class="curve-chart"
+        viewBox="0 0 640 88"
+        preserveAspectRatio="none"
+        role="img"
+        :aria-label="curveAriaLabel"
+      >
+        <defs>
+          <linearGradient id="goalCurveLine" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="var(--chart-secondary-color)" />
+            <stop offset="1" stop-color="var(--chart-primary-color)" />
+          </linearGradient>
+          <linearGradient id="goalCurveArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--chart-primary-color)" stop-opacity="0.28" />
+            <stop offset="1" stop-color="var(--chart-primary-color)" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path class="curve-guide" d="M 14 70 H 626" />
+        <path class="curve-guide curve-guide-mid" d="M 14 44 H 626" />
+        <path class="curve-area" :d="curveAreaPath" />
+        <path class="curve-line" :d="curvePath" />
+        <circle class="curve-point-glow" :cx="curveEnd.x" :cy="curveEnd.y" r="8" />
+        <circle class="curve-point" :cx="curveEnd.x" :cy="curveEnd.y" r="4" />
+        <line class="goal-marker" x1="626" y1="12" x2="626" y2="76" />
+      </svg>
+      <div class="curve-labels">
+        <span>0 ₪</span>
+        <span :dir="textDirection">{{ displayTexts.goalLabel }} {{ formatAmount(config.goalAmount) }}</span>
+      </div>
     </div>
 
     <!-- Info row -->
     <div class="info-row">
-      <span class="info-item">{{ stats.donationCount }} don{{ stats.donationCount > 1 ? 's' : '' }}</span>
-      <span class="separator">•</span>
-      <span class="info-item goal">Objectif {{ formatAmount(config.goalAmount) }}</span>
+      <span class="info-item" :dir="textDirection">
+        {{ stats.donationCount }} {{ stats.donationCount === 1 ? displayTexts.donationSingular : displayTexts.donationPlural }}
+      </span>
     </div>
   </div>
 </template>
 
 <style scoped>
 .stats-compact {
-  background: rgba(10, 10, 26, 0.6);
-  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #D4AF37) 20%, transparent);
-  border-radius: 12px;
-  padding: 12px 16px;
+  position: relative;
+  overflow: hidden;
+  background: var(--theme-surface, rgba(10, 10, 26, 0.72));
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #D4AF37) 25%, transparent);
+  border-radius: var(--theme-radius, 14px);
+  padding: 14px 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 16px 40px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(16px);
+}
+
+.stats-compact::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--chart-primary-color) 8%, transparent), transparent 42%);
 }
 
 .main-row {
@@ -112,10 +174,11 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
 }
 
 .amount {
-  font-size: 32px;
+  font-family: var(--theme-font-display, inherit);
+  font-size: 34px;
   font-weight: 800;
   color: var(--chart-primary-color, #D4AF37);
-  text-shadow: 0 0 15px color-mix(in srgb, var(--chart-primary-color, #D4AF37) 40%, transparent);
+  text-shadow: 0 0 18px color-mix(in srgb, var(--chart-primary-color, #D4AF37) 25%, transparent);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -125,40 +188,101 @@ const progressWidth = computed(() => `${Math.min(displayPercent.value, 100)}%`);
 }
 
 .percent {
+  font-family: var(--theme-font-display, inherit);
   font-size: 20px;
   font-weight: 700;
   color: var(--chart-primary-color, #D4AF37);
 }
 
-.progress-bar {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  overflow: hidden;
-  margin-bottom: 10px;
+.goal-curve {
+  position: relative;
+  margin: -2px 0 7px;
 }
 
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--chart-secondary-color, #a67c00), var(--chart-primary-color, #D4AF37), var(--chart-primary-color, #ffd700));
-  border-radius: 3px;
-  transition: width 0.5s ease;
+.curve-chart {
+  display: block;
+  width: 100%;
+  height: clamp(62px, 7.2vh, 86px);
+  overflow: visible;
+}
+
+.curve-guide {
+  fill: none;
+  stroke: color-mix(in srgb, var(--stats-text-color) 13%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 4 8;
+}
+
+.curve-guide-mid {
+  opacity: 0.55;
+}
+
+.curve-area {
+  fill: url(#goalCurveArea);
+  transition: d 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.curve-line {
+  fill: none;
+  stroke: url(#goalCurveLine);
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--chart-primary-color) 60%, transparent));
+  transition: d 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.curve-point-glow {
+  fill: color-mix(in srgb, var(--chart-primary-color) 20%, transparent);
+  transition: cx 700ms cubic-bezier(0.16, 1, 0.3, 1), cy 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.curve-point {
+  fill: var(--chart-primary-color);
+  stroke: var(--stats-text-color);
+  stroke-width: 1.5;
+  transition: cx 700ms cubic-bezier(0.16, 1, 0.3, 1), cy 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.goal-marker {
+  stroke: color-mix(in srgb, var(--chart-primary-color) 48%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 3 5;
+}
+
+.curve-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: -5px;
+  color: color-mix(in srgb, var(--stats-text-color) 58%, transparent);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.curve-labels span:last-child {
+  color: color-mix(in srgb, var(--chart-primary-color) 82%, white 10%);
 }
 
 .info-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: color-mix(in srgb, var(--stats-text-color, #FFFFFF) 50%, transparent);
 }
 
-.separator {
-  color: color-mix(in srgb, var(--chart-primary-color, #D4AF37) 30%, transparent);
+.stats-compact[dir='rtl'] .info-row {
+  justify-content: flex-end;
 }
 
-.info-item.goal {
-  color: color-mix(in srgb, var(--chart-primary-color, #D4AF37) 70%, transparent);
+@media (max-height: 760px) {
+  .stats-compact {
+    padding-block: 10px;
+  }
+
+  .curve-chart {
+    height: 54px;
+  }
 }
 </style>

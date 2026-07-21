@@ -60,11 +60,15 @@ export function validateCreateRequest(data: unknown): CreateDonationRequest {
   if (!req.firstName || typeof req.firstName !== 'string') {
     throw new Error('firstName is required');
   }
-  if (!req.lastName || typeof req.lastName !== 'string') {
-    throw new Error('lastName is required');
+  if (req.lastName !== undefined && typeof req.lastName !== 'string') {
+    throw new Error('lastName must be a string');
   }
-  if (!req.amount || typeof req.amount !== 'number' || req.amount <= 0) {
+  if (!req.amount || typeof req.amount !== 'number' || !Number.isFinite(req.amount) || req.amount <= 0) {
     throw new Error('amount must be a positive number');
+  }
+  // Cap at 10,000,000 ₪ (in agorot) to block absurd/abusive submissions
+  if (req.amount > 1_000_000_000) {
+    throw new Error('amount exceeds the maximum allowed');
   }
 
   const amount = Math.floor(req.amount);
@@ -88,7 +92,7 @@ export function validateCreateRequest(data: unknown): CreateDonationRequest {
 
   return {
     firstName: req.firstName.trim().slice(0, 100),
-    lastName: req.lastName.trim().slice(0, 100),
+    lastName: req.lastName?.trim().slice(0, 100) ?? '',
     email,
     phone,
     amount,
@@ -110,8 +114,8 @@ export function validateUpdateRequest(data: unknown, currentAmount?: number): Up
   }
 
   if (req.lastName !== undefined) {
-    if (typeof req.lastName !== 'string' || !req.lastName.trim()) {
-      throw new Error('lastName must be a non-empty string');
+    if (typeof req.lastName !== 'string') {
+      throw new Error('lastName must be a string');
     }
     result.lastName = req.lastName.trim().slice(0, 100);
   }

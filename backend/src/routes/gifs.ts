@@ -3,12 +3,24 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { socketService } from '../services/socket.service';
+import { gifAudioFilePath, uploadsRoot } from '../config/storage';
+import { requireAdmin } from '../middleware/admin-auth';
 
 const router = Router();
 
+// All mutating GIF/audio routes are admin-only; GET listing stays public for displays
+router.use((req, res, next) => {
+  if (req.method === 'GET') {
+    next();
+    return;
+  }
+  requireAdmin(req, res, next);
+});
+
 // Configure upload directories
-const gifUploadDir = path.join(__dirname, '../../public/uploads/gifs');
-const audioUploadDir = path.join(__dirname, '../../public/uploads/audio');
+const gifUploadDir = path.join(uploadsRoot, 'gifs');
+const audioUploadDir = path.join(uploadsRoot, 'audio');
+const visualUploadDir = path.join(uploadsRoot, 'visuals');
 
 // Ensure upload directories exist
 if (!fs.existsSync(gifUploadDir)) {
@@ -16,6 +28,9 @@ if (!fs.existsSync(gifUploadDir)) {
 }
 if (!fs.existsSync(audioUploadDir)) {
   fs.mkdirSync(audioUploadDir, { recursive: true });
+}
+if (!fs.existsSync(visualUploadDir)) {
+  fs.mkdirSync(visualUploadDir, { recursive: true });
 }
 
 // Configure multer for GIF uploads (50MB max)
@@ -72,8 +87,46 @@ const audioUpload = multer({
   }
 });
 
+// SVGs are stored separately from celebration GIFs and are rendered as images,
+// never injected into the page DOM.
+const visualStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, visualUploadDir);
+  },
+  filename: (_req, _file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, `visual-${uniqueSuffix}.svg`);
+  }
+});
+
+const visualUpload = multer({
+  storage: visualStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  },
+  fileFilter: (_req, file, cb) => {
+    const isSvg = file.mimetype === 'image/svg+xml'
+      && path.extname(file.originalname).toLowerCase() === '.svg';
+    if (isSvg) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only SVG files are allowed'));
+    }
+  }
+});
+
+function isSafeSvg(source: string): boolean {
+  const normalized = source.toLowerCase();
+  return normalized.includes('<svg')
+    && !/<script\b/i.test(source)
+    && !/<foreignobject\b/i.test(source)
+    && !/\son[a-z]+\s*=/i.test(source)
+    && !/javascript\s*:/i.test(source)
+    && !/<!doctype/i.test(source);
+}
+
 // GIF-audio associations persistence
-const gifAudioFile = path.join(__dirname, '../../data/gif-audio.json');
+const gifAudioFile = gifAudioFilePath;
 
 // Ensure data directory exists
 const dataDir = path.dirname(gifAudioFile);
@@ -151,6 +204,33 @@ router.post('/upload', gifUpload.single('gif'), (req: Request, res: Response) =>
   } catch (error) {
     console.error('Error uploading GIF:', error);
     res.status(500).json({ error: 'Failed to upload GIF' });
+  }
+});
+
+// POST /api/gifs/upload-svg - Upload a campaign visual (5MB max)
+router.post('/upload-svg', visualUpload.single('visual'), (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No SVG uploaded' });
+    }
+
+    const source = fs.readFileSync(req.file.path, 'utf-8');
+    if (!isSafeSvg(source)) {
+      fs.unlinkSync(req.file.path);
+      return res.status(400).json({ error: 'SVG non sécurisé ou invalide' });
+    }
+
+    res.json({
+      filename: req.file.filename,
+      url: `/uploads/visuals/${req.file.filename}`,
+      uploadedAt: new Date()
+    });
+  } catch (error) {
+    console.error('Error uploading SVG:', error);
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: 'Failed to upload SVG' });
   }
 });
 

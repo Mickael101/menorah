@@ -3,6 +3,7 @@ import { configService } from '../services/config.service';
 import { donationService } from '../services/donation.service';
 import { socketService } from '../services/socket.service';
 import { validateConfigUpdate } from '../models/config';
+import { requireAdmin } from '../middleware/admin-auth';
 
 const router = Router();
 
@@ -17,8 +18,8 @@ router.get('/', (_req: Request, res: Response) => {
   }
 });
 
-// PUT /api/config - Update configuration
-router.put('/', (req: Request, res: Response) => {
+// PUT /api/config - Update configuration (admin only)
+router.put('/', requireAdmin, (req: Request, res: Response) => {
   try {
     const data = validateConfigUpdate(req.body);
     const config = configService.update(data);

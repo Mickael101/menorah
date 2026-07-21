@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useSocket } from '../composables/useSocket';
 import { useDonations, type Donation } from '../composables/useDonations';
-import MenorahDisplay from '../components/display/MenorahDisplay.vue';
+import CampaignVisual from '../components/display/CampaignVisual.vue';
 import StatsCompact from '../components/display/StatsCompact.vue';
 import DonorPlatesGrid from '../components/display/DonorPlatesGrid.vue';
 import DonorPlateAnimation from '../components/display/DonorPlateAnimation.vue';
+import { getDisplayThemeStyles } from '../theme/displayThemes';
 
 const { on, isConnected } = useSocket();
 const {
@@ -17,6 +18,12 @@ const {
   handleDonationDeleted,
   handleConfigUpdated
 } = useDonations();
+const displayStyles = computed(() => getDisplayThemeStyles(config.value.displaySettings));
+const themeClass = computed(() => `theme-${config.value.displaySettings.theme}`);
+const visualMode = computed(() => config.value.displaySettings.visualMode ?? 'none');
+const customSvgUrl = computed(() => config.value.displaySettings.customSvgUrl ?? null);
+const hasCampaignVisual = computed(() => visualMode.value === 'menorah'
+  || (visualMode.value === 'custom' && Boolean(customSvgUrl.value)));
 
 // Play audio helper
 function playAudio(url: string): void {
@@ -117,7 +124,7 @@ function toggleFullscreen(): void {
 </script>
 
 <template>
-  <div class="display-page" :class="{ fullscreen: isFullscreen }">
+  <div class="display-page" :class="[themeClass, { fullscreen: isFullscreen }]" :style="displayStyles">
     <!-- Animated Background - Stars -->
     <div class="bg-effects">
       <div class="stars-layer stars-layer-1"></div>
@@ -177,16 +184,16 @@ function toggleFullscreen(): void {
     <!-- Main Content -->
     <div class="display-content">
       <!-- Grid Layout - Full screen -->
-      <div class="display-grid">
-        <!-- Left: Menorah -->
-        <div class="menorah-section">
-          <MenorahDisplay />
+      <div class="display-grid" :class="{ 'without-visual': !hasCampaignVisual }">
+        <!-- Optional campaign visual -->
+        <div v-if="hasCampaignVisual" class="campaign-visual-section">
+          <CampaignVisual :mode="visualMode" :custom-svg-url="customSvgUrl" />
         </div>
 
         <!-- Right: Gala info, Stats & Donors -->
         <div class="right-section">
           <div class="gala-header">
-            <span class="gala-title">Gala des fondateurs</span>
+            <span class="gala-title">Soirée de générosité</span>
             <span class="gala-org">Ohel Yehoshua</span>
           </div>
 
@@ -194,9 +201,9 @@ function toggleFullscreen(): void {
 
           <div class="donors-section">
             <div class="section-header">
-              <span>Le tableau des fondateurs</span>
+              <span>Merci à nos donateurs</span>
             </div>
-            <DonorPlatesGrid />
+            <DonorPlatesGrid spotlight />
           </div>
         </div>
       </div>
@@ -208,7 +215,10 @@ function toggleFullscreen(): void {
 .display-page {
   min-height: 100vh;
   height: 100vh;
-  background: #0a0a1a;
+  background: var(--bg-image, none), var(--bg-color, #070914);
+  background-size: cover;
+  color: var(--stats-text-color);
+  font-family: var(--theme-font-body);
   position: relative;
   overflow: hidden;
 }
@@ -360,9 +370,9 @@ function toggleFullscreen(): void {
   position: absolute;
   width: 12px;
   height: 12px;
-  background: linear-gradient(135deg, #FFD700, #FFA500);
+  background: linear-gradient(135deg, var(--chart-primary-color), var(--chart-secondary-color));
   border-radius: 50%;
-  box-shadow: 0 0 15px #FFD700, 0 0 30px #FFA500;
+  box-shadow: 0 0 15px var(--chart-primary-color), 0 0 30px var(--chart-secondary-color);
   animation: particle-explode 2s ease-out forwards;
 }
 
@@ -610,9 +620,9 @@ function toggleFullscreen(): void {
   position: absolute;
   width: 8px;
   height: 8px;
-  background: #FFD700;
+  background: var(--chart-primary-color);
   border-radius: 50%;
-  box-shadow: 0 0 10px #FFD700, 0 0 20px #FFA500;
+  box-shadow: 0 0 10px var(--chart-primary-color), 0 0 20px var(--chart-secondary-color);
 }
 
 .donation-flash.active .particle {
@@ -754,7 +764,7 @@ function toggleFullscreen(): void {
 
 .gala-title {
   font-size: clamp(12px, 1.2vw, 18px);
-  color: rgba(255, 255, 255, 0.5);
+  color: color-mix(in srgb, var(--stats-text-color) 55%, transparent);
   font-weight: 400;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -762,37 +772,44 @@ function toggleFullscreen(): void {
 
 .gala-org {
   font-size: clamp(16px, 2vw, 28px);
-  color: #FFD700;
+  color: var(--header-text-color);
   font-weight: 700;
   letter-spacing: 3px;
   text-transform: uppercase;
-  text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  text-shadow: 0 0 20px color-mix(in srgb, var(--header-text-color) 45%, transparent);
   margin-top: 4px;
 }
 
-/* Grid Layout - Exact 50/50 split */
+/* Optional visual stays secondary to the donor wall. */
 .display-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: 50% 50%;
-  gap: 0;
+  grid-template-columns: minmax(240px, 28%) minmax(0, 72%);
+  gap: 18px;
   width: 100%;
   min-height: 0;
+  padding: 18px;
+  box-sizing: border-box;
+}
+
+.display-grid.without-visual {
+  grid-template-columns: minmax(0, 1fr);
+  padding-inline: clamp(28px, 6vw, 110px);
 }
 
 /* Menorah Section - Centered on left half */
-.menorah-section {
+.campaign-visual-section {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 50vw;
-  height: 100vh;
-  padding: 2vh 3vw;
+  min-width: 0;
+  min-height: 0;
+  padding: 2vh 1.5vw;
   box-sizing: border-box;
   overflow: hidden;
 }
 
-.menorah-section :deep(.menorah-display) {
+.campaign-visual-section :deep(.menorah-display) {
   width: 100%;
   height: 100%;
   display: flex;
@@ -800,7 +817,7 @@ function toggleFullscreen(): void {
   justify-content: center;
 }
 
-.menorah-section :deep(.menorah-svg) {
+.campaign-visual-section :deep(.menorah-svg) {
   width: 90%;
   height: 90%;
   display: flex;
@@ -808,23 +825,21 @@ function toggleFullscreen(): void {
   justify-content: center;
 }
 
-.menorah-section :deep(.menorah-svg svg) {
+.campaign-visual-section :deep(.menorah-svg svg) {
   width: 100%;
   height: 100%;
-  max-width: 45vw;
-  max-height: 90vh;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 
-/* Right Section - Exactly half the screen */
 .right-section {
   display: flex;
   flex-direction: column;
   gap: 1vh;
   min-height: 0;
-  width: 50vw;
-  height: 100vh;
-  padding: 1vh 1.5vw;
+  width: 100%;
+  padding: 1vh 0;
   box-sizing: border-box;
 }
 
@@ -843,17 +858,17 @@ function toggleFullscreen(): void {
   justify-content: center;
   margin-bottom: 1.5vh;
   padding-bottom: 1vh;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  border-bottom: 1px solid color-mix(in srgb, var(--header-text-color) 24%, transparent);
   flex-shrink: 0;
 }
 
 .section-header span {
   font-size: clamp(14px, 1.2vw, 20px);
   font-weight: 600;
-  color: #D4AF37;
+  color: var(--header-text-color);
   letter-spacing: 1px;
   text-transform: uppercase;
-  text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--header-text-color) 28%, transparent);
 }
 
 /* Fullscreen Mode - Maximum space */
@@ -867,18 +882,19 @@ function toggleFullscreen(): void {
 
 /* Responsive */
 @media (max-width: 1200px) {
-  .display-grid {
+  .display-grid:not(.without-visual) {
     grid-template-columns: 1fr;
-    gap: 2vh;
+    grid-template-rows: minmax(0, 27vh) minmax(0, 1fr);
+    gap: 12px;
   }
 
-  .menorah-section {
+  .campaign-visual-section {
     order: 1;
-    max-height: 50vh;
+    max-height: none;
   }
 
-  .menorah-section :deep(.menorah-svg svg) {
-    max-height: 45vh;
+  .campaign-visual-section :deep(.menorah-svg svg) {
+    max-height: 100%;
   }
 
   .right-section {
@@ -888,8 +904,12 @@ function toggleFullscreen(): void {
 
 @media (max-width: 768px) {
   .display-content {
-    padding: 15px;
+    padding: 8px;
   }
+
+  .gala-header { padding-top: 50px; }
+  .gala-title { font-size: 9px; }
+  .gala-org { font-size: clamp(24px, 8vw, 31px); }
 
   .title {
     font-size: 28px;

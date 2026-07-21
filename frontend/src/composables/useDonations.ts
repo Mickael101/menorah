@@ -1,4 +1,5 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
+import { adminFetch } from './useAdminAuth';
 
 // Types matching backend
 export interface Donation {
@@ -37,7 +38,76 @@ export interface DonationStats {
   litSegments: string[];
 }
 
-export interface DisplaySettings {
+export const DISPLAY_THEME_IDS = ['premium', 'modern', 'ceremonial'] as const;
+export type DisplayThemeId = typeof DISPLAY_THEME_IDS[number];
+
+export const DISPLAY_VISUAL_MODES = ['none', 'menorah', 'custom'] as const;
+export type DisplayVisualMode = typeof DISPLAY_VISUAL_MODES[number];
+
+export const DONATION_ANIMATION_STYLES = ['prestige', 'confetti', 'ribbons', 'minimal'] as const;
+export type DonationAnimationStyle = typeof DONATION_ANIMATION_STYLES[number];
+
+export const DISPLAY_TEXT_DIRECTIONS = ['auto', 'ltr', 'rtl'] as const;
+export type DisplayTextDirection = typeof DISPLAY_TEXT_DIRECTIONS[number];
+
+export const ADMIN_BRANDING_LOCALES = ['fr', 'en', 'he'] as const;
+export type AdminBrandingLocale = typeof ADMIN_BRANDING_LOCALES[number];
+
+export interface AdminBrandingCopy {
+  title: string;
+  subtitle: string;
+}
+
+export type AdminBrandingSettings = Record<AdminBrandingLocale, AdminBrandingCopy>;
+
+export const DEFAULT_ADMIN_BRANDING: AdminBrandingSettings = {
+  fr: {
+    title: 'Ohel Yeochoua',
+    subtitle: 'Panel d’administration des dons'
+  },
+  en: {
+    title: 'Ohel Yeochoua',
+    subtitle: 'Donation administration panel'
+  },
+  he: {
+    title: 'Ohel Yeochoua',
+    subtitle: 'לוח ניהול התרומות'
+  }
+};
+
+export interface DisplayTextSettings {
+  eventTitle: string;
+  organizationName: string;
+  boardKicker: string;
+  boardTitle: string;
+  liveLabel: string;
+  reconnectingLabel: string;
+  donorSingular: string;
+  donorPlural: string;
+  donationSingular: string;
+  donationPlural: string;
+  goalLabel: string;
+  thankYouTitle: string;
+  thankYouMessage: string;
+}
+
+export const DEFAULT_DISPLAY_TEXTS: DisplayTextSettings = {
+  eventTitle: 'SOIRÉE DE GÉNÉROSITÉ',
+  organizationName: 'OHEL YEHOSHUA',
+  boardKicker: 'TABLEAU EN DIRECT',
+  boardTitle: 'MERCI À NOS DONATEURS',
+  liveLabel: 'EN DIRECT',
+  reconnectingLabel: 'RECONNEXION...',
+  donorSingular: 'DONATEUR',
+  donorPlural: 'DONATEURS',
+  donationSingular: 'don',
+  donationPlural: 'dons',
+  goalLabel: 'Objectif',
+  thankYouTitle: 'Un grand merci',
+  thankYouMessage: 'Votre générosité fait avancer la campagne'
+};
+
+export interface DisplayThemePalette {
   backgroundColor: string;
   backgroundImage: string | null;
   plateColorGold: string;
@@ -48,20 +118,69 @@ export interface DisplaySettings {
   statsTextColor: string;
   chartPrimaryColor: string;
   chartSecondaryColor: string;
+}
+
+export const DEFAULT_THEME_PALETTES: Record<DisplayThemeId, DisplayThemePalette> = {
+  premium: {
+    backgroundColor: '#070914',
+    backgroundImage: null,
+    plateColorGold: '#E4BE63',
+    plateColorDiamond: '#C8D4E3',
+    plateColorBronze: '#B67846',
+    plateTextColor: '#F8F3E8',
+    headerTextColor: '#F2CC72',
+    statsTextColor: '#F7F3EA',
+    chartPrimaryColor: '#E4BE63',
+    chartSecondaryColor: '#9B742B'
+  },
+  modern: {
+    backgroundColor: '#03121B',
+    backgroundImage: null,
+    plateColorGold: '#FFE66D',
+    plateColorDiamond: '#70E7FF',
+    plateColorBronze: '#FF9B62',
+    plateTextColor: '#F1FCFF',
+    headerTextColor: '#67E8F9',
+    statsTextColor: '#E9FBFF',
+    chartPrimaryColor: '#67E8F9',
+    chartSecondaryColor: '#7C6CFF'
+  },
+  ceremonial: {
+    backgroundColor: '#16090C',
+    backgroundImage: null,
+    plateColorGold: '#D8B66A',
+    plateColorDiamond: '#D8D0C3',
+    plateColorBronze: '#A86F45',
+    plateTextColor: '#FFF6E6',
+    headerTextColor: '#E7C57A',
+    statsTextColor: '#F6EAD8',
+    chartPrimaryColor: '#D8B66A',
+    chartSecondaryColor: '#7F2535'
+  }
+};
+
+export interface DisplaySettings extends DisplayThemePalette {
+  theme: DisplayThemeId;
+  themePalettes: Record<DisplayThemeId, DisplayThemePalette>;
+  visualMode: DisplayVisualMode;
+  customSvgUrl: string | null;
+  donationAnimation: DonationAnimationStyle;
+  textDirection: DisplayTextDirection;
+  texts: DisplayTextSettings;
+  adminBranding: AdminBrandingSettings;
   donationSound: string | null;
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
-  backgroundColor: '#0a0a1a',
-  backgroundImage: null,
-  plateColorGold: '#FFD700',
-  plateColorDiamond: '#E8E8E8',
-  plateColorBronze: '#CD7F32',
-  plateTextColor: '#1a1400',
-  headerTextColor: '#FFD700',
-  statsTextColor: '#FFFFFF',
-  chartPrimaryColor: '#FFD700',
-  chartSecondaryColor: '#D4AF37',
+  theme: 'premium',
+  themePalettes: structuredClone(DEFAULT_THEME_PALETTES),
+  ...DEFAULT_THEME_PALETTES.premium,
+  visualMode: 'none',
+  customSvgUrl: null,
+  donationAnimation: 'prestige',
+  textDirection: 'auto',
+  texts: structuredClone(DEFAULT_DISPLAY_TEXTS),
+  adminBranding: structuredClone(DEFAULT_ADMIN_BRANDING),
   donationSound: null
 };
 
@@ -140,7 +259,7 @@ export function useDonations() {
   // Create donation
   async function createDonation(data: {
     firstName: string;
-    lastName: string;
+    lastName?: string;
     email?: string;
     phone?: string;
     amount: number;
@@ -181,7 +300,7 @@ export function useDonations() {
     error.value = null;
 
     try {
-      const response = await fetch(`/api/donations/${id}`, {
+      const response = await adminFetch(`/api/donations/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -208,7 +327,7 @@ export function useDonations() {
     error.value = null;
 
     try {
-      const response = await fetch(`/api/donations/${id}`, {
+      const response = await adminFetch(`/api/donations/${id}`, {
         method: 'DELETE'
       });
 
@@ -232,7 +351,7 @@ export function useDonations() {
     error.value = null;
 
     try {
-      const response = await fetch('/api/config', {
+      const response = await adminFetch('/api/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -282,9 +401,13 @@ export function useDonations() {
 
   // Format amount from agorot to shekels
   const formatAmount = (cents: number): string => {
+    const hasAgorot = Math.abs(cents) % 100 !== 0;
+
     return new Intl.NumberFormat('he-IL', {
       style: 'currency',
-      currency: 'ILS'
+      currency: 'ILS',
+      minimumFractionDigits: hasAgorot ? 2 : 0,
+      maximumFractionDigits: hasAgorot ? 2 : 0
     }).format(cents / 100);
   };
 

@@ -3,13 +3,24 @@ import { ref, watch, onMounted, computed } from 'vue';
 import { gsap } from 'gsap';
 import { useDonations } from '../../composables/useDonations';
 import { useSocket } from '../../composables/useSocket';
+import { getActiveThemePalette } from '../../theme/displayThemes';
 
-const { donations, stats, fetchDonations, fetchConfig, handleDonationNew, handleDonationUpdated, handleDonationDeleted, handleConfigUpdated } = useDonations();
+const { donations, stats, config, fetchDonations, fetchConfig, handleDonationNew, handleDonationUpdated, handleDonationDeleted, handleConfigUpdated } = useDonations();
 const { on } = useSocket();
 
 const svgContainer = ref<HTMLDivElement | null>(null);
 const svgContent = ref<string>('');
 const breathingAnimations = ref<gsap.core.Timeline[]>([]);
+const activePalette = computed(() => getActiveThemePalette(config.value.displaySettings));
+const mutedColor = computed(() => ({
+  premium: '#766F73',
+  modern: '#416A73',
+  ceremonial: '#755C60'
+})[config.value.displaySettings.theme] ?? '#766F73');
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 
 // Premium word ID to mask ID mapping (each word lights independently)
 const PREMIUM_WORD_TO_MASK: Record<string, string> = {
@@ -87,6 +98,11 @@ function animateEntrance(): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
+  if (prefersReducedMotion()) {
+    gsap.set(svg, { opacity: 1, scale: 1 });
+    return;
+  }
+
   gsap.fromTo(svg,
     { opacity: 0, scale: 0.9 },
     { opacity: 1, scale: 1, duration: 1, ease: 'power2.out' }
@@ -98,33 +114,22 @@ function animateBounce(): void {
   const svg = svgContainer.value.querySelector('svg');
   if (!svg) return;
 
-  // Bouncing animation with glow
+  if (prefersReducedMotion()) return;
+
+  const glowColor = activePalette.value.chartPrimaryColor;
+
+  // Short visual acknowledgement; the full donor moment is handled separately.
   gsap.timeline()
     .to(svg, {
-      scale: 1.05,
-      filter: 'drop-shadow(0 0 40px #FFD700)',
+      scale: 1.025,
+      filter: `drop-shadow(0 0 28px ${glowColor})`,
       duration: 0.2,
       ease: 'power2.out'
     })
     .to(svg, {
-      scale: 0.98,
-      duration: 0.15,
-      ease: 'power2.in'
-    })
-    .to(svg, {
-      scale: 1.03,
-      duration: 0.12,
-      ease: 'power2.out'
-    })
-    .to(svg, {
-      scale: 0.99,
-      duration: 0.1,
-      ease: 'power2.in'
-    })
-    .to(svg, {
       scale: 1,
       filter: 'drop-shadow(0 0 0px transparent)',
-      duration: 0.15,
+      duration: 0.45,
       ease: 'power2.out'
     });
 }
@@ -155,6 +160,9 @@ function updateMenorahLighting(): void {
 
   const percent = stats.value.percentComplete;
   const groupsToLight = Math.floor((percent / 100) * regularGroups.length);
+  const lightColor = activePalette.value.chartPrimaryColor;
+  const secondaryColor = activePalette.value.chartSecondaryColor;
+  const isReduced = prefersReducedMotion();
 
   regularGroups.forEach((group, index) => {
     const paths = group.querySelectorAll('path');
@@ -164,33 +172,38 @@ function updateMenorahLighting(): void {
       // Couleur or vive et constante
       paths.forEach(path => {
         gsap.to(path, {
-          fill: '#FFD700',
+          fill: lightColor,
           duration: 0.5,
           ease: 'power2.out'
         });
       });
 
-      // Effet de respiration avec halo lumineux (pas de changement de couleur)
+      if (isReduced) {
+        gsap.set(group, { filter: `drop-shadow(0 0 7px ${lightColor})` });
+        return;
+      }
+
+      // Theme-aware, restrained breathing glow.
       const breathingTl = gsap.timeline({ repeat: -1 });
       const randomOffset = Math.random() * 0.5;
       breathingTl
         .to(group, {
-          filter: 'drop-shadow(0 0 8px #FFD700) drop-shadow(0 0 15px #FFD700)',
+          filter: `drop-shadow(0 0 7px ${lightColor}) drop-shadow(0 0 13px ${secondaryColor})`,
           duration: 1.5 + randomOffset,
           ease: 'sine.inOut'
         })
         .to(group, {
-          filter: 'drop-shadow(0 0 3px #FFD700) drop-shadow(0 0 6px #FFD700)',
+          filter: `drop-shadow(0 0 3px ${lightColor}) drop-shadow(0 0 6px ${secondaryColor})`,
           duration: 1.3 + randomOffset,
           ease: 'sine.inOut'
         })
         .to(group, {
-          filter: 'drop-shadow(0 0 12px #FFFF00) drop-shadow(0 0 20px #FFD700)',
+          filter: `drop-shadow(0 0 10px ${lightColor}) drop-shadow(0 0 17px ${secondaryColor})`,
           duration: 1.4 + randomOffset,
           ease: 'sine.inOut'
         })
         .to(group, {
-          filter: 'drop-shadow(0 0 5px #FFD700) drop-shadow(0 0 10px #FFD700)',
+          filter: `drop-shadow(0 0 5px ${lightColor}) drop-shadow(0 0 9px ${secondaryColor})`,
           duration: 1.2 + randomOffset,
           ease: 'sine.inOut'
         });
@@ -200,7 +213,7 @@ function updateMenorahLighting(): void {
       // Eteint - gris
       paths.forEach(path => {
         gsap.to(path, {
-          fill: '#A79085',
+          fill: mutedColor.value,
           duration: 0.8,
           ease: 'power2.out'
         });
@@ -225,33 +238,38 @@ function updateMenorahLighting(): void {
         // Couleur or tres vive pour les mots premium
         paths.forEach(path => {
           gsap.to(path, {
-            fill: '#FFDD00',
+            fill: lightColor,
             duration: 0.5,
             ease: 'power2.out'
           });
         });
 
-        // Effet de respiration avec halo lumineux tres intense
+        if (isReduced) {
+          gsap.set(group, { filter: `drop-shadow(0 0 10px ${lightColor})` });
+          return;
+        }
+
+        // Premium words keep a stronger, but still theme-aware, glow.
         const breathingTl = gsap.timeline({ repeat: -1 });
         const randomOffset = Math.random() * 0.4;
         breathingTl
           .to(group, {
-            filter: 'drop-shadow(0 0 15px #FFFF00) drop-shadow(0 0 25px #FFD700) drop-shadow(0 0 35px #FFD700)',
+            filter: `drop-shadow(0 0 12px ${lightColor}) drop-shadow(0 0 22px ${secondaryColor})`,
             duration: 1.2 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(group, {
-            filter: 'drop-shadow(0 0 8px #FFD700) drop-shadow(0 0 12px #FFD700)',
+            filter: `drop-shadow(0 0 7px ${lightColor}) drop-shadow(0 0 11px ${secondaryColor})`,
             duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(group, {
-            filter: 'drop-shadow(0 0 20px #FFFF33) drop-shadow(0 0 30px #FFD700) drop-shadow(0 0 40px #FFD700)',
+            filter: `drop-shadow(0 0 16px ${lightColor}) drop-shadow(0 0 27px ${secondaryColor})`,
             duration: 1.1 + randomOffset,
             ease: 'sine.inOut'
           })
           .to(group, {
-            filter: 'drop-shadow(0 0 10px #FFD700) drop-shadow(0 0 18px #FFD700)',
+            filter: `drop-shadow(0 0 9px ${lightColor}) drop-shadow(0 0 16px ${secondaryColor})`,
             duration: 1.0 + randomOffset,
             ease: 'sine.inOut'
           });
@@ -261,7 +279,7 @@ function updateMenorahLighting(): void {
         // Eteint - gris
         paths.forEach(path => {
           gsap.to(path, {
-            fill: '#A79085',
+            fill: mutedColor.value,
             duration: 0.5,
             ease: 'power2.out'
           });

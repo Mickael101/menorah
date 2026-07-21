@@ -1,15 +1,21 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { useSocket } from '../composables/useSocket';
-import { useDonations, type Donation } from '../composables/useDonations';
-import MenorahDisplay from '../components/display/MenorahDisplay.vue';
+import {
+  useDonations,
+  type Donation,
+  DEFAULT_DISPLAY_TEXTS
+} from '../composables/useDonations';
+import CampaignVisual from '../components/display/CampaignVisual.vue';
 import StatsCompact from '../components/display/StatsCompact.vue';
 import DonorPlatesGrid from '../components/display/DonorPlatesGrid.vue';
 import DonorPlateAnimation from '../components/display/DonorPlateAnimation.vue';
+import { getDisplayThemeStyles } from '../theme/displayThemes';
 
 const { on, isConnected } = useSocket();
 const {
   config,
+  stats,
   fetchDonations,
   fetchConfig,
   handleDonationNew,
@@ -20,27 +26,33 @@ const {
 
 // Dynamic styles from config
 const displayStyles = computed(() => {
-  const settings = config.value.displaySettings;
-  return {
-    '--bg-color': settings.backgroundColor,
-    '--bg-image': settings.backgroundImage ? `url(${settings.backgroundImage})` : 'none',
-    '--header-text-color': settings.headerTextColor,
-    '--stats-text-color': settings.statsTextColor,
-    '--chart-primary-color': settings.chartPrimaryColor,
-    '--chart-secondary-color': settings.chartSecondaryColor,
-    '--plate-gold': settings.plateColorGold,
-    '--plate-diamond': settings.plateColorDiamond,
-    '--plate-bronze': settings.plateColorBronze,
-    '--plate-text': settings.plateTextColor
-  };
+  return getDisplayThemeStyles(config.value.displaySettings);
+});
+
+const themeClass = computed(() => `theme-${config.value.displaySettings.theme}`);
+const visualMode = computed(() => config.value.displaySettings.visualMode ?? 'none');
+const customSvgUrl = computed(() => config.value.displaySettings.customSvgUrl ?? null);
+const displayTexts = computed(() => ({
+  ...DEFAULT_DISPLAY_TEXTS,
+  ...(config.value.displaySettings.texts ?? {})
+}));
+const textDirection = computed(() => config.value.displaySettings.textDirection ?? 'auto');
+const donationAnimation = computed(() => config.value.displaySettings.donationAnimation ?? 'prestige');
+const hasCampaignVisual = computed(() => {
+  return visualMode.value === 'menorah'
+    || (visualMode.value === 'custom' && Boolean(customSvgUrl.value));
 });
 
 const isFullscreen = ref(false);
 const showDonationFlash = ref(false);
 const showPlateAnimation = ref(false);
 const latestDonation = ref<Donation | null>(null);
+const donationQueue = ref<Donation[]>([]);
 const showGifExplosion = ref(false);
 const currentGif = ref('');
+let flashTimeoutId: number | null = null;
+let nextDonationTimeoutId: number | null = null;
+let gifTimeoutId: number | null = null;
 
 // Play audio helper
 function playAudio(url: string): void {
@@ -53,8 +65,7 @@ function playAudio(url: string): void {
   }
 }
 
-// Trigger spectacular donation animation with plate
-function triggerDonationCelebration(donation: Donation): void {
+function showDonationCelebration(donation: Donation): void {
   showDonationFlash.value = true;
   latestDonation.value = donation;
   showPlateAnimation.value = true;
@@ -64,13 +75,36 @@ function triggerDonationCelebration(donation: Donation): void {
     playAudio(config.value.displaySettings.donationSound);
   }
 
-  setTimeout(() => {
+  if (flashTimeoutId !== null) {
+    window.clearTimeout(flashTimeoutId);
+  }
+
+  flashTimeoutId = window.setTimeout(() => {
     showDonationFlash.value = false;
+    flashTimeoutId = null;
   }, 2000);
+}
+
+// Queue donations so every contribution gets its full moment on screen.
+function triggerDonationCelebration(donation: Donation): void {
+  if (showPlateAnimation.value || nextDonationTimeoutId !== null) {
+    donationQueue.value.push(donation);
+    return;
+  }
+
+  showDonationCelebration(donation);
 }
 
 function handlePlateAnimationEnd(): void {
   showPlateAnimation.value = false;
+
+  const nextDonation = donationQueue.value.shift();
+  if (nextDonation) {
+    nextDonationTimeoutId = window.setTimeout(() => {
+      nextDonationTimeoutId = null;
+      showDonationCelebration(nextDonation);
+    }, 250);
+  }
 }
 
 // Trigger GIF explosion (for admin triggered GIFs)
@@ -83,8 +117,13 @@ function triggerGifExplosion(gifUrl: string, audioUrl?: string): void {
     playAudio(audioUrl);
   }
 
-  setTimeout(() => {
+  if (gifTimeoutId !== null) {
+    window.clearTimeout(gifTimeoutId);
+  }
+
+  gifTimeoutId = window.setTimeout(() => {
     showGifExplosion.value = false;
+    gifTimeoutId = null;
   }, 4000);
 }
 
@@ -122,6 +161,13 @@ onMounted(async () => {
   });
 });
 
+onUnmounted(() => {
+  if (flashTimeoutId !== null) window.clearTimeout(flashTimeoutId);
+  if (nextDonationTimeoutId !== null) window.clearTimeout(nextDonationTimeoutId);
+  if (gifTimeoutId !== null) window.clearTimeout(gifTimeoutId);
+  donationQueue.value = [];
+});
+
 function toggleFullscreen(): void {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen();
@@ -134,7 +180,12 @@ function toggleFullscreen(): void {
 </script>
 
 <template>
-  <div class="display-page" :class="{ fullscreen: isFullscreen }" :style="displayStyles">
+  <div
+    class="display-page"
+    :class="[themeClass, { fullscreen: isFullscreen }]"
+    :style="displayStyles"
+    :dir="textDirection"
+  >
     <!-- Animated Background - Stars -->
     <div class="bg-effects">
       <div class="stars-layer stars-layer-1"></div>
@@ -147,7 +198,7 @@ function toggleFullscreen(): void {
       <div class="flash-rays"></div>
       <div class="flash-glow"></div>
       <div class="flash-particles">
-        <span v-for="i in 20" :key="i" class="particle"></span>
+        <span v-for="i in 12" :key="i" class="particle"></span>
       </div>
     </div>
 
@@ -155,6 +206,10 @@ function toggleFullscreen(): void {
     <DonorPlateAnimation
       :donation="latestDonation"
       :show="showPlateAnimation"
+      :animation-style="donationAnimation"
+      :thank-you-title="displayTexts.thankYouTitle"
+      :thank-you-message="displayTexts.thankYouMessage"
+      :text-direction="textDirection"
       @animationEnd="handlePlateAnimationEnd"
     />
 
@@ -165,7 +220,7 @@ function toggleFullscreen(): void {
           <img :src="currentGif" alt="Celebration" class="explosion-gif" />
         </div>
         <div class="gif-explosion-particles">
-          <span v-for="i in 30" :key="i" class="gif-particle"></span>
+          <span v-for="i in 18" :key="i" class="gif-particle"></span>
         </div>
         <div class="gif-explosion-rings">
           <div class="gif-ring gif-ring-1"></div>
@@ -178,7 +233,7 @@ function toggleFullscreen(): void {
     <!-- Connection Status - LED optimise -->
     <div class="connection-status" :class="{ connected: isConnected }">
       <span class="status-dot"></span>
-      {{ isConnected ? 'EN DIRECT' : 'RECONNEXION...' }}
+      <span :dir="textDirection">{{ isConnected ? displayTexts.liveLabel : displayTexts.reconnectingLabel }}</span>
     </div>
 
     <!-- Fullscreen Toggle -->
@@ -194,26 +249,34 @@ function toggleFullscreen(): void {
     <!-- Main Content -->
     <div class="display-content">
       <!-- Grid Layout - Full screen -->
-      <div class="display-grid">
-        <!-- Left: Menorah -->
-        <div class="menorah-section">
-          <MenorahDisplay />
+      <div class="display-grid" :class="{ 'without-visual': !hasCampaignVisual }">
+        <!-- Optional campaign visual. Donors remain the visual priority. -->
+        <div v-if="hasCampaignVisual" class="campaign-visual-section">
+          <div class="campaign-visual-frame">
+            <CampaignVisual :mode="visualMode" :custom-svg-url="customSvgUrl" />
+          </div>
         </div>
 
-        <!-- Right: Gala info, Stats & Donors -->
+        <!-- Main donor stage -->
         <div class="right-section">
           <div class="gala-header">
-            <span class="gala-title">GALA DES FONDATEURS</span>
-            <span class="gala-org">OHEL YEHOSHUA</span>
+            <span class="gala-title" :dir="textDirection">{{ displayTexts.eventTitle }}</span>
+            <span class="gala-org" :dir="textDirection">{{ displayTexts.organizationName }}</span>
           </div>
 
           <StatsCompact />
 
           <div class="donors-section">
             <div class="section-header">
-              <span>LE TABLEAU DES FONDATEURS</span>
+              <div class="section-copy">
+                <span class="section-kicker" :dir="textDirection">{{ displayTexts.boardKicker }}</span>
+                <span class="section-title" :dir="textDirection">{{ displayTexts.boardTitle }}</span>
+              </div>
+              <span class="donor-count" :dir="textDirection">
+                {{ stats.donationCount }} {{ stats.donationCount === 1 ? displayTexts.donorSingular : displayTexts.donorPlural }}
+              </span>
             </div>
-            <DonorPlatesGrid />
+            <DonorPlatesGrid spotlight />
           </div>
         </div>
       </div>
@@ -225,13 +288,48 @@ function toggleFullscreen(): void {
 .display-page {
   min-height: 100vh;
   height: 100vh;
-  background-color: var(--bg-color, #0a0a1a);
-  background-image: var(--bg-image, none);
+  background-color: var(--bg-color, #070914);
+  background-image:
+    var(--bg-image, none),
+    radial-gradient(circle at 22% 48%, color-mix(in srgb, var(--chart-primary-color) 7%, transparent), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--bg-color) 90%, black), var(--bg-color));
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   position: relative;
   overflow: hidden;
+  isolation: isolate;
+  color: var(--stats-text-color);
+  font-family: var(--theme-font-body);
+}
+
+.display-page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.32;
+}
+
+.display-page.theme-premium::before {
+  background: linear-gradient(115deg, rgba(255, 255, 255, 0.025), transparent 32%, rgba(255, 255, 255, 0.02));
+}
+
+.display-page.theme-modern::before {
+  opacity: 0.2;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--chart-primary-color) 14%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--chart-primary-color) 14%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.display-page.theme-ceremonial::before {
+  opacity: 0.26;
+  background:
+    radial-gradient(circle at center, transparent 35%, rgba(0, 0, 0, 0.48) 100%),
+    repeating-linear-gradient(105deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 7px);
 }
 
 /* Background Effects - Smooth continuous stars */
@@ -240,7 +338,11 @@ function toggleFullscreen(): void {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  opacity: 0.36;
 }
+
+.theme-modern .bg-effects { opacity: 0.24; }
+.theme-ceremonial .bg-effects { opacity: 0.18; }
 
 .stars-layer {
   position: absolute;
@@ -264,7 +366,7 @@ function toggleFullscreen(): void {
     radial-gradient(2px 2px at 430px 100px, rgba(255, 255, 255, 0.7), transparent);
   background-size: 500px 200px;
   animation: stars-float-1 60s linear infinite;
-  opacity: 0.9;
+  opacity: 0.62;
 }
 
 .stars-layer-2 {
@@ -277,7 +379,7 @@ function toggleFullscreen(): void {
     radial-gradient(1.5px 1.5px at 340px 30px, rgba(255, 255, 255, 0.9), transparent);
   background-size: 400px 180px;
   animation: stars-float-2 80s linear infinite;
-  opacity: 0.7;
+  opacity: 0.46;
 }
 
 .stars-layer-3 {
@@ -336,14 +438,14 @@ function toggleFullscreen(): void {
 .flash-rays {
   position: absolute;
   top: 50%;
-  left: 25%;
+  left: 50%;
   width: 100px;
   height: 100px;
   transform: translate(-50%, -50%);
   background: conic-gradient(
     from 0deg,
     transparent 0deg,
-    rgba(255, 215, 0, 0.6) 10deg,
+    color-mix(in srgb, var(--chart-primary-color) 45%, transparent) 10deg,
     transparent 20deg,
     transparent 30deg,
     rgba(255, 215, 0, 0.4) 40deg,
@@ -407,11 +509,11 @@ function toggleFullscreen(): void {
 .flash-glow {
   position: absolute;
   top: 50%;
-  left: 25%;
+  left: 50%;
   width: 200px;
   height: 200px;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle, rgba(255, 215, 0, 0.8) 0%, rgba(255, 215, 0, 0) 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--chart-primary-color) 32%, transparent) 0%, transparent 70%);
   border-radius: 50%;
 }
 
@@ -438,7 +540,7 @@ function toggleFullscreen(): void {
 .flash-particles {
   position: absolute;
   top: 50%;
-  left: 25%;
+  left: 50%;
   width: 0;
   height: 0;
 }
@@ -447,9 +549,9 @@ function toggleFullscreen(): void {
   position: absolute;
   width: 8px;
   height: 8px;
-  background: #FFD700;
+  background: var(--chart-primary-color);
   border-radius: 50%;
-  box-shadow: 0 0 10px #FFD700, 0 0 20px #FFA500;
+  box-shadow: 0 0 10px var(--chart-primary-color), 0 0 20px var(--chart-secondary-color);
 }
 
 .donation-flash.active .particle {
@@ -495,34 +597,36 @@ function toggleFullscreen(): void {
   }
 }
 
-/* Connection Status - LED optimise */
+/* Discreet technical controls, kept readable without competing with the show. */
 .connection-status {
   position: fixed;
   top: 25px;
-  right: 25px;
+  left: 100px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 15px 25px;
-  background: rgba(255, 0, 0, 0.8);
-  border: 3px solid #FF6666;
-  border-radius: 50px;
-  font-size: 20px;
-  font-weight: 900;
+  gap: 8px;
+  padding: 10px 15px;
+  background: color-mix(in srgb, var(--theme-surface-strong) 92%, #5c1414);
+  border: 1px solid rgba(255, 120, 120, 0.55);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
   color: #FFFFFF;
   z-index: 100;
-  letter-spacing: 2px;
+  letter-spacing: 1.3px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
 }
 
 .connection-status.connected {
-  background: rgba(0, 170, 0, 0.8);
-  border-color: #66FF66;
+  background: color-mix(in srgb, var(--theme-surface-strong) 86%, #0b5f3b);
+  border-color: rgba(91, 236, 167, 0.58);
   color: #FFFFFF;
 }
 
 .status-dot {
-  width: 16px;
-  height: 16px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: #FFFFFF;
   animation: pulse 1.5s ease-in-out infinite;
@@ -533,36 +637,39 @@ function toggleFullscreen(): void {
   50% { opacity: 0.5; transform: scale(0.8); }
 }
 
-/* Fullscreen Button - LED optimise */
 .fullscreen-btn {
   position: fixed;
   top: 25px;
   left: 25px;
-  width: 60px;
-  height: 60px;
+  width: 52px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 215, 0, 0.9);
-  border: 3px solid #FFD700;
-  border-radius: 15px;
+  background: var(--theme-surface-strong);
+  border: 1px solid color-mix(in srgb, var(--header-text-color) 55%, transparent);
+  border-radius: calc(var(--theme-radius) * 0.7);
   cursor: pointer;
   z-index: 100;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+  transition: transform 180ms ease, background 180ms ease;
 }
 
 .fullscreen-btn svg {
-  width: 30px;
-  height: 30px;
-  color: #000;
-  stroke-width: 3;
+  width: 24px;
+  height: 24px;
+  color: var(--header-text-color);
+  stroke-width: 2.4;
 }
 
 .fullscreen-btn:hover {
-  background: #FFD700;
+  background: color-mix(in srgb, var(--theme-surface-strong) 80%, var(--header-text-color));
+  transform: translateY(-2px);
 }
 
 .fullscreen-btn:hover svg {
-  color: #000;
+  color: white;
 }
 
 /* Display Content - Maximum space */
@@ -576,110 +683,169 @@ function toggleFullscreen(): void {
   box-sizing: border-box;
 }
 
-/* Gala header - LED optimise XXL */
 .gala-header {
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   align-items: center;
+  padding: 0.5vh 0 1vh;
   text-align: center;
-  padding: 2vh 0;
-  flex-shrink: 0;
 }
 
 .gala-title {
-  font-size: clamp(20px, 2.5vw, 36px);
-  color: var(--stats-text-color, rgba(255, 255, 255, 0.8));
-  font-weight: 900;
-  letter-spacing: 6px;
+  color: color-mix(in srgb, var(--stats-text-color) 66%, transparent);
+  font-family: var(--theme-font-body);
+  font-size: clamp(12px, 1vw, 17px);
+  font-weight: 750;
+  letter-spacing: clamp(3px, 0.45vw, 7px);
+  text-transform: uppercase;
 }
 
 .gala-org {
-  font-size: clamp(30px, 4vw, 60px);
-  color: var(--header-text-color, #FFD700);
-  font-weight: 900;
-  letter-spacing: 8px;
-  text-shadow: 0 0 30px currentColor;
-  margin-top: 8px;
+  margin-top: 2px;
+  color: var(--header-text-color);
+  font-family: var(--theme-font-display);
+  font-size: clamp(28px, 3vw, 48px);
+  font-weight: 850;
+  letter-spacing: clamp(2px, 0.45vw, 7px);
+  line-height: 1.05;
+  text-shadow: 0 0 28px color-mix(in srgb, var(--header-text-color) 28%, transparent);
 }
 
-/* Grid Layout - Exact 50/50 split */
+/* The campaign visual is optional and deliberately secondary. */
 .display-grid {
-  flex: 1;
   display: grid;
-  grid-template-columns: 50% 50%;
-  gap: 0;
+  grid-template-columns: minmax(240px, 28%) minmax(0, 72%);
+  flex: 1;
+  gap: clamp(12px, 1.5vw, 26px);
   width: 100%;
   min-height: 0;
-}
-
-/* Menorah Section - Full half screen, imposing */
-.menorah-section {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 50vw;
-  height: 100vh;
-  padding: 0;
+  padding: clamp(14px, 1.8vw, 30px);
   box-sizing: border-box;
 }
 
-.menorah-section :deep(.menorah-display) {
-  height: 100%;
+.display-grid.without-visual {
+  grid-template-columns: minmax(0, 1fr);
+  padding-inline: clamp(34px, 6vw, 120px);
+}
+
+.campaign-visual-section {
   display: flex;
+  min-width: 0;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.campaign-visual-frame {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: 0;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--header-text-color) 14%, transparent);
+  border-radius: calc(var(--theme-radius) * 1.2);
+  background: var(--theme-visual-backdrop), color-mix(in srgb, var(--theme-surface) 52%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 24px 70px rgba(0, 0, 0, 0.22);
 }
 
-.menorah-section :deep(.menorah-svg) {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.campaign-visual-frame::after {
+  content: '';
+  position: absolute;
+  inset: 4%;
+  border: 1px solid color-mix(in srgb, var(--header-text-color) 8%, transparent);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
-.menorah-section :deep(.menorah-svg svg) {
-  height: 100vh;
-  width: auto;
-  max-height: 100vh;
-}
-
-/* Right Section - Exactly half the screen */
 .right-section {
   display: flex;
-  flex-direction: column;
-  gap: 1vh;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
-  width: 50vw;
-  height: 100vh;
-  padding: 1vh 1.5vw;
-  box-sizing: border-box;
+  flex-direction: column;
+  gap: clamp(8px, 1vh, 14px);
 }
 
-/* Donors Section - Takes remaining space */
+.without-visual .right-section {
+  width: min(100%, 1720px);
+  margin-inline: auto;
+}
+
+.without-visual .donors-section {
+  background:
+    radial-gradient(circle at 50% 52%, color-mix(in srgb, var(--chart-primary-color) 7%, transparent), transparent 42%),
+    linear-gradient(145deg, color-mix(in srgb, var(--theme-surface) 76%, transparent), color-mix(in srgb, var(--theme-surface-strong) 68%, transparent));
+}
+
+.without-visual .gala-header {
+  padding-top: 0;
+}
+
+.without-visual .gala-org {
+  font-size: clamp(34px, 3.6vw, 60px);
+}
+
 .donors-section {
-  flex: 1;
   display: flex;
-  flex-direction: column;
   min-height: 0;
+  flex: 1;
+  flex-direction: column;
   overflow: hidden;
+  padding: clamp(10px, 1.2vw, 20px);
+  border: 1px solid color-mix(in srgb, var(--header-text-color) 15%, transparent);
+  border-radius: calc(var(--theme-radius) * 1.15);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--theme-surface) 76%, transparent), color-mix(in srgb, var(--theme-surface-strong) 68%, transparent));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 22px 60px rgba(0, 0, 0, 0.16);
 }
 
 .section-header {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 2vh;
-  padding-bottom: 1.5vh;
-  border-bottom: 4px solid var(--header-text-color, #FFD700);
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 clamp(8px, 1vw, 16px) 0.8vh;
+  padding: 0 0 1vh;
+  border-bottom: 1px solid color-mix(in srgb, var(--header-text-color) 32%, transparent);
   flex-shrink: 0;
 }
 
-.section-header span {
-  font-size: clamp(22px, 2.5vw, 40px);
-  font-weight: 900;
-  color: var(--header-text-color, #FFD700);
-  letter-spacing: 4px;
-  text-shadow: 0 0 20px currentColor;
+.section-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.section-kicker {
+  color: color-mix(in srgb, var(--stats-text-color) 52%, transparent);
+  font-family: var(--theme-font-body);
+  font-size: clamp(9px, 0.72vw, 12px);
+  font-weight: 750;
+  letter-spacing: 0.2em;
+}
+
+.section-title {
+  color: var(--header-text-color);
+  font-family: var(--theme-font-display);
+  font-size: clamp(20px, 2vw, 36px);
+  font-weight: 800;
+  letter-spacing: clamp(1px, 0.2vw, 3px);
+  line-height: 1.05;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--header-text-color) 22%, transparent);
+}
+
+.donor-count {
+  flex-shrink: 0;
+  padding: 7px 11px;
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color) 32%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chart-primary-color) 8%, transparent);
+  color: color-mix(in srgb, var(--stats-text-color) 78%, transparent);
+  font-size: clamp(9px, 0.75vw, 12px);
+  font-weight: 800;
+  letter-spacing: 0.12em;
 }
 
 /* Fullscreen Mode - Maximum space */
@@ -693,36 +859,109 @@ function toggleFullscreen(): void {
 
 /* Responsive */
 @media (max-width: 1200px) {
-  .display-grid {
+  .display-grid:not(.without-visual) {
     grid-template-columns: 1fr;
-    gap: 2vh;
+    grid-template-rows: minmax(0, 27vh) minmax(0, 1fr);
   }
 
-  .menorah-section {
-    order: 1;
-    max-height: 50vh;
+  .display-grid.without-visual {
+    padding-inline: clamp(18px, 4vw, 48px);
   }
 
-  .menorah-section :deep(.menorah-svg svg) {
-    max-height: 45vh;
+  .campaign-visual-frame {
+    width: min(100%, 860px);
+    margin-inline: auto;
   }
 
-  .right-section {
-    order: 2;
+  .gala-header {
+    padding-block: 0;
+  }
+
+  .gala-title {
+    font-size: clamp(11px, 1.4vw, 15px);
+  }
+
+  .gala-org,
+  .without-visual .gala-org {
+    font-size: clamp(28px, 4vw, 44px);
   }
 }
 
 @media (max-width: 768px) {
-  .display-content {
-    padding: 15px;
+  .display-grid,
+  .display-grid.without-visual {
+    gap: 8px;
+    padding: 8px;
   }
 
-  .title {
-    font-size: 28px;
+  .display-grid:not(.without-visual) {
+    grid-template-rows: minmax(0, 23vh) minmax(0, 1fr);
   }
 
-  .subtitle span {
-    font-size: 14px;
+  .donors-section {
+    padding: 8px;
+  }
+
+  .section-header {
+    align-items: center;
+    margin-inline: 4px;
+  }
+
+  .section-kicker {
+    display: none;
+  }
+
+  .section-title {
+    font-size: clamp(17px, 4.8vw, 24px);
+  }
+
+  .donor-count {
+    padding: 5px 8px;
+    font-size: 8px;
+  }
+
+  .gala-header,
+  .without-visual .gala-header {
+    padding-top: 50px;
+  }
+
+  .gala-title {
+    font-size: 9px;
+    letter-spacing: 2px;
+  }
+
+  .gala-org,
+  .without-visual .gala-org {
+    font-size: clamp(24px, 8vw, 31px);
+    letter-spacing: 2px;
+  }
+
+  .fullscreen-btn {
+    top: 8px;
+    left: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  .fullscreen-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .connection-status {
+    top: 8px;
+    right: 8px;
+    left: auto;
+    padding: 8px 11px;
+    border-width: 2px;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
   }
 }
 
@@ -734,16 +973,8 @@ function toggleFullscreen(): void {
 }
 
 @media (min-width: 2560px) {
-  .title {
-    font-size: 80px;
-  }
-
-  .subtitle span {
-    font-size: 28px;
-  }
-
-  .section-header span {
-    font-size: 24px;
+  .section-title {
+    font-size: clamp(40px, 1.5vw, 56px);
   }
 }
 
@@ -774,13 +1005,13 @@ function toggleFullscreen(): void {
   max-width: 60vw;
   max-height: 70vh;
   border-radius: 20px;
-  box-shadow: 0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.5), 0 0 180px rgba(255, 100, 0, 0.3);
+  box-shadow: 0 0 60px color-mix(in srgb, var(--chart-primary-color) 70%, transparent), 0 0 120px color-mix(in srgb, var(--chart-secondary-color) 42%, transparent);
   animation: gif-glow-anim 1s ease-in-out infinite alternate;
 }
 
 @keyframes gif-glow-anim {
-  0% { box-shadow: 0 0 60px rgba(255, 215, 0, 0.8), 0 0 120px rgba(255, 165, 0, 0.5), 0 0 180px rgba(255, 100, 0, 0.3); }
-  100% { box-shadow: 0 0 80px rgba(255, 215, 0, 1), 0 0 150px rgba(255, 165, 0, 0.7), 0 0 220px rgba(255, 100, 0, 0.5); }
+  0% { box-shadow: 0 0 60px color-mix(in srgb, var(--chart-primary-color) 70%, transparent), 0 0 120px color-mix(in srgb, var(--chart-secondary-color) 42%, transparent); }
+  100% { box-shadow: 0 0 82px color-mix(in srgb, var(--chart-primary-color) 90%, transparent), 0 0 155px color-mix(in srgb, var(--chart-secondary-color) 60%, transparent); }
 }
 
 .gif-explosion-particles {
@@ -793,9 +1024,9 @@ function toggleFullscreen(): void {
   position: absolute;
   width: 12px;
   height: 12px;
-  background: linear-gradient(135deg, #FFD700, #FFA500);
+  background: linear-gradient(135deg, var(--chart-primary-color), var(--chart-secondary-color));
   border-radius: 50%;
-  box-shadow: 0 0 15px #FFD700, 0 0 30px #FFA500;
+  box-shadow: 0 0 15px var(--chart-primary-color), 0 0 30px var(--chart-secondary-color);
   animation: gif-particle-explode 2s ease-out forwards;
 }
 
@@ -866,4 +1097,53 @@ function toggleFullscreen(): void {
 .gif-explosion-leave-active { animation: gif-explosion-out 0.5s ease-in; }
 @keyframes gif-explosion-in { 0% { opacity: 0; } 100% { opacity: 1; } }
 @keyframes gif-explosion-out { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+.theme-modern .gala-header {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.theme-modern .gala-org {
+  text-shadow: 0 0 30px color-mix(in srgb, var(--header-text-color) 42%, transparent);
+}
+
+.theme-modern .section-header {
+  justify-content: space-between;
+}
+
+.theme-modern .campaign-visual-frame {
+  box-shadow:
+    inset 0 0 44px color-mix(in srgb, var(--chart-primary-color) 6%, transparent),
+    0 28px 75px rgba(0, 0, 0, 0.25);
+}
+
+.theme-ceremonial .campaign-visual-frame {
+  outline: 1px solid color-mix(in srgb, var(--header-text-color) 12%, transparent);
+  outline-offset: -10px;
+}
+
+.theme-ceremonial .gala-title {
+  font-style: italic;
+  text-transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stars-layer,
+  .status-dot,
+  .flash-rays,
+  .flash-glow,
+  .particle,
+  .gif-explosion-content,
+  .explosion-gif,
+  .gif-particle,
+  .gif-ring {
+    animation: none !important;
+  }
+
+  .flash-particles,
+  .gif-explosion-particles,
+  .gif-explosion-rings {
+    display: none;
+  }
+}
 </style>

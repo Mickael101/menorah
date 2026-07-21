@@ -8,6 +8,9 @@ import donationsRouter from './routes/donations';
 import statsRouter from './routes/stats';
 import configRouter from './routes/config';
 import gifsRouter from './routes/gifs';
+import adminRouter from './routes/admin';
+import { uploadsRoot } from './config/storage';
+import { startBackupScheduler } from './services/backup.service';
 
 // Create Express app
 const app = express();
@@ -26,6 +29,7 @@ socketService.init(server);
 
 // Serve frontend static files
 const publicPath = path.join(__dirname, "../public");
+app.use('/uploads', express.static(uploadsRoot));
 app.use(express.static(publicPath));
 
 // API Routes
@@ -33,6 +37,7 @@ app.use('/api/donations', donationsRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/config', configRouter);
 app.use('/api/gifs', gifsRouter);
+app.use('/api/admin', adminRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -49,6 +54,7 @@ const PORT = process.env.PORT || 3000;
 // Start server with async DB init
 async function start() {
   await initDatabase();
+  startBackupScheduler();
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

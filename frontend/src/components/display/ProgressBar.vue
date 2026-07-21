@@ -11,7 +11,7 @@ const progressWidth = computed(() => {
 });
 
 // Animate progress changes
-watch(() => stats.value.percentComplete, (newValue, oldValue) => {
+watch(() => stats.value.percentComplete, (newValue) => {
   const start = displayPercent.value;
   const end = newValue;
   const duration = 1000;

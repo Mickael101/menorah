@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useAdminI18n } from '../../composables/useAdminI18n';
+import { adminFetch } from '../../composables/useAdminAuth';
+
+const { t } = useAdminI18n();
 
 interface Gif {
   filename: string;
@@ -35,20 +39,20 @@ async function uploadGif(event: Event): Promise<void> {
   formData.append('gif', input.files[0]);
 
   try {
-    const response = await fetch(`${API_BASE}/api/gifs/upload`, {
+    const response = await adminFetch(`${API_BASE}/api/gifs/upload`, {
       method: 'POST',
       body: formData
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Upload failed');
+      throw new Error(error.error || t('gifs.uploadFailed'));
     }
 
     await fetchGifs();
     input.value = '';
   } catch (error: any) {
-    uploadError.value = error.message || 'Failed to upload GIF';
+    uploadError.value = error.message || t('gifs.uploadFailed');
   } finally {
     isUploading.value = false;
   }
@@ -65,19 +69,19 @@ async function uploadAudioForGif(event: Event, gifFilename: string): Promise<voi
 
   try {
     // Upload audio file
-    const uploadResponse = await fetch(`${API_BASE}/api/gifs/upload-audio`, {
+    const uploadResponse = await adminFetch(`${API_BASE}/api/gifs/upload-audio`, {
       method: 'POST',
       body: formData
     });
 
     if (!uploadResponse.ok) {
-      throw new Error('Audio upload failed');
+      throw new Error(t('gifs.audioUploadFailed'));
     }
 
     const audioResult = await uploadResponse.json();
 
     // Associate audio with GIF
-    await fetch(`${API_BASE}/api/gifs/associate-audio`, {
+    await adminFetch(`${API_BASE}/api/gifs/associate-audio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gifFilename, audioUrl: audioResult.url })
@@ -94,7 +98,7 @@ async function uploadAudioForGif(event: Event, gifFilename: string): Promise<voi
 
 async function removeAudioFromGif(gifFilename: string): Promise<void> {
   try {
-    await fetch(`${API_BASE}/api/gifs/associate-audio`, {
+    await adminFetch(`${API_BASE}/api/gifs/associate-audio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gifFilename, audioUrl: null })
@@ -108,7 +112,7 @@ async function removeAudioFromGif(gifFilename: string): Promise<void> {
 async function triggerGif(gif: Gif): Promise<void> {
   triggeringGif.value = gif.url;
   try {
-    await fetch(`${API_BASE}/api/gifs/trigger`, {
+    await adminFetch(`${API_BASE}/api/gifs/trigger`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gifUrl: gif.url, audioUrl: gif.audioUrl })
@@ -123,10 +127,10 @@ async function triggerGif(gif: Gif): Promise<void> {
 }
 
 async function deleteGif(filename: string): Promise<void> {
-  if (!confirm('Supprimer ce GIF ?')) return;
+  if (!confirm(t('gifs.deleteConfirm'))) return;
 
   try {
-    await fetch(`${API_BASE}/api/gifs/${filename}`, {
+    await adminFetch(`${API_BASE}/api/gifs/${filename}`, {
       method: 'DELETE'
     });
     await fetchGifs();
@@ -152,7 +156,7 @@ onMounted(fetchGifs);
           <circle cx="8.5" cy="8.5" r="1.5"/>
           <path d="m21 15-5-5L5 21"/>
         </svg>
-        Gestion des GIFs
+        {{ t('gifs.title') }}
       </h2>
 
       <!-- Upload Section -->
@@ -169,10 +173,10 @@ onMounted(fetchGifs);
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
-          {{ isUploading ? 'Upload en cours...' : 'Importer un GIF' }}
+          {{ isUploading ? t('gifs.importing') : t('gifs.import') }}
         </label>
         <p v-if="uploadError" class="upload-error">{{ uploadError }}</p>
-        <p class="upload-hint">Formats acceptes: GIF, PNG, JPG, WebP (max 50MB)</p>
+        <p class="upload-hint">{{ t('gifs.formats') }}</p>
       </div>
 
       <!-- GIFs Grid -->
@@ -183,7 +187,7 @@ onMounted(fetchGifs);
             <line x1="9" y1="9" x2="15" y2="15"/>
             <line x1="15" y1="9" x2="9" y2="15"/>
           </svg>
-          <p>Aucun GIF importe</p>
+          <p>{{ t('gifs.empty') }}</p>
         </div>
 
         <div v-for="gif in gifs" :key="gif.filename" class="gif-card">
@@ -200,7 +204,7 @@ onMounted(fetchGifs);
                   <circle cx="6" cy="18" r="3"/>
                   <circle cx="18" cy="16" r="3"/>
                 </svg>
-                <span>Son associe</span>
+                <span>{{ t('gifs.soundAttached') }}</span>
               </div>
               <div class="audio-mini-actions">
                 <button class="play-mini-btn" @click="playAudio(gif.audioUrl)" type="button">
@@ -228,7 +232,7 @@ onMounted(fetchGifs);
                 <circle cx="6" cy="18" r="3"/>
                 <circle cx="18" cy="16" r="3"/>
               </svg>
-              {{ uploadingAudioFor === gif.filename ? 'Upload...' : 'Ajouter son' }}
+              {{ uploadingAudioFor === gif.filename ? t('common.uploading') : t('gifs.addSound') }}
             </label>
           </div>
 
@@ -242,9 +246,9 @@ onMounted(fetchGifs);
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="5 3 19 12 5 21 5 3"/>
               </svg>
-              {{ triggeringGif === gif.url ? 'Envoye !' : 'Declencher' }}
+              {{ triggeringGif === gif.url ? t('gifs.sent') : t('gifs.trigger') }}
             </button>
-            <button class="delete-btn" @click="deleteGif(gif.filename)">
+            <button class="delete-btn" :aria-label="t('common.delete')" @click="deleteGif(gif.filename)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>

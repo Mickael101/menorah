@@ -3,8 +3,30 @@ import { donationService } from '../services/donation.service';
 import { socketService } from '../services/socket.service';
 import { validateCreateRequest, validateUpdateRequest } from '../models/donation';
 import { PREMIUM_TIERS } from '../models/types';
+import { requireAdmin } from '../middleware/admin-auth';
+import { rateLimit } from '../middleware/rate-limit';
 
 const router = Router();
+
+// Public self-service page posts here: keep it open but throttled
+const createLimiter = rateLimit(10, 10 * 60 * 1000);
+
+type CsvLocale = 'fr' | 'en' | 'he';
+
+const CSV_HEADERS: Record<CsvLocale, string[]> = {
+  fr: ['ID', 'Prénom', 'Nom', 'Email', 'Téléphone', 'Montant (₪)', 'Référence', 'Mot premium', 'Créé le', 'Modifié le'],
+  en: ['ID', 'First name', 'Last name', 'Email', 'Phone', 'Amount (₪)', 'Reference', 'Premium word', 'Created at', 'Updated at'],
+  he: ['מזהה', 'שם פרטי', 'שם משפחה', 'דוא״ל', 'טלפון', 'סכום (₪)', 'אסמכתה', 'מילת פרימיום', 'נוצר בתאריך', 'עודכן בתאריך']
+};
+
+function sanitizeSpreadsheetValue(value: unknown): string {
+  const text = value === null || value === undefined ? '' : String(value);
+  return /^[=+\-@]/.test(text) ? `'${text}` : text;
+}
+
+function csvCell(value: unknown): string {
+  return `"${sanitizeSpreadsheetValue(value).replace(/"/g, '""')}"`;
+}
 
 // GET /api/donations/premium-words - Get premium words with availability
 router.get('/premium-words', (_req: Request, res: Response) => {
@@ -14,6 +36,41 @@ router.get('/premium-words', (_req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching premium words:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/donations/export.csv - Download a read-only UTF-8 export.
+// This route must stay before /:id so "export.csv" is not parsed as an ID.
+router.get('/export.csv', (req: Request, res: Response) => {
+  try {
+    const requestedLocale = req.query.lang;
+    const locale: CsvLocale = requestedLocale === 'en' || requestedLocale === 'he'
+      ? requestedLocale
+      : 'fr';
+    const rows = donationService.getAll().map(donation => [
+      donation.id,
+      donation.firstName,
+      donation.lastName,
+      donation.email,
+      donation.phone,
+      (donation.amount / 100).toFixed(2),
+      donation.reference,
+      donation.premiumWordId,
+      donation.createdAt,
+      donation.updatedAt
+    ]);
+    const csv = [CSV_HEADERS[locale], ...rows]
+      .map(row => row.map(csvCell).join(';'))
+      .join('\r\n');
+    const date = new Date().toISOString().slice(0, 10);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="donations-${date}.csv"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.send(`\uFEFF${csv}`);
+  } catch (error) {
+    console.error('Error exporting donations:', error);
+    res.status(500).json({ error: 'Failed to export donations' });
   }
 });
 
@@ -50,8 +107,8 @@ router.get('/:id', (req: Request, res: Response) => {
   }
 });
 
-// POST /api/donations - Create donation
-router.post('/', (req: Request, res: Response) => {
+// POST /api/donations - Create donation (public, rate-limited)
+router.post('/', createLimiter, (req: Request, res: Response) => {
   try {
     const data = validateCreateRequest(req.body);
     const donation = donationService.create(data);
@@ -71,8 +128,8 @@ router.post('/', (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/donations/:id - Update donation
-router.put('/:id', (req: Request, res: Response) => {
+// PUT /api/donations/:id - Update donation (admin only)
+router.put('/:id', requireAdmin, (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
@@ -102,8 +159,8 @@ router.put('/:id', (req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/donations/:id - Delete donation
-router.delete('/:id', (req: Request, res: Response) => {
+// DELETE /api/donations/:id - Delete donation (admin only)
+router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {

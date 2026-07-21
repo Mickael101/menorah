@@ -1,14 +1,51 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
-import { useDonations, type DisplaySettings, DEFAULT_DISPLAY_SETTINGS } from '../../composables/useDonations';
+import { computed, ref, watch, onMounted } from 'vue';
+import {
+  useDonations,
+  type DisplaySettings,
+  type DisplayThemeId,
+  type DisplayVisualMode,
+  type DonationAnimationStyle,
+  type DisplayTextDirection,
+  DEFAULT_DISPLAY_SETTINGS
+} from '../../composables/useDonations';
+import {
+  DISPLAY_THEMES,
+  cloneDisplaySettings,
+  resetThemePalette
+} from '../../theme/displayThemes';
+import { useAdminI18n } from '../../composables/useAdminI18n';
+import { adminFetch } from '../../composables/useAdminAuth';
+
+const { t } = useAdminI18n();
 
 const { config, fetchConfig, updateConfig, isLoading, error } = useDonations();
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // Local form state
-const settings = ref<DisplaySettings>({ ...DEFAULT_DISPLAY_SETTINGS });
+const settings = ref<DisplaySettings>(cloneDisplaySettings(DEFAULT_DISPLAY_SETTINGS));
 const isUploading = ref(false);
 const uploadError = ref('');
+const isUploadingVisual = ref(false);
+const visualUploadError = ref('');
+const activePalette = computed(() => settings.value.themePalettes[settings.value.theme]);
+
+const directionOptions = computed<{ id: DisplayTextDirection; label: string; description: string }[]>(() => [
+  { id: 'auto', label: t('display.direction.auto.name'), description: t('display.direction.auto.description') },
+  { id: 'ltr', label: t('display.direction.ltr.name'), description: t('display.direction.ltr.description') },
+  { id: 'rtl', label: t('display.direction.rtl.name'), description: t('display.direction.rtl.description') }
+]);
+
+const animationOptions = computed<{ id: DonationAnimationStyle; label: string; description: string }[]>(() => [
+  { id: 'prestige', label: t('display.animation.prestige.name'), description: t('display.animation.prestige.description') },
+  { id: 'confetti', label: t('display.animation.confetti.name'), description: t('display.animation.confetti.description') },
+  { id: 'ribbons', label: t('display.animation.ribbons.name'), description: t('display.animation.ribbons.description') },
+  { id: 'minimal', label: t('display.animation.minimal.name'), description: t('display.animation.minimal.description') }
+]);
+
+function themeText(themeId: DisplayThemeId, field: 'name' | 'short' | 'description' | 'mood'): string {
+  return t(`display.theme.${themeId}.${field}`);
+}
 
 // Load settings on mount
 onMounted(async () => {
@@ -23,18 +60,91 @@ watch(() => config.value.displaySettings, () => {
 
 function syncSettings(): void {
   if (config.value.displaySettings) {
-    settings.value = { ...config.value.displaySettings };
+    settings.value = cloneDisplaySettings(config.value.displaySettings);
   }
 }
 
 // Save all settings
 async function saveSettings(): Promise<void> {
+  settings.value = {
+    ...settings.value,
+    ...activePalette.value
+  };
   await updateConfig({ displaySettings: settings.value });
 }
 
 // Reset to defaults
 function resetDefaults(): void {
-  settings.value = { ...DEFAULT_DISPLAY_SETTINGS };
+  settings.value = cloneDisplaySettings(DEFAULT_DISPLAY_SETTINGS);
+}
+
+function selectTheme(themeId: DisplayThemeId): void {
+  settings.value.theme = themeId;
+}
+
+function resetActiveTheme(): void {
+  settings.value = resetThemePalette(settings.value, settings.value.theme);
+}
+
+function selectVisualMode(mode: DisplayVisualMode): void {
+  settings.value.visualMode = mode;
+}
+
+function selectTextDirection(direction: DisplayTextDirection): void {
+  settings.value.textDirection = direction;
+}
+
+function selectDonationAnimation(animation: DonationAnimationStyle): void {
+  settings.value.donationAnimation = animation;
+}
+
+async function uploadCustomSvg(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  if (!input.files?.length) return;
+
+  isUploadingVisual.value = true;
+  visualUploadError.value = '';
+
+  const formData = new FormData();
+  formData.append('visual', input.files[0]);
+
+  try {
+    const response = await adminFetch(`${API_BASE}/api/gifs/upload-svg`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || t('display.visual.svgUploadFailed'));
+    }
+
+    settings.value.customSvgUrl = result.url;
+    settings.value.visualMode = 'custom';
+    input.value = '';
+  } catch (uploadFailure) {
+    visualUploadError.value = uploadFailure instanceof Error
+      ? uploadFailure.message
+      : t('display.visual.svgUploadFailed');
+  } finally {
+    isUploadingVisual.value = false;
+  }
+}
+
+function removeCustomSvg(): void {
+  settings.value.customSvgUrl = null;
+  settings.value.visualMode = 'none';
+}
+
+function themePreviewStyle(themeId: DisplayThemeId): Record<string, string> {
+  const palette = settings.value.themePalettes[themeId];
+  return {
+    '--preview-bg': palette.backgroundColor,
+    '--preview-primary': palette.chartPrimaryColor,
+    '--preview-secondary': palette.chartSecondaryColor,
+    '--preview-text': palette.statsTextColor,
+    '--preview-plate': palette.plateColorBronze
+  };
 }
 
 // Upload background image
@@ -49,21 +159,21 @@ async function uploadBackgroundImage(event: Event): Promise<void> {
   formData.append('gif', input.files[0]);
 
   try {
-    const response = await fetch(`${API_BASE}/api/gifs/upload`, {
+    const response = await adminFetch(`${API_BASE}/api/gifs/upload`, {
       method: 'POST',
       body: formData
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Upload failed');
+      throw new Error(error.error || t('display.background.uploadFailed'));
     }
 
     const result = await response.json();
-    settings.value.backgroundImage = result.url;
+    activePalette.value.backgroundImage = result.url;
     input.value = '';
   } catch (error: any) {
-    uploadError.value = error.message || 'Failed to upload image';
+    uploadError.value = error.message || t('display.background.uploadFailed');
   } finally {
     isUploading.value = false;
   }
@@ -71,7 +181,7 @@ async function uploadBackgroundImage(event: Event): Promise<void> {
 
 // Remove background image
 function removeBackgroundImage(): void {
-  settings.value.backgroundImage = null;
+  activePalette.value.backgroundImage = null;
 }
 
 // Upload donation sound
@@ -89,21 +199,21 @@ async function uploadDonationSound(event: Event): Promise<void> {
   formData.append('audio', input.files[0]);
 
   try {
-    const response = await fetch(`${API_BASE}/api/gifs/upload-audio`, {
+    const response = await adminFetch(`${API_BASE}/api/gifs/upload-audio`, {
       method: 'POST',
       body: formData
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Upload failed');
+      throw new Error(error.error || t('display.sound.uploadFailed'));
     }
 
     const result = await response.json();
     settings.value.donationSound = result.url;
     input.value = '';
   } catch (error: any) {
-    soundUploadError.value = error.message || 'Failed to upload audio';
+    soundUploadError.value = error.message || t('display.sound.uploadFailed');
   } finally {
     isUploadingSound.value = false;
   }
@@ -129,28 +239,310 @@ function playSound(url: string): void {
           <circle cx="12" cy="12" r="10"/>
           <path d="M12 6v6l4 2"/>
         </svg>
-        Parametres d'affichage
+        {{ t('display.title') }}
       </h2>
 
       <p v-if="error" class="error-msg">{{ error }}</p>
 
+      <!-- Scene composition -->
+      <section class="settings-section visual-section">
+        <div class="section-heading-row">
+          <div>
+            <h3>{{ t('display.visual.title') }}</h3>
+            <p class="section-description visual-description">
+              {{ t('display.visual.description') }}
+            </p>
+          </div>
+        </div>
+
+        <div class="visual-mode-grid" role="radiogroup" :aria-label="t('display.visual.aria')">
+          <button
+            type="button"
+            class="visual-mode-card"
+            :class="{ selected: settings.visualMode === 'none' }"
+            :aria-pressed="settings.visualMode === 'none'"
+            @click="selectVisualMode('none')"
+          >
+            <span class="visual-mode-preview donor-only-preview" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </span>
+            <span class="visual-mode-copy">
+              <strong>{{ t('display.visual.none.name') }}</strong>
+              <small>{{ t('display.visual.none.description') }}</small>
+            </span>
+            <span v-if="settings.visualMode === 'none'" class="selected-badge">{{ t('common.active') }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="visual-mode-card"
+            :class="{ selected: settings.visualMode === 'menorah' }"
+            :aria-pressed="settings.visualMode === 'menorah'"
+            @click="selectVisualMode('menorah')"
+          >
+            <span class="visual-mode-preview menorah-preview" aria-hidden="true">
+              <span class="menorah-stem"></span>
+              <span class="menorah-arm arm-one"></span>
+              <span class="menorah-arm arm-two"></span>
+              <span class="menorah-arm arm-three"></span>
+            </span>
+            <span class="visual-mode-copy">
+              <strong>{{ t('display.visual.menorah.name') }}</strong>
+              <small>{{ t('display.visual.menorah.description') }}</small>
+            </span>
+            <span v-if="settings.visualMode === 'menorah'" class="selected-badge">{{ t('common.active') }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="visual-mode-card"
+            :class="{ selected: settings.visualMode === 'custom' }"
+            :aria-pressed="settings.visualMode === 'custom'"
+            @click="selectVisualMode('custom')"
+          >
+            <span class="visual-mode-preview custom-preview" aria-hidden="true">
+              <img v-if="settings.customSvgUrl" :src="settings.customSvgUrl" alt="" />
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <path d="M7 15l3-3 2.5 2.5L15 12l3 3" />
+                <circle cx="9" cy="8" r="1.5" />
+              </svg>
+            </span>
+            <span class="visual-mode-copy">
+              <strong>{{ t('display.visual.custom.name') }}</strong>
+              <small>{{ t('display.visual.custom.description') }}</small>
+            </span>
+            <span v-if="settings.visualMode === 'custom'" class="selected-badge">{{ t('common.active') }}</span>
+          </button>
+        </div>
+
+        <div v-if="settings.visualMode === 'custom'" class="custom-svg-panel">
+          <div v-if="settings.customSvgUrl" class="custom-svg-current">
+            <img :src="settings.customSvgUrl" :alt="t('display.visual.svgAlt')" />
+            <div>
+              <strong>{{ t('display.visual.svgReady') }}</strong>
+              <button type="button" class="remove-svg-btn" @click="removeCustomSvg">{{ t('common.remove') }}</button>
+            </div>
+          </div>
+
+          <label class="upload-btn" :class="{ uploading: isUploadingVisual }">
+            <input
+              type="file"
+              accept="image/svg+xml,.svg"
+              :disabled="isUploadingVisual"
+              @change="uploadCustomSvg"
+            />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            {{ isUploadingVisual ? t('common.uploading') : (settings.customSvgUrl ? t('display.visual.replaceSvg') : t('display.visual.chooseSvg')) }}
+          </label>
+          <p class="svg-help">{{ t('display.visual.svgHelp') }}</p>
+          <p v-if="visualUploadError" class="upload-error">{{ visualUploadError }}</p>
+        </div>
+      </section>
+
+      <!-- Customizable copy and language direction -->
+      <section class="settings-section content-settings-section">
+        <div class="section-heading-row">
+          <div>
+            <h3>{{ t('display.content.title') }}</h3>
+            <p class="section-description content-description">
+              {{ t('display.content.description') }}
+            </p>
+          </div>
+        </div>
+
+        <div class="direction-grid" role="radiogroup" :aria-label="t('display.direction.aria')">
+          <button
+            v-for="option in directionOptions"
+            :key="option.id"
+            type="button"
+            class="direction-card"
+            :class="{ selected: settings.textDirection === option.id }"
+            :aria-pressed="settings.textDirection === option.id"
+            @click="selectTextDirection(option.id)"
+          >
+            <strong :dir="option.id === 'rtl' ? 'rtl' : 'ltr'">{{ option.label }}</strong>
+            <small>{{ option.description }}</small>
+          </button>
+        </div>
+
+        <div class="copy-group">
+          <h4>{{ t('display.copy.headerGroup') }}</h4>
+          <div class="copy-grid">
+            <label class="copy-field">
+              <span>{{ t('display.copy.eventTitle') }}</span>
+              <input v-model="settings.texts.eventTitle" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.organizationName') }}</span>
+              <input v-model="settings.texts.organizationName" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.boardKicker') }}</span>
+              <input v-model="settings.texts.boardKicker" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.boardTitle') }}</span>
+              <input v-model="settings.texts.boardTitle" type="text" maxlength="100" dir="auto" />
+            </label>
+          </div>
+        </div>
+
+        <div class="copy-group">
+          <h4>{{ t('display.copy.liveGroup') }}</h4>
+          <div class="copy-grid three-columns">
+            <label class="copy-field">
+              <span>{{ t('display.copy.liveLabel') }}</span>
+              <input v-model="settings.texts.liveLabel" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.reconnectingLabel') }}</span>
+              <input v-model="settings.texts.reconnectingLabel" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.goalLabel') }}</span>
+              <input v-model="settings.texts.goalLabel" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.donorSingular') }}</span>
+              <input v-model="settings.texts.donorSingular" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.donorPlural') }}</span>
+              <input v-model="settings.texts.donorPlural" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.donationSingular') }}</span>
+              <input v-model="settings.texts.donationSingular" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field">
+              <span>{{ t('display.copy.donationPlural') }}</span>
+              <input v-model="settings.texts.donationPlural" type="text" maxlength="100" dir="auto" />
+            </label>
+          </div>
+        </div>
+
+        <div class="copy-group thanks-copy-group">
+          <h4>{{ t('display.copy.thanksGroup') }}</h4>
+          <div class="copy-grid">
+            <label class="copy-field">
+              <span>{{ t('display.copy.thankYouTitle') }}</span>
+              <input v-model="settings.texts.thankYouTitle" type="text" maxlength="100" dir="auto" />
+            </label>
+            <label class="copy-field wide">
+              <span>{{ t('display.copy.thankYouMessage') }}</span>
+              <textarea v-model="settings.texts.thankYouMessage" maxlength="240" rows="3" dir="auto"></textarea>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Donation animation selection -->
+      <section class="settings-section animation-settings-section">
+        <div class="section-heading-row">
+          <div>
+            <h3>{{ t('display.animation.title') }}</h3>
+            <p class="section-description content-description">
+              {{ t('display.animation.description') }}
+            </p>
+          </div>
+        </div>
+
+        <div class="animation-grid" role="radiogroup" :aria-label="t('display.animation.aria')">
+          <button
+            v-for="option in animationOptions"
+            :key="option.id"
+            type="button"
+            class="animation-card"
+            :class="[{ selected: settings.donationAnimation === option.id }, `animation-${option.id}`]"
+            :aria-pressed="settings.donationAnimation === option.id"
+            @click="selectDonationAnimation(option.id)"
+          >
+            <span class="animation-preview" aria-hidden="true">
+              <i v-for="i in 8" :key="i"></i>
+              <b></b>
+            </span>
+            <span class="animation-card-copy">
+              <strong>{{ option.label }}</strong>
+              <small>{{ option.description }}</small>
+            </span>
+            <span v-if="settings.donationAnimation === option.id" class="selected-badge">{{ t('common.active') }}</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Theme selection -->
+      <section class="settings-section theme-section">
+        <div class="section-heading-row">
+          <div>
+            <h3>{{ t('display.theme.title') }}</h3>
+            <p class="section-description theme-description">
+              {{ t('display.theme.description') }}
+            </p>
+          </div>
+          <a href="/display" target="_blank" class="preview-link">{{ t('display.theme.preview') }}</a>
+        </div>
+
+        <div class="theme-grid" role="radiogroup" :aria-label="t('display.theme.aria')">
+          <button
+            v-for="theme in DISPLAY_THEMES"
+            :key="theme.id"
+            type="button"
+            class="theme-card"
+            :class="{ selected: settings.theme === theme.id }"
+            :aria-pressed="settings.theme === theme.id"
+            :style="themePreviewStyle(theme.id)"
+            @click="selectTheme(theme.id)"
+          >
+            <span class="theme-preview" aria-hidden="true">
+              <span class="preview-orb"></span>
+              <span class="preview-content">
+                <span class="preview-title"></span>
+                <span class="preview-progress"></span>
+                <span class="preview-plate"></span>
+                <span class="preview-plate short"></span>
+              </span>
+            </span>
+            <span class="theme-card-copy">
+              <span class="theme-card-title">
+                {{ themeText(theme.id, 'name') }}
+                <span v-if="settings.theme === theme.id" class="selected-badge">{{ t('common.active') }}</span>
+              </span>
+              <span class="theme-card-description">{{ themeText(theme.id, 'description') }}</span>
+              <span class="theme-mood">{{ themeText(theme.id, 'mood') }}</span>
+            </span>
+          </button>
+        </div>
+
+        <div class="active-theme-bar">
+          <span>{{ t('display.theme.customizing', { theme: themeText(settings.theme, 'name') }) }}</span>
+          <button type="button" class="reset-theme-btn" @click="resetActiveTheme">
+            {{ t('display.theme.restore') }}
+          </button>
+        </div>
+      </section>
+
       <!-- Background Section -->
       <section class="settings-section">
-        <h3>Fond d'ecran</h3>
+        <h3>{{ t('display.background.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
 
         <div class="color-row">
-          <label>Couleur de fond</label>
+          <label>{{ t('display.background.color') }}</label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.backgroundColor" />
-            <input type="text" v-model="settings.backgroundColor" class="hex-input" />
+            <input type="color" v-model="activePalette.backgroundColor" />
+            <input type="text" v-model="activePalette.backgroundColor" class="hex-input" />
           </div>
         </div>
 
         <div class="image-upload-row">
-          <label>Image de fond</label>
-          <div class="image-preview" v-if="settings.backgroundImage">
-            <img :src="settings.backgroundImage" alt="Background" />
-            <button class="remove-image-btn" @click="removeBackgroundImage">
+          <label>{{ t('display.background.image') }}</label>
+          <div class="image-preview" v-if="activePalette.backgroundImage">
+            <img :src="activePalette.backgroundImage" :alt="t('display.background.previewAlt')" />
+            <button class="remove-image-btn" :aria-label="t('common.remove')" @click="removeBackgroundImage">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/>
                 <line x1="6" y1="6" x2="18" y2="18"/>
@@ -164,7 +556,7 @@ function playSound(url: string): void {
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            {{ isUploading ? 'Upload...' : 'Choisir une image' }}
+            {{ isUploading ? t('common.uploading') : t('display.background.choose') }}
           </label>
           <p v-if="uploadError" class="upload-error">{{ uploadError }}</p>
         </div>
@@ -172,96 +564,96 @@ function playSound(url: string): void {
 
       <!-- Plate Colors Section -->
       <section class="settings-section">
-        <h3>Couleurs des plaques</h3>
+        <h3>{{ t('display.plates.title') }}</h3>
 
         <div class="color-row">
           <label>
-            <span class="color-badge gold"></span>
-            Or (72,000+ ₪)
+            <span class="color-badge" :style="{ background: activePalette.plateColorGold }"></span>
+            {{ t('display.plates.gold') }}
           </label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.plateColorGold" />
-            <input type="text" v-model="settings.plateColorGold" class="hex-input" />
+            <input type="color" v-model="activePalette.plateColorGold" />
+            <input type="text" v-model="activePalette.plateColorGold" class="hex-input" />
           </div>
         </div>
 
         <div class="color-row">
           <label>
-            <span class="color-badge diamond"></span>
-            Diamant (36,000+ ₪)
+            <span class="color-badge" :style="{ background: activePalette.plateColorDiamond }"></span>
+            {{ t('display.plates.diamond') }}
           </label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.plateColorDiamond" />
-            <input type="text" v-model="settings.plateColorDiamond" class="hex-input" />
+            <input type="color" v-model="activePalette.plateColorDiamond" />
+            <input type="text" v-model="activePalette.plateColorDiamond" class="hex-input" />
           </div>
         </div>
 
         <div class="color-row">
           <label>
-            <span class="color-badge bronze"></span>
-            Bronze (26,000+ ₪)
+            <span class="color-badge" :style="{ background: activePalette.plateColorBronze }"></span>
+            {{ t('display.plates.bronze') }}
           </label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.plateColorBronze" />
-            <input type="text" v-model="settings.plateColorBronze" class="hex-input" />
+            <input type="color" v-model="activePalette.plateColorBronze" />
+            <input type="text" v-model="activePalette.plateColorBronze" class="hex-input" />
           </div>
         </div>
 
         <div class="color-row">
-          <label>Texte des plaques</label>
+          <label>{{ t('display.plates.text') }}</label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.plateTextColor" />
-            <input type="text" v-model="settings.plateTextColor" class="hex-input" />
+            <input type="color" v-model="activePalette.plateTextColor" />
+            <input type="text" v-model="activePalette.plateTextColor" class="hex-input" />
           </div>
         </div>
       </section>
 
       <!-- Text Colors Section -->
       <section class="settings-section">
-        <h3>Couleurs du texte</h3>
+        <h3>{{ t('display.textColors.title') }}</h3>
 
         <div class="color-row">
-          <label>Titre / En-tete</label>
+          <label>{{ t('display.textColors.header') }}</label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.headerTextColor" />
-            <input type="text" v-model="settings.headerTextColor" class="hex-input" />
+            <input type="color" v-model="activePalette.headerTextColor" />
+            <input type="text" v-model="activePalette.headerTextColor" class="hex-input" />
           </div>
         </div>
 
         <div class="color-row">
-          <label>Statistiques</label>
+          <label>{{ t('display.textColors.stats') }}</label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.statsTextColor" />
-            <input type="text" v-model="settings.statsTextColor" class="hex-input" />
+            <input type="color" v-model="activePalette.statsTextColor" />
+            <input type="text" v-model="activePalette.statsTextColor" class="hex-input" />
           </div>
         </div>
       </section>
 
       <!-- Chart Colors Section -->
       <section class="settings-section">
-        <h3>Couleurs du graphique</h3>
+        <h3>{{ t('display.chart.title') }}</h3>
 
         <div class="color-row">
-          <label>Couleur principale</label>
+          <label>{{ t('display.chart.primary') }}</label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.chartPrimaryColor" />
-            <input type="text" v-model="settings.chartPrimaryColor" class="hex-input" />
+            <input type="color" v-model="activePalette.chartPrimaryColor" />
+            <input type="text" v-model="activePalette.chartPrimaryColor" class="hex-input" />
           </div>
         </div>
 
         <div class="color-row">
-          <label>Couleur secondaire</label>
+          <label>{{ t('display.chart.secondary') }}</label>
           <div class="color-input-group">
-            <input type="color" v-model="settings.chartSecondaryColor" />
-            <input type="text" v-model="settings.chartSecondaryColor" class="hex-input" />
+            <input type="color" v-model="activePalette.chartSecondaryColor" />
+            <input type="text" v-model="activePalette.chartSecondaryColor" class="hex-input" />
           </div>
         </div>
       </section>
 
       <!-- Audio Section -->
       <section class="settings-section">
-        <h3>Son de donation</h3>
-        <p class="section-description">Ce son sera joue a chaque nouveau don sur toutes les pages d'affichage.</p>
+        <h3>{{ t('display.sound.title') }}</h3>
+        <p class="section-description">{{ t('display.sound.description') }}</p>
 
         <div class="audio-upload-row">
           <div v-if="settings.donationSound" class="audio-preview">
@@ -271,7 +663,7 @@ function playSound(url: string): void {
                 <circle cx="6" cy="18" r="3"/>
                 <circle cx="18" cy="16" r="3"/>
               </svg>
-              <span>Son configure</span>
+              <span>{{ t('display.sound.configured') }}</span>
             </div>
             <div class="audio-actions">
               <button class="play-btn" @click="playSound(settings.donationSound)" type="button">
@@ -279,7 +671,7 @@ function playSound(url: string): void {
                   <polygon points="5 3 19 12 5 21 5 3"/>
                 </svg>
               </button>
-              <button class="remove-audio-btn" @click="removeDonationSound" type="button">
+              <button class="remove-audio-btn" :aria-label="t('common.remove')" @click="removeDonationSound" type="button">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="18" y1="6" x2="6" y2="18"/>
                   <line x1="6" y1="6" x2="18" y2="18"/>
@@ -294,7 +686,7 @@ function playSound(url: string): void {
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            {{ isUploadingSound ? 'Upload...' : 'Choisir un son (mp3, wav, ogg)' }}
+            {{ isUploadingSound ? t('common.uploading') : t('display.sound.choose') }}
           </label>
           <p v-if="soundUploadError" class="upload-error">{{ soundUploadError }}</p>
         </div>
@@ -307,7 +699,7 @@ function playSound(url: string): void {
             <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
             <path d="M3 3v5h5"/>
           </svg>
-          Reinitialiser
+          {{ t('display.reset') }}
         </button>
         <button class="save-btn" @click="saveSettings" :disabled="isLoading">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -315,7 +707,7 @@ function playSound(url: string): void {
             <polyline points="17 21 17 13 7 13 7 21"/>
             <polyline points="7 3 7 8 15 8"/>
           </svg>
-          {{ isLoading ? 'Enregistrement...' : 'Enregistrer' }}
+          {{ isLoading ? t('common.saving') : t('common.save') }}
         </button>
       </div>
     </div>
@@ -377,6 +769,623 @@ function playSound(url: string): void {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 16px;
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-heading-row h3 {
+  margin-bottom: 8px;
+}
+
+.theme-description {
+  margin: 0;
+}
+
+.preview-link {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  color: var(--primary-600);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.preview-link:hover {
+  border-color: var(--primary-300);
+  background: var(--primary-50);
+}
+
+.visual-description {
+  margin: 0;
+}
+
+.content-description {
+  margin: 0;
+  max-width: 720px;
+}
+
+.direction-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.direction-card {
+  display: flex;
+  min-height: 82px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 13px;
+  border: 2px solid var(--gray-200);
+  border-radius: 12px;
+  background: white;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.direction-card:hover,
+.animation-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gray-300);
+  box-shadow: var(--shadow-md);
+}
+
+.direction-card.selected,
+.animation-card.selected {
+  border-color: var(--gold-500);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.14);
+}
+
+.direction-card strong {
+  color: var(--gray-900);
+  font-size: 14px;
+}
+
+.direction-card small,
+.animation-card small {
+  color: var(--gray-500);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.copy-group {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+}
+
+.copy-group h4 {
+  margin: 0 0 13px;
+  color: var(--gray-700);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.copy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+
+.copy-grid.three-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.copy-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.copy-field.wide {
+  grid-column: 1 / -1;
+}
+
+.copy-field > span {
+  color: var(--gray-600);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.copy-field input,
+.copy-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: 9px;
+  background: white;
+  color: var(--gray-900);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.copy-field textarea {
+  min-height: 78px;
+  resize: vertical;
+}
+
+.copy-field input:focus,
+.copy-field textarea:focus {
+  border-color: var(--gold-500);
+  outline: 3px solid rgba(212, 175, 55, 0.13);
+}
+
+.animation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.animation-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-height: 108px;
+  padding: 12px;
+  border: 2px solid var(--gray-200);
+  border-radius: 14px;
+  background: white;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.animation-card > .selected-badge {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+}
+
+.animation-card-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.animation-card-copy strong {
+  color: var(--gray-900);
+  font-size: 14px;
+}
+
+.animation-preview {
+  position: relative;
+  display: grid;
+  width: 108px;
+  height: 72px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #0b1020;
+}
+
+.animation-preview b {
+  z-index: 2;
+  display: block;
+  width: 70px;
+  height: 26px;
+  border: 1px solid #e4be63;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #272c40, #111526);
+  box-shadow: 0 0 16px rgba(228, 190, 99, 0.24);
+}
+
+.animation-preview i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #e4be63;
+}
+
+.animation-preview i:nth-child(1) { top: 13px; left: 18px; }
+.animation-preview i:nth-child(2) { top: 9px; right: 24px; }
+.animation-preview i:nth-child(3) { bottom: 12px; left: 28px; }
+.animation-preview i:nth-child(4) { right: 14px; bottom: 18px; }
+.animation-preview i:nth-child(5) { top: 32px; left: 8px; }
+.animation-preview i:nth-child(6) { top: 24px; right: 7px; }
+.animation-preview i:nth-child(7) { bottom: 6px; left: 52px; }
+.animation-preview i:nth-child(8) { top: 5px; left: 52px; }
+
+.animation-confetti .animation-preview i {
+  width: 5px;
+  height: 8px;
+  border-radius: 1px;
+}
+
+.animation-confetti .animation-preview i:nth-child(3n) { background: #70e7ff; }
+.animation-confetti .animation-preview i:nth-child(3n + 1) { background: #ff9b62; }
+
+.animation-ribbons .animation-preview::before,
+.animation-ribbons .animation-preview::after {
+  content: '';
+  position: absolute;
+  width: 94px;
+  height: 38px;
+  border: 2px solid rgba(112, 231, 255, 0.55);
+  border-radius: 50%;
+  transform: rotate(-13deg);
+}
+
+.animation-ribbons .animation-preview::after {
+  width: 74px;
+  height: 54px;
+  border-color: rgba(228, 190, 99, 0.55);
+  transform: rotate(28deg);
+}
+
+.animation-minimal .animation-preview i {
+  display: none;
+}
+
+.animation-minimal .animation-preview b {
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: none;
+}
+
+.visual-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.visual-mode-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  min-height: 126px;
+  padding: 14px;
+  border: 2px solid var(--gray-200);
+  border-radius: 14px;
+  background: white;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.visual-mode-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gray-300);
+  box-shadow: var(--shadow-md);
+}
+
+.visual-mode-card.selected {
+  border-color: var(--gold-500);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.14);
+}
+
+.visual-mode-card > .selected-badge {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+  background: var(--gold-100);
+  color: var(--gold-700);
+}
+
+.visual-mode-preview {
+  position: relative;
+  display: grid;
+  width: 92px;
+  height: 76px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: #0b1020;
+  color: #e4be63;
+}
+
+.donor-only-preview {
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.donor-only-preview span {
+  width: 100%;
+  height: 21px;
+  border: 1px solid rgba(228, 190, 99, 0.48);
+  border-left-width: 3px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #242839, #111526);
+}
+
+.menorah-preview span {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  width: 2px;
+  height: 49px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+
+.menorah-preview .menorah-arm {
+  bottom: 26px;
+  height: 25px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 20px 20px;
+  background: transparent;
+}
+
+.menorah-preview .arm-one { width: 28px; }
+.menorah-preview .arm-two { width: 46px; bottom: 22px; }
+.menorah-preview .arm-three { width: 64px; bottom: 18px; }
+
+.custom-preview svg,
+.custom-preview img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.visual-mode-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.visual-mode-copy strong {
+  color: var(--gray-900);
+  font-size: 14px;
+}
+
+.visual-mode-copy small {
+  color: var(--gray-500);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.custom-svg-panel {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+}
+
+.custom-svg-current {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.custom-svg-current img {
+  width: 86px;
+  height: 72px;
+  padding: 8px;
+  border: 1px solid var(--gray-200);
+  border-radius: 10px;
+  background: white;
+  object-fit: contain;
+}
+
+.custom-svg-current > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--gray-800);
+  font-size: 13px;
+}
+
+.remove-svg-btn {
+  padding: 5px 9px;
+  border: 1px solid var(--error-100);
+  border-radius: 7px;
+  background: white;
+  color: var(--error-500);
+  cursor: pointer;
+}
+
+.svg-help {
+  margin: 8px 0 0;
+  color: var(--gray-500);
+  font-size: 12px;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.theme-card {
+  min-width: 0;
+  padding: 0;
+  border: 2px solid var(--gray-200);
+  border-radius: 14px;
+  background: white;
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: start;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.theme-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--gray-300);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-card.selected {
+  border-color: var(--preview-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--preview-primary) 18%, transparent);
+}
+
+.theme-preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 92px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 18% 30%, color-mix(in srgb, var(--preview-primary) 18%, transparent), transparent 38%),
+    var(--preview-bg);
+  overflow: hidden;
+}
+
+.theme-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.25;
+  background: linear-gradient(120deg, transparent, color-mix(in srgb, var(--preview-secondary) 20%, transparent), transparent);
+}
+
+.preview-orb {
+  width: 44px;
+  height: 60px;
+  border: 2px solid color-mix(in srgb, var(--preview-primary) 55%, transparent);
+  border-radius: 50% 50% 38% 38%;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--preview-primary) 35%, transparent);
+}
+
+.preview-content {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.preview-title,
+.preview-progress,
+.preview-plate {
+  display: block;
+  border-radius: 999px;
+}
+
+.preview-title {
+  width: 68%;
+  height: 6px;
+  background: var(--preview-text);
+}
+
+.preview-progress {
+  width: 88%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--preview-primary) 58%, rgba(255, 255, 255, 0.12) 58%);
+}
+
+.preview-plate {
+  width: 100%;
+  height: 14px;
+  border: 1px solid color-mix(in srgb, var(--preview-plate) 55%, transparent);
+  background: color-mix(in srgb, var(--preview-bg) 76%, white 8%);
+}
+
+.preview-plate.short {
+  width: 82%;
+}
+
+.theme-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+}
+
+.theme-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--gray-900);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.selected-badge,
+.theme-mood {
+  width: fit-content;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.selected-badge {
+  background: color-mix(in srgb, var(--preview-primary) 18%, white);
+  color: color-mix(in srgb, var(--preview-primary) 72%, black);
+}
+
+.theme-card-description {
+  min-height: 48px;
+  color: var(--gray-500);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.theme-mood {
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.active-theme-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: var(--radius);
+  background: var(--gray-50);
+  color: var(--gray-600);
+  font-size: 13px;
+}
+
+.active-theme-bar strong {
+  color: var(--gray-900);
+}
+
+.reset-theme-btn {
+  padding: 7px 10px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--gray-600);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reset-theme-btn:hover {
+  color: var(--primary-600);
+  border-color: var(--primary-300);
 }
 
 .color-row {
@@ -472,7 +1481,7 @@ function playSound(url: string): void {
 .remove-image-btn {
   position: absolute;
   top: 8px;
-  right: 8px;
+  inset-inline-end: 8px;
   width: 32px;
   height: 32px;
   display: flex;
@@ -667,5 +1676,106 @@ function playSound(url: string): void {
 .remove-audio-btn svg {
   width: 16px;
   height: 16px;
+}
+
+@media (max-width: 700px) {
+  .card {
+    padding: 18px;
+  }
+
+  .theme-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visual-mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .direction-grid,
+  .copy-grid,
+  .copy-grid.three-columns,
+  .animation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .visual-mode-card {
+    min-height: 104px;
+  }
+
+  .theme-card {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+  }
+
+  .theme-preview {
+    height: 100%;
+    min-height: 112px;
+  }
+
+  .theme-card-description {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-heading-row,
+  .active-theme-bar,
+  .color-row,
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .preview-link {
+    text-align: center;
+  }
+
+  .theme-card {
+    grid-template-columns: 118px minmax(0, 1fr);
+  }
+
+  .visual-mode-card {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .animation-card {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .animation-preview {
+    width: 82px;
+  }
+
+  .visual-mode-preview {
+    width: 76px;
+    height: 68px;
+  }
+
+  .theme-preview {
+    min-height: 132px;
+    padding: 8px;
+    gap: 7px;
+  }
+
+  .preview-orb {
+    width: 32px;
+    height: 50px;
+  }
+
+  .theme-card-copy {
+    padding: 10px;
+  }
+
+  .color-input-group {
+    width: 100%;
+  }
+
+  .hex-input {
+    flex: 1;
+    width: auto;
+  }
 }
 </style>

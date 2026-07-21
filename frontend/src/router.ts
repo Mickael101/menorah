@@ -3,6 +3,7 @@ import AdminPanel from './pages/AdminPanel.vue';
 import DisplayPage from './pages/DisplayPage.vue';
 import DisplayPage8 from './pages/DisplayPage8.vue';
 import DisplayHiddenPage from './pages/DisplayHiddenPage.vue';
+import DonorPledgePage from './pages/DonorPledgePage.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -15,6 +16,15 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: AdminPanel
+    },
+    {
+      path: '/don',
+      name: 'don',
+      component: DonorPledgePage
+    },
+    {
+      path: '/donate',
+      redirect: '/don'
     },
     {
       path: '/display',

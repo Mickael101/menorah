@@ -1,8 +1,9 @@
 import initSqlJs, { Database } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
+import { databaseFilePath } from '../config/storage';
 
-const DB_PATH = path.join(__dirname, '../../db/donations.db');
+const DB_PATH = databaseFilePath;
 
 let db: Database;
 

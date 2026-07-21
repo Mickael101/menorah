@@ -1,22 +1,33 @@
 <script setup lang="ts">
 // Page 8 - Optimisee LED Geant - Blanc chaud, police XXL
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useSocket } from '../composables/useSocket';
 import { useDonations, type Donation } from '../composables/useDonations';
-import MenorahDisplay from '../components/display/MenorahDisplay.vue';
+import CampaignVisual from '../components/display/CampaignVisual.vue';
 import StatsCompact from '../components/display/StatsCompact.vue';
 import DonorPlatesGrid from '../components/display/DonorPlatesGrid.vue';
 import DonorPlateAnimation from '../components/display/DonorPlateAnimation.vue';
+import { getDisplayThemeStyles } from '../theme/displayThemes';
 
 const { on, isConnected } = useSocket();
 const { config, fetchDonations, fetchConfig, handleDonationNew, handleDonationUpdated, handleDonationDeleted, handleConfigUpdated } = useDonations();
+const displayStyles = computed(() => getDisplayThemeStyles(config.value.displaySettings));
+const themeClass = computed(() => `theme-${config.value.displaySettings.theme}`);
+const visualMode = computed(() => config.value.displaySettings.visualMode ?? 'none');
+const customSvgUrl = computed(() => config.value.displaySettings.customSvgUrl ?? null);
+const hasCampaignVisual = computed(() => visualMode.value === 'menorah'
+  || (visualMode.value === 'custom' && Boolean(customSvgUrl.value)));
 
 const isFullscreen = ref(false);
 const showDonationFlash = ref(false);
 const showPlateAnimation = ref(false);
 const latestDonation = ref<Donation | null>(null);
+const donationQueue = ref<Donation[]>([]);
 const showGifExplosion = ref(false);
 const currentGif = ref('');
+let flashTimeoutId: number | null = null;
+let nextDonationTimeoutId: number | null = null;
+let gifTimeoutId: number | null = null;
 
 function playAudio(url: string): void {
   try {
@@ -26,23 +37,46 @@ function playAudio(url: string): void {
   } catch (e) { console.log('Audio error:', e); }
 }
 
-function triggerDonationCelebration(donation: Donation): void {
+function showDonationCelebration(donation: Donation): void {
   showDonationFlash.value = true;
   latestDonation.value = donation;
   showPlateAnimation.value = true;
   if (config.value.displaySettings.donationSound) { playAudio(config.value.displaySettings.donationSound); }
-  setTimeout(() => { showDonationFlash.value = false; }, 2000);
+  if (flashTimeoutId !== null) window.clearTimeout(flashTimeoutId);
+  flashTimeoutId = window.setTimeout(() => {
+    showDonationFlash.value = false;
+    flashTimeoutId = null;
+  }, 2000);
+}
+
+function triggerDonationCelebration(donation: Donation): void {
+  if (showPlateAnimation.value || nextDonationTimeoutId !== null) {
+    donationQueue.value.push(donation);
+    return;
+  }
+  showDonationCelebration(donation);
 }
 
 function handlePlateAnimationEnd(): void {
   showPlateAnimation.value = false;
+  const nextDonation = donationQueue.value.shift();
+  if (nextDonation) {
+    nextDonationTimeoutId = window.setTimeout(() => {
+      nextDonationTimeoutId = null;
+      showDonationCelebration(nextDonation);
+    }, 250);
+  }
 }
 
 function triggerGifExplosion(gifUrl: string, audioUrl?: string): void {
   currentGif.value = gifUrl;
   showGifExplosion.value = true;
   if (audioUrl) { playAudio(audioUrl); }
-  setTimeout(() => { showGifExplosion.value = false; }, 4000);
+  if (gifTimeoutId !== null) window.clearTimeout(gifTimeoutId);
+  gifTimeoutId = window.setTimeout(() => {
+    showGifExplosion.value = false;
+    gifTimeoutId = null;
+  }, 4000);
 }
 
 onMounted(async () => {
@@ -55,6 +89,13 @@ onMounted(async () => {
   on('connect', async () => { await Promise.all([fetchDonations(), fetchConfig()]); });
 });
 
+onUnmounted(() => {
+  if (flashTimeoutId !== null) window.clearTimeout(flashTimeoutId);
+  if (nextDonationTimeoutId !== null) window.clearTimeout(nextDonationTimeoutId);
+  if (gifTimeoutId !== null) window.clearTimeout(gifTimeoutId);
+  donationQueue.value = [];
+});
+
 function toggleFullscreen(): void {
   if (!document.fullscreenElement) { document.documentElement.requestFullscreen(); isFullscreen.value = true; }
   else { document.exitFullscreen(); isFullscreen.value = false; }
@@ -62,7 +103,7 @@ function toggleFullscreen(): void {
 </script>
 
 <template>
-  <div class="display-page" :class="{ fullscreen: isFullscreen }">
+  <div class="display-page" :class="[themeClass, { fullscreen: isFullscreen }]" :style="displayStyles">
     <div class="donation-flash" :class="{ active: showDonationFlash }"></div>
     <DonorPlateAnimation :donation="latestDonation" :show="showPlateAnimation" @animationEnd="handlePlateAnimationEnd" />
     <!-- GIF Explosion (Admin triggered) -->
@@ -82,17 +123,19 @@ function toggleFullscreen(): void {
       <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
     </button>
     <div class="display-content">
-      <div class="display-grid">
-        <div class="menorah-section"><MenorahDisplay /></div>
+      <div class="display-grid" :class="{ 'without-visual': !hasCampaignVisual }">
+        <div v-if="hasCampaignVisual" class="campaign-visual-section">
+          <CampaignVisual :mode="visualMode" :custom-svg-url="customSvgUrl" />
+        </div>
         <div class="right-section">
           <div class="gala-header">
-            <span class="gala-title">GALA DES FONDATEURS</span>
+            <span class="gala-title">SOIRÉE DE GÉNÉROSITÉ</span>
             <span class="gala-org">OHEL YEHOSHUA</span>
           </div>
           <StatsCompact />
           <div class="donors-section">
-            <div class="section-header"><span>LE TABLEAU DES FONDATEURS</span></div>
-            <DonorPlatesGrid />
+            <div class="section-header"><span>MERCI À NOS DONATEURS</span></div>
+            <DonorPlatesGrid spotlight />
           </div>
         </div>
       </div>
@@ -101,41 +144,61 @@ function toggleFullscreen(): void {
 </template>
 
 <style scoped>
-/* Page 8 - LED OPTIMISE - Blanc chaud, polices XXL */
-.display-page { min-height: 100vh; height: 100vh; background: #FFFCF5; position: relative; overflow: hidden; }
-.donation-flash { position: fixed; inset: 0; background: rgba(255, 180, 0, 0.5); pointer-events: none; z-index: 1000; opacity: 0; }
+/* Variante LED claire, désormais raccordée aux trois palettes configurables. */
+.display-page { min-height: 100vh; height: 100vh; background: var(--bg-image, none), var(--bg-color); background-size: cover; position: relative; overflow: hidden; color: var(--stats-text-color); font-family: var(--theme-font-body); }
+.donation-flash { position: fixed; inset: 0; background: color-mix(in srgb, var(--chart-primary-color) 35%, transparent); pointer-events: none; z-index: 1000; opacity: 0; }
 .donation-flash.active { opacity: 1; animation: flash-pulse 2s ease-out; }
 @keyframes flash-pulse { 0% { opacity: 0; } 10% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Status tres visible pour LED */
-.connection-status { position: fixed; top: 25px; right: 25px; display: flex; align-items: center; gap: 10px; padding: 15px 25px; background: #CC0000; border: 3px solid #660000; border-radius: 50px; font-size: 20px; font-weight: 900; color: #FFFFFF; z-index: 100; letter-spacing: 2px; }
+.connection-status { position: fixed; top: 25px; left: 100px; display: flex; align-items: center; gap: 10px; padding: 15px 25px; background: #CC0000; border: 3px solid #660000; border-radius: 50px; font-size: 20px; font-weight: 900; color: #FFFFFF; z-index: 100; letter-spacing: 2px; }
 .connection-status.connected { background: #008800; border-color: #004400; color: #FFFFFF; }
 .status-dot { width: 16px; height: 16px; border-radius: 50%; background: #FFFFFF; animation: pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
 
 /* Bouton fullscreen */
-.fullscreen-btn { position: fixed; top: 25px; left: 25px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: #DAA520; border: 3px solid #8B6914; border-radius: 15px; cursor: pointer; z-index: 100; }
-.fullscreen-btn svg { width: 30px; height: 30px; color: #3D2E06; }
-.fullscreen-btn:hover { background: #FFD700; }
+.fullscreen-btn { position: fixed; top: 25px; left: 25px; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: var(--theme-surface-strong); border: 2px solid var(--header-text-color); border-radius: var(--theme-radius); cursor: pointer; z-index: 100; }
+.fullscreen-btn svg { width: 30px; height: 30px; color: var(--header-text-color); }
+.fullscreen-btn:hover { background: var(--theme-surface); }
 
 .display-content { position: relative; z-index: 10; height: 100vh; display: flex; flex-direction: column; }
 
 /* Header XXL */
 .gala-header { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 2vh 0; }
-.gala-title { font-size: clamp(22px, 3vw, 42px); color: #5D4E37; font-weight: 900; letter-spacing: 6px; }
-.gala-org { font-size: clamp(34px, 4.5vw, 70px); color: #8B6914; font-weight: 900; letter-spacing: 8px; margin-top: 10px; }
+.gala-title { font-size: clamp(22px, 3vw, 42px); color: var(--stats-text-color); font-weight: 900; letter-spacing: 6px; }
+.gala-org { font-family: var(--theme-font-display); font-size: clamp(34px, 4.5vw, 70px); color: var(--header-text-color); font-weight: 900; letter-spacing: 8px; margin-top: 10px; }
 
-.display-grid { flex: 1; display: grid; grid-template-columns: 50% 50%; width: 100%; min-height: 0; }
-.menorah-section { display: flex; align-items: center; justify-content: center; width: 50vw; height: 100vh; }
-.menorah-section :deep(.menorah-svg svg) { height: 100vh; width: auto; max-height: 100vh; }
-.right-section { display: flex; flex-direction: column; gap: 1.5vh; width: 50vw; height: 100vh; padding: 1vh 2vw; box-sizing: border-box; }
+.display-grid { flex: 1; display: grid; grid-template-columns: minmax(240px, 28%) minmax(0, 72%); gap: 18px; width: 100%; min-height: 0; padding: 18px; box-sizing: border-box; }
+.display-grid.without-visual { grid-template-columns: minmax(0, 1fr); padding-inline: clamp(28px, 6vw, 110px); }
+.campaign-visual-section { display: flex; min-width: 0; min-height: 0; align-items: center; justify-content: center; overflow: hidden; border: 2px solid color-mix(in srgb, var(--header-text-color) 28%, transparent); border-radius: var(--theme-radius); background: var(--theme-visual-backdrop); }
+.right-section { display: flex; flex-direction: column; gap: 1.5vh; width: 100%; min-width: 0; min-height: 0; padding: 0; box-sizing: border-box; }
 .donors-section { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 
 /* Header section XXL */
-.section-header { display: flex; align-items: center; justify-content: center; margin-bottom: 2vh; padding-bottom: 1.5vh; border-bottom: 5px solid #8B6914; }
-.section-header span { font-size: clamp(24px, 3vw, 48px); font-weight: 900; color: #5D4E37; letter-spacing: 5px; }
+.section-header { display: flex; align-items: center; justify-content: center; margin-bottom: 2vh; padding-bottom: 1.5vh; border-bottom: 3px solid var(--header-text-color); }
+.section-header span { font-family: var(--theme-font-display); font-size: clamp(24px, 3vw, 48px); font-weight: 900; color: var(--header-text-color); letter-spacing: 5px; }
 
-@media (max-width: 1200px) { .display-grid { grid-template-columns: 1fr; } .menorah-section { max-height: 50vh; } }
+@media (max-width: 1200px) {
+  .display-grid:not(.without-visual) { grid-template-columns: 1fr; grid-template-rows: minmax(0, 27vh) minmax(0, 1fr); }
+  .right-section { gap: 0.5vh; }
+  .gala-header { padding: 0.5vh 0; }
+  .gala-title { font-size: clamp(16px, 2.8vw, 28px); letter-spacing: clamp(2px, 0.5vw, 5px); }
+  .gala-org { margin-top: 0; font-size: clamp(24px, 5vw, 48px); letter-spacing: clamp(3px, 0.8vw, 7px); }
+  .section-header { margin-bottom: 0.5vh; padding-bottom: 0.5vh; border-bottom-width: 3px; }
+  .section-header span { font-size: clamp(18px, 3.2vw, 32px); letter-spacing: clamp(2px, 0.5vw, 4px); }
+}
+
+@media (max-width: 768px) {
+  .display-grid, .display-grid.without-visual { padding: 8px; gap: 8px; }
+  .display-grid:not(.without-visual) { grid-template-rows: minmax(0, 23vh) minmax(0, 1fr); }
+  .gala-header { padding-top: 50px; }
+  .gala-title { font-size: 10px; letter-spacing: 2px; }
+  .gala-org { font-size: clamp(24px, 8vw, 31px); letter-spacing: 2px; }
+  .fullscreen-btn { top: 12px; left: 12px; width: 44px; height: 44px; border-radius: 10px; }
+  .fullscreen-btn svg { width: 22px; height: 22px; }
+  .connection-status { top: 12px; right: 12px; left: auto; padding: 9px 13px; border-width: 2px; font-size: 12px; letter-spacing: 1px; }
+  .status-dot { width: 10px; height: 10px; }
+}
 
 /* GIF Explosion Effect */
 .gif-explosion-container { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; pointer-events: none; }

@@ -20,6 +20,35 @@ let nextEmberId = 0;
 let nextConfettiId = 0;
 let finalAnimationPlayed = ref(false);
 
+interface TierConfig {
+  name: string;
+  background: string;
+  haloSize: number;
+  haloPulseSpeed: number;
+  haloOpacity: number;
+  emberFrequency: number;
+  emberSize: { min: number; max: number };
+  brightness: number;
+  extraEffects: boolean;
+  showLightLines?: boolean;
+  showHeartbeat?: boolean;
+  showLightRays?: boolean;
+  showVictoryMode?: boolean;
+  glowEffect?: string;
+}
+
+const DEFAULT_TIER_CONFIG: TierConfig = {
+  name: 'L\'Éveil',
+  background: '#020202',
+  haloSize: 400,
+  haloPulseSpeed: 4,
+  haloOpacity: 0.15,
+  emberFrequency: 0.2,
+  emberSize: { min: 1, max: 2 },
+  brightness: 1.2,
+  extraEffects: false
+};
+
 // Computed: Determine current tier based on progress
 const currentTier = computed(() => {
   const percent = stats.value.percentComplete;
@@ -31,20 +60,10 @@ const currentTier = computed(() => {
 });
 
 // Computed: Tier configuration
-const tierConfig = computed(() => {
+const tierConfig = computed<TierConfig>(() => {
   switch (currentTier.value) {
     case 1: // 0-25%: L'Éveil
-      return {
-        name: 'L\'Éveil',
-        background: '#020202',
-        haloSize: 400,
-        haloPulseSpeed: 4,
-        haloOpacity: 0.15,
-        emberFrequency: 0.2,
-        emberSize: { min: 1, max: 2 },
-        brightness: 1.2,
-        extraEffects: false
-      };
+      return DEFAULT_TIER_CONFIG;
     case 2: // 25-50%: La Montée
       return {
         name: 'La Montée',
@@ -107,7 +126,7 @@ const tierConfig = computed(() => {
         glowEffect: 'drop-shadow(0 0 60px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 120px rgba(255, 215, 0, 0.6))'
       };
     default:
-      return tierConfig.value;
+      return DEFAULT_TIER_CONFIG;
   }
 });
 
@@ -222,7 +241,7 @@ function updateLighting(): void {
         const id = maskAttr.match(/#([^)]+)/)?.[1];
         const maskEl = id ? svg.querySelector(`#${id}`) : null;
         if (maskEl) {
-          const rect = maskEl.querySelector('path, rect');
+          const rect = maskEl.querySelector('path, rect') as SVGGraphicsElement | null;
           if (rect) {
             try { return rect.getBBox().y; } catch (e) { return 0; }
           }

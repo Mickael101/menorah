@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useDonations, type Donation } from '../../composables/useDonations';
 import { useSocket } from '../../composables/useSocket';
 import DonorPlate from './DonorPlate.vue';
+
+const props = withDefaults(defineProps<{
+  spotlight?: boolean;
+}>(), {
+  spotlight: false
+});
 
 // Données gérées par le parent (DisplayPage) via useDonations
 const { donations } = useDonations();
@@ -12,7 +18,9 @@ const gridRef = ref<HTMLDivElement | null>(null);
 const newDonationIds = ref<Set<number>>(new Set());
 const isPaused = ref(false);
 let animationFrameId: number | null = null;
+let resumeTimeoutId: number | null = null;
 let lastTime = 0;
+const newDonationTimers = new Map<number, number>();
 
 // Rotation order - IDs in display order (first element shown first)
 const rotationOrder = ref<number[]>([]);
@@ -40,11 +48,20 @@ const displayDonations = computed(() => {
     .filter((d): d is Donation => d !== undefined);
 });
 
-// Rotate: move first element to end
+function getVisibleColumnCount(): number {
+  if (!props.spotlight || !gridRef.value) return 1;
+  const platesGrid = gridRef.value.querySelector('.plates-grid');
+  if (!platesGrid) return 1;
+  const columns = getComputedStyle(platesGrid).gridTemplateColumns;
+  return Math.max(1, columns.split(' ').filter(Boolean).length);
+}
+
+// Rotate a full row so two-column donor walls never jump by half a row.
 function rotateFirst(): void {
   if (rotationOrder.value.length <= 1) return;
-  const first = rotationOrder.value.shift()!;
-  rotationOrder.value.push(first);
+  const columnCount = Math.min(getVisibleColumnCount(), rotationOrder.value.length);
+  const firstRow = rotationOrder.value.splice(0, columnCount);
+  rotationOrder.value.push(...firstRow);
 }
 
 // Infinite scroll with element rotation
@@ -73,7 +90,9 @@ function infiniteScroll(currentTime: number): void {
   el.scrollTop += scrollDelta;
 
   // When first element is fully scrolled out, rotate it to end and reset scroll
-  const firstPlateHeight = firstPlate.offsetHeight + 10; // +10 for gap
+  const grid = el.querySelector('.plates-grid') as HTMLElement | null;
+  const rowGap = grid ? Number.parseFloat(getComputedStyle(grid).rowGap) || 10 : 10;
+  const firstPlateHeight = firstPlate.offsetHeight + rowGap;
   if (el.scrollTop >= firstPlateHeight) {
     rotateFirst();
     el.scrollTop = el.scrollTop - firstPlateHeight;
@@ -97,29 +116,45 @@ function stopAutoScroll(): void {
 
 function pauseScroll(duration: number): void {
   isPaused.value = true;
-  setTimeout(() => {
+
+  if (resumeTimeoutId !== null) {
+    window.clearTimeout(resumeTimeoutId);
+  }
+
+  resumeTimeoutId = window.setTimeout(() => {
     isPaused.value = false;
+    resumeTimeoutId = null;
   }, duration);
 }
 
 // Écoute les événements uniquement pour l'animation des nouveaux dons
 onMounted(() => {
   on('donation:new', (data: any) => {
-    newDonationIds.value.add(data.donation.id);
+    const donationId = data.donation.id as number;
+    newDonationIds.value.add(donationId);
+
+    // Keep the latest donation visible immediately before it joins the carousel.
+    rotationOrder.value = [
+      donationId,
+      ...rotationOrder.value.filter(id => id !== donationId)
+    ];
 
     // Pause scroll and go to top for new donation
-    isPaused.value = true;
+    pauseScroll(5000);
     if (gridRef.value) {
       gridRef.value.scrollTop = 0;
     }
 
-    nextTick(() => {
-      setTimeout(() => {
-        newDonationIds.value.delete(data.donation.id);
-        // Resume infinite scroll after showing new donation
-        isPaused.value = false;
-      }, 5000);
-    });
+    const previousTimer = newDonationTimers.get(donationId);
+    if (previousTimer !== undefined) {
+      window.clearTimeout(previousTimer);
+    }
+
+    const timerId = window.setTimeout(() => {
+      newDonationIds.value.delete(donationId);
+      newDonationTimers.delete(donationId);
+    }, 5000);
+    newDonationTimers.set(donationId, timerId);
   });
 
   // Start auto-scroll after a delay
@@ -130,6 +165,13 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopAutoScroll();
+  if (resumeTimeoutId !== null) {
+    window.clearTimeout(resumeTimeoutId);
+  }
+  for (const timerId of newDonationTimers.values()) {
+    window.clearTimeout(timerId);
+  }
+  newDonationTimers.clear();
 });
 
 function isNewDonation(id: number): boolean {
@@ -141,7 +183,15 @@ function isNewDonation(id: number): boolean {
   <div class="donor-wall-wrapper">
     <div ref="gridRef" class="donor-wall">
       <!-- Infinite rotating carousel -->
-      <div v-if="displayDonations.length > 0" class="plates-grid">
+      <div
+        v-if="displayDonations.length > 0"
+        class="plates-grid"
+        :class="{
+          spotlight: props.spotlight,
+          few: props.spotlight && displayDonations.length <= 4,
+          single: props.spotlight && displayDonations.length === 1
+        }"
+      >
         <DonorPlate
           v-for="donation in displayDonations"
           :key="donation.id"
@@ -172,12 +222,14 @@ function isNewDonation(id: number): boolean {
 }
 
 .donor-wall {
+  height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px;
   padding-bottom: 20px;
   max-height: 100%;
   min-height: 100px;
+  box-sizing: border-box;
   /* Hide scrollbar for cleaner look with auto-scroll */
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -197,6 +249,54 @@ function isNewDonation(id: number): boolean {
 
 .plates-grid :deep(.plaque) {
   width: 100%;
+}
+
+.plates-grid.spotlight {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 1.4vw, 18px);
+}
+
+.plates-grid.spotlight :deep(.plaque) {
+  min-height: clamp(94px, 12vh, 132px);
+}
+
+.plates-grid.spotlight :deep(.nom) {
+  font-size: clamp(1.2rem, 1.75vw, 2.25rem);
+}
+
+.plates-grid.spotlight :deep(.nom.compact) {
+  font-size: clamp(1.08rem, 1.5vw, 1.95rem);
+}
+
+.plates-grid.spotlight :deep(.nom.extra-compact) {
+  font-size: clamp(1rem, 1.3vw, 1.7rem);
+}
+
+.plates-grid.spotlight :deep(.montant) {
+  font-size: clamp(1.05rem, 1.35vw, 1.75rem);
+}
+
+.plates-grid.spotlight.few {
+  min-height: 100%;
+  align-content: center;
+}
+
+.plates-grid.spotlight.few :deep(.plaque) {
+  min-height: clamp(138px, 19vh, 190px);
+}
+
+.plates-grid.spotlight.few :deep(.nom) {
+  font-size: clamp(1.55rem, 2.25vw, 2.8rem);
+}
+
+.plates-grid.spotlight.few :deep(.montant) {
+  font-size: clamp(1.25rem, 1.65vw, 2.1rem);
+}
+
+.plates-grid.spotlight.single {
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
 }
 
 
@@ -239,6 +339,10 @@ function isNewDonation(id: number): boolean {
 @media (max-width: 800px) {
   .plates-grid {
     gap: 8px;
+  }
+
+  .plates-grid.spotlight {
+    grid-template-columns: 1fr;
   }
 }
 </style>

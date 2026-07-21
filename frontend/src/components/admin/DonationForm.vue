@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
-import { useDonations, type Donation, type PremiumWord } from '../../composables/useDonations';
+import { ref, computed, watch } from 'vue';
+import { useDonations, type Donation } from '../../composables/useDonations';
+import { useAdminI18n } from '../../composables/useAdminI18n';
+
+const { t } = useAdminI18n();
 
 const props = defineProps<{
   donation?: Donation | null;
@@ -11,7 +14,7 @@ const emit = defineEmits<{
   (e: 'cancel'): void;
 }>();
 
-const { config, premiumWords, premiumTiers, createDonation, updateDonation, fetchPremiumWords, formatAmount, isLoading, error } = useDonations();
+const { config, premiumWords, createDonation, updateDonation, fetchPremiumWords, formatAmount, isLoading, error } = useDonations();
 
 const firstName = ref(props.donation?.firstName || '');
 const lastName = ref(props.donation?.lastName || '');
@@ -22,18 +25,27 @@ const reference = ref(props.donation?.reference || '');
 const selectedWordId = ref<string | null>(props.donation?.premiumWordId || null);
 const customAmount = ref('');
 const showSuccess = ref(false);
+const showOptionalFields = ref(Boolean(
+  props.donation?.email || props.donation?.phone || props.donation?.reference
+));
 
 const isEditing = computed(() => !!props.donation);
+const usesMenorahVisual = computed(() => config.value.displaySettings.visualMode === 'menorah');
 
 // Premium amounts for reserved word groups (in agorot)
 const PREMIUM_AMOUNTS = [
-  { amount: 2600000, label: '26,000', words: 7, tier: 'Niveau 1', level: 1 },
-  { amount: 3600000, label: '36,000', words: 3, tier: 'Niveau 2', level: 2 },
-  { amount: 7200000, label: '72,000', words: 1, tier: 'Niveau 3', level: 3 }
+  { amount: 2600000, label: '26,000', words: 7, level: 1 },
+  { amount: 3600000, label: '36,000', words: 3, level: 2 },
+  { amount: 7200000, label: '72,000', words: 1, level: 3 }
 ];
+
+const showPremiumAmounts = ref(Boolean(
+  props.donation && PREMIUM_AMOUNTS.some(preset => preset.amount === props.donation!.amount)
+));
 
 // Check if selected amount is premium
 const selectedPremium = computed(() => {
+  if (!usesMenorahVisual.value) return undefined;
   return PREMIUM_AMOUNTS.find(p => p.amount === amount.value);
 });
 
@@ -53,10 +65,14 @@ watch(() => selectedPremium.value, (premium) => {
   }
 });
 
-// Fetch premium words on mount
-onMounted(async () => {
-  await fetchPremiumWords();
-});
+watch(usesMenorahVisual, async (enabled) => {
+  if (enabled) {
+    await fetchPremiumWords();
+  } else {
+    selectedWordId.value = null;
+    showPremiumAmounts.value = false;
+  }
+}, { immediate: true });
 
 // Watch for donation prop changes (when editing)
 watch(() => props.donation, (newDonation) => {
@@ -69,6 +85,19 @@ watch(() => props.donation, (newDonation) => {
     reference.value = newDonation.reference || '';
     selectedWordId.value = newDonation.premiumWordId || null;
     customAmount.value = '';
+    showPremiumAmounts.value = PREMIUM_AMOUNTS.some(preset => preset.amount === newDonation.amount);
+    showOptionalFields.value = Boolean(newDonation.email || newDonation.phone || newDonation.reference);
+  } else {
+    firstName.value = '';
+    lastName.value = '';
+    email.value = '';
+    phone.value = '';
+    amount.value = 0;
+    reference.value = '';
+    selectedWordId.value = null;
+    customAmount.value = '';
+    showPremiumAmounts.value = false;
+    showOptionalFields.value = false;
   }
 }, { immediate: true });
 
@@ -95,7 +124,7 @@ function updateCustomAmount(value: string): void {
 
 // Submit form
 async function submit(): Promise<void> {
-  if (!firstName.value.trim() || !lastName.value.trim() || amount.value <= 0) {
+  if (!firstName.value.trim() || amount.value <= 0) {
     return;
   }
 
@@ -140,6 +169,8 @@ async function submit(): Promise<void> {
     reference.value = '';
     selectedWordId.value = null;
     customAmount.value = '';
+    showPremiumAmounts.value = false;
+    showOptionalFields.value = false;
     emit('saved');
   }
 }
@@ -164,8 +195,8 @@ function cancel(): void {
           </svg>
         </div>
         <div>
-          <h3>{{ isEditing ? 'Modifier le don' : 'Nouveau don' }}</h3>
-          <p class="form-subtitle">{{ isEditing ? 'Modifiez les informations du don' : 'Enregistrez une nouvelle contribution' }}</p>
+          <h3>{{ isEditing ? t('donation.editTitle') : t('donation.newTitle') }}</h3>
+          <p class="form-subtitle">{{ isEditing ? t('donation.editSubtitle') : t('donation.newSubtitle') }}</p>
         </div>
       </div>
 
@@ -177,64 +208,87 @@ function cancel(): void {
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
               <circle cx="12" cy="7" r="4"/>
             </svg>
-            Prénom
+            {{ t('donation.firstName') }}
           </label>
           <input
             id="firstName"
             v-model="firstName"
             type="text"
             required
-            placeholder="Entrez le prénom"
+            :placeholder="t('donation.firstNamePlaceholder')"
             class="input"
           />
         </div>
 
         <div class="form-group">
-          <label for="lastName">Nom</label>
+          <label for="lastName">
+            {{ t('donation.lastName') }}
+            <span class="optional">({{ t('donation.optional') }})</span>
+          </label>
           <input
             id="lastName"
             v-model="lastName"
             type="text"
-            required
-            placeholder="Entrez le nom"
+            :placeholder="t('donation.lastNamePlaceholder')"
             class="input"
           />
         </div>
       </div>
 
-      <!-- Email Field -->
-      <div class="form-group">
-        <label for="email">
+      <button
+        type="button"
+        class="optional-toggle"
+        :aria-expanded="showOptionalFields"
+        @click="showOptionalFields = !showOptionalFields"
+      >
+        <span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-            <polyline points="22,6 12,13 2,6"/>
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06M4.27 4.27l15.46 15.46M12 2v2M12 20v2M2 12h2M20 12h2"/>
           </svg>
-          Email <span class="optional">(optionnel)</span>
-        </label>
-        <input
-          id="email"
-          v-model="email"
-          type="email"
-          placeholder="exemple@email.com"
-          class="input"
-        />
-      </div>
+          {{ t('donation.optionalFields') }}
+          <span class="optional">({{ t('donation.optional') }})</span>
+        </span>
+        <svg class="optional-chevron" :class="{ open: showOptionalFields }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+      </button>
 
-      <!-- Phone Field -->
-      <div class="form-group">
-        <label for="phone">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-          </svg>
-          Téléphone <span class="optional">(optionnel)</span>
-        </label>
-        <input
-          id="phone"
-          v-model="phone"
-          type="tel"
-          placeholder="05X XXX XXXX"
-          class="input"
-        />
+      <div v-if="showOptionalFields" class="optional-fields">
+        <!-- Email Field -->
+        <div class="form-group">
+          <label for="email">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            {{ t('donation.email') }} <span class="optional">({{ t('donation.optional') }})</span>
+          </label>
+          <input
+            id="email"
+            v-model="email"
+            type="email"
+            placeholder="exemple@email.com"
+            class="input"
+          />
+        </div>
+
+        <!-- Phone Field -->
+        <div class="form-group">
+          <label for="phone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 1 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+            {{ t('donation.phone') }} <span class="optional">({{ t('donation.optional') }})</span>
+          </label>
+          <input
+            id="phone"
+            v-model="phone"
+            type="tel"
+            placeholder="05X XXX XXXX"
+            class="input"
+          />
+        </div>
       </div>
 
       <!-- Amount Selection -->
@@ -244,14 +298,52 @@ function cancel(): void {
             <circle cx="12" cy="12" r="10"/>
             <path d="M12 6v12M8 10h8M8 14h8"/>
           </svg>
-          Montant du don
+          {{ t('donation.amount') }}
         </label>
 
+        <div class="custom-amount-wrapper quick-amount-wrapper">
+          <span class="currency-symbol">&#8362;</span>
+          <input
+            type="number"
+            v-model="customAmount"
+            @input="updateCustomAmount(($event.target as HTMLInputElement).value)"
+            :placeholder="t('donation.amountPlaceholder')"
+            min="0.01"
+            step="0.01"
+            class="input custom-input"
+          />
+        </div>
+
+        <button type="submit" class="btn btn-primary quick-save-btn" :disabled="isLoading || amount <= 0">
+          <svg v-if="isLoading" class="spinner" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" stroke-dasharray="32" stroke-linecap="round"/>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M13 6l6 6-6 6"/>
+          </svg>
+          {{ isLoading ? t('common.saving') : (isEditing ? t('donation.update') : t('donation.saveAndDisplay')) }}
+        </button>
+
+        <div class="amount-separator"><span>{{ t('donation.chooseAmount') }}</span></div>
+
+        <button
+          v-if="usesMenorahVisual"
+          type="button"
+          class="premium-options-toggle"
+          :aria-expanded="showPremiumAmounts"
+          @click="showPremiumAmounts = !showPremiumAmounts"
+        >
+          <span><span class="premium-star">&#10017;</span> {{ t('donation.premiumTiers') }} 26 000 / 36 000 / 72 000 ₪</span>
+          <svg :class="{ open: showPremiumAmounts }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </button>
+
         <!-- Premium amounts section -->
-        <div class="premium-section">
+        <div v-if="usesMenorahVisual && showPremiumAmounts" class="premium-section">
           <div class="premium-header">
-            <span class="premium-badge">&#10017; Mots Premium</span>
-            <span class="premium-subtitle">Illuminez un mot sacré de la Menorah</span>
+            <span class="premium-badge">&#10017; {{ t('donation.premiumWords') }}</span>
+            <span class="premium-subtitle">{{ t('donation.premiumDescription') }}</span>
           </div>
           <div class="premium-grid">
             <button
@@ -261,16 +353,16 @@ function cancel(): void {
               :class="['premium-btn', { selected: amount === premium.amount }]"
               @click="selectPreset(premium.amount)"
             >
-              <span class="premium-tier">{{ premium.tier }}</span>
+              <span class="premium-tier">{{ t('donation.tier', { level: premium.level }) }}</span>
               <span class="premium-amount">{{ premium.label }} &#8362;</span>
-              <span class="premium-words">{{ premium.words }} mot{{ premium.words > 1 ? 's' : '' }}</span>
+              <span class="premium-words">{{ t(premium.words === 1 ? 'donation.wordCount' : 'donation.wordsCount', { count: premium.words }) }}</span>
             </button>
           </div>
         </div>
 
         <!-- Regular presets -->
         <div class="regular-section">
-          <span class="regular-label">Autres montants</span>
+          <span class="regular-label">{{ t('donation.otherAmounts') }}</span>
           <div class="preset-grid">
             <button
               v-for="preset in config.presetAmounts"
@@ -284,26 +376,13 @@ function cancel(): void {
           </div>
         </div>
 
-        <div class="custom-amount-wrapper">
-          <span class="currency-symbol">&#8362;</span>
-          <input
-            type="number"
-            v-model="customAmount"
-            @input="updateCustomAmount(($event.target as HTMLInputElement).value)"
-            placeholder="Autre montant"
-            min="0.01"
-            step="0.01"
-            class="input custom-input"
-          />
-        </div>
-
         <!-- Premium Word Selector -->
         <div v-if="selectedPremium && availableWordsForTier.length > 0" class="word-selector">
           <label class="word-selector-label">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
-            Choisissez votre mot sacré
+            {{ t('donation.chooseSacredWord') }}
           </label>
           <div class="word-options">
             <button
@@ -330,17 +409,17 @@ function cancel(): void {
             <polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
           <span v-if="selectedPremium">
-            Montant Premium: <strong>{{ formatAmount(amount) }}</strong>
+            {{ t('donation.premiumAmount') }} : <strong>{{ formatAmount(amount) }}</strong>
             <span v-if="selectedWordId" class="premium-info"> - {{ availableWordsForTier.find(w => w.id === selectedWordId)?.label }}</span>
           </span>
           <span v-else>
-            Montant sélectionné: <strong>{{ formatAmount(amount) }}</strong>
+            {{ t('donation.selectedAmount') }} : <strong>{{ formatAmount(amount) }}</strong>
           </span>
         </div>
       </div>
 
       <!-- Reference Field -->
-      <div class="form-group">
+      <div v-if="showOptionalFields" class="form-group optional-reference">
         <label for="reference">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -348,13 +427,13 @@ function cancel(): void {
             <line x1="16" y1="13" x2="8" y2="13"/>
             <line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
-          Référence <span class="optional">(optionnel)</span>
+          {{ t('donation.reference') }} <span class="optional">({{ t('donation.optional') }})</span>
         </label>
         <input
           id="reference"
           v-model="reference"
           type="text"
-          placeholder="N° de transaction, chèque..."
+          :placeholder="t('donation.referencePlaceholder')"
           class="input"
         />
       </div>
@@ -375,7 +454,7 @@ function cancel(): void {
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
           <polyline points="22 4 12 14.01 9 11.01"/>
         </svg>
-        Don enregistré avec succès !
+        {{ t('donation.success') }}
       </div>
 
       <!-- Form Actions -->
@@ -389,7 +468,7 @@ function cancel(): void {
             <polyline points="17 21 17 13 7 13 7 21"/>
             <polyline points="7 3 7 8 15 8"/>
           </svg>
-          {{ isLoading ? 'Enregistrement...' : (isEditing ? 'Mettre à jour' : 'Enregistrer le don') }}
+          {{ isLoading ? t('common.saving') : (isEditing ? t('donation.update') : t('donation.saveAndDisplay')) }}
         </button>
 
         <button v-if="isEditing" type="button" class="btn btn-secondary" @click="cancel">
@@ -397,7 +476,7 @@ function cancel(): void {
             <line x1="18" y1="6" x2="6" y2="18"/>
             <line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
-          Annuler
+          {{ t('common.cancel') }}
         </button>
       </div>
     </form>
@@ -413,7 +492,7 @@ function cancel(): void {
 .donation-form {
   background: white;
   border-radius: var(--radius-lg);
-  padding: 28px;
+  padding: 24px;
   box-shadow: var(--shadow-lg);
   border: 1px solid var(--gray-100);
 }
@@ -423,8 +502,8 @@ function cancel(): void {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 28px;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--gray-100);
 }
 
@@ -472,7 +551,7 @@ h3 {
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 label {
@@ -495,6 +574,58 @@ label svg {
   font-weight: 400;
   color: var(--gray-400);
   font-size: 12px;
+}
+
+.optional-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -2px 0 16px;
+  padding: 11px 14px;
+  border: 1px dashed var(--gray-300);
+  border-radius: var(--radius);
+  background: var(--gray-50);
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.optional-toggle:hover {
+  border-color: var(--primary-300);
+  background: var(--primary-50);
+  color: var(--primary-700);
+}
+
+.optional-toggle > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.optional-toggle svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
+.optional-chevron {
+  transition: transform var(--transition);
+}
+
+.optional-chevron.open {
+  transform: rotate(180deg);
+}
+
+.optional-fields {
+  animation: fadeInUp 0.2s ease;
+}
+
+.optional-reference {
+  animation: fadeInUp 0.2s ease;
 }
 
 /* Input Styles */
@@ -525,6 +656,46 @@ label svg {
 }
 
 /* Premium Section */
+.premium-options-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 11px 13px;
+  border: 1px solid rgba(212, 175, 55, 0.45);
+  border-radius: var(--radius);
+  background: #fffaf0;
+  color: #8b6914;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: start;
+}
+
+.premium-options-toggle > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.premium-options-toggle svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  transition: transform var(--transition);
+}
+
+.premium-options-toggle svg.open {
+  transform: rotate(180deg);
+}
+
+.premium-star {
+  color: #d4af37;
+  font-size: 16px;
+}
+
 .premium-section {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   border-radius: var(--radius-lg);
@@ -626,13 +797,13 @@ label svg {
 /* Preset Amounts */
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
   margin-bottom: 16px;
 }
 
 .preset-btn {
-  padding: 14px 12px;
+  padding: 11px 5px;
   border: 2px solid var(--gray-200);
   border-radius: var(--radius);
   background: white;
@@ -653,7 +824,7 @@ label svg {
 }
 
 .preset-amount {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--gray-800);
 }
@@ -669,7 +840,7 @@ label svg {
 
 .currency-symbol {
   position: absolute;
-  left: 16px;
+  inset-inline-start: 16px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 16px;
@@ -678,7 +849,35 @@ label svg {
 }
 
 .custom-input {
-  padding-left: 36px;
+  padding-inline-start: 36px;
+}
+
+.quick-amount-wrapper {
+  margin-bottom: 10px;
+}
+
+.quick-save-btn {
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.amount-separator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 12px;
+  color: var(--gray-400);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.amount-separator::before,
+.amount-separator::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--gray-200);
 }
 
 /* Selected Amount */
@@ -707,7 +906,7 @@ label svg {
 .selected-amount.premium .premium-info {
   color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
-  margin-left: 4px;
+  margin-inline-start: 4px;
 }
 
 .selected-amount svg {
@@ -928,7 +1127,7 @@ label svg {
   }
 
   .preset-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .premium-grid {

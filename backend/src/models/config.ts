@@ -1,4 +1,24 @@
-import { Config, MenorahSegment, DisplaySettings, DEFAULT_DISPLAY_SETTINGS } from './types';
+import {
+  Config,
+  MenorahSegment,
+  DisplaySettings,
+  DisplayThemeId,
+  DisplayThemePalette,
+  DisplayVisualMode,
+  DonationAnimationStyle,
+  DisplayTextDirection,
+  DisplayTextSettings,
+  AdminBrandingSettings,
+  DEFAULT_DISPLAY_SETTINGS,
+  DEFAULT_DISPLAY_TEXTS,
+  DEFAULT_ADMIN_BRANDING,
+  DEFAULT_THEME_PALETTES,
+  ADMIN_BRANDING_LOCALES,
+  DISPLAY_THEME_IDS,
+  DISPLAY_VISUAL_MODES,
+  DONATION_ANIMATION_STYLES,
+  DISPLAY_TEXT_DIRECTIONS
+} from './types';
 
 // Database row format
 export interface ConfigRow {
@@ -16,7 +36,7 @@ export function rowToConfig(row: ConfigRow): Config {
   let displaySettings: DisplaySettings = { ...DEFAULT_DISPLAY_SETTINGS };
   try {
     const parsed = JSON.parse(row.display_settings || '{}');
-    displaySettings = { ...DEFAULT_DISPLAY_SETTINGS, ...parsed };
+    displaySettings = normalizeDisplaySettings(parsed);
   } catch (e) {
     // Use defaults if parsing fails
   }
@@ -67,40 +87,134 @@ export function validateConfigUpdate(data: unknown): Partial<Config> {
 
 // Validate display settings
 function validateDisplaySettings(settings: unknown): DisplaySettings {
-  const s = settings as Partial<DisplaySettings>;
-  const result: DisplaySettings = { ...DEFAULT_DISPLAY_SETTINGS };
+  return normalizeDisplaySettings(settings);
+}
 
-  // Validate color fields (hex format)
-  const colorFields: (keyof DisplaySettings)[] = [
-    'backgroundColor', 'plateColorGold', 'plateColorDiamond', 'plateColorBronze',
-    'plateTextColor', 'headerTextColor', 'statsTextColor',
-    'chartPrimaryColor', 'chartSecondaryColor'
-  ];
+const COLOR_FIELDS: (keyof Omit<DisplayThemePalette, 'backgroundImage'>)[] = [
+  'backgroundColor', 'plateColorGold', 'plateColorDiamond', 'plateColorBronze',
+  'plateTextColor', 'headerTextColor', 'statsTextColor',
+  'chartPrimaryColor', 'chartSecondaryColor'
+];
 
-  for (const field of colorFields) {
-    if (s[field] !== undefined) {
-      const value = s[field] as string;
-      if (typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
-        (result as any)[field] = value;
-      }
-    }
-  }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
-  // Validate background image (URL or null)
-  if (s.backgroundImage !== undefined) {
-    if (s.backgroundImage === null || typeof s.backgroundImage === 'string') {
-      result.backgroundImage = s.backgroundImage;
-    }
-  }
+function normalizeDisplayTexts(value: unknown): DisplayTextSettings {
+  const source = isRecord(value) ? value : {};
+  const result = { ...DEFAULT_DISPLAY_TEXTS };
 
-  // Validate donation sound (URL or null)
-  if (s.donationSound !== undefined) {
-    if (s.donationSound === null || typeof s.donationSound === 'string') {
-      result.donationSound = s.donationSound;
+  for (const key of Object.keys(result) as (keyof DisplayTextSettings)[]) {
+    const text = source[key];
+    if (typeof text === 'string') {
+      result[key] = text.slice(0, key === 'thankYouMessage' ? 240 : 100);
     }
   }
 
   return result;
+}
+
+function normalizeAdminBranding(value: unknown): AdminBrandingSettings {
+  const source = isRecord(value) ? value : {};
+  const result = structuredClone(DEFAULT_ADMIN_BRANDING);
+
+  for (const locale of ADMIN_BRANDING_LOCALES) {
+    const localizedSource = isRecord(source[locale]) ? source[locale] : {};
+    const title = localizedSource.title;
+    const subtitle = localizedSource.subtitle;
+
+    if (typeof title === 'string') {
+      result[locale].title = title.slice(0, 80);
+    }
+    if (typeof subtitle === 'string') {
+      result[locale].subtitle = subtitle.slice(0, 160);
+    }
+  }
+
+  return result;
+}
+
+function validateThemePalette(
+  palette: unknown,
+  defaults: DisplayThemePalette
+): DisplayThemePalette {
+  const result: DisplayThemePalette = { ...defaults };
+  if (!isRecord(palette)) return result;
+
+  for (const field of COLOR_FIELDS) {
+    const value = palette[field];
+    if (typeof value === 'string' && /^#[0-9A-Fa-f]{6}$/.test(value)) {
+      result[field] = value;
+    }
+  }
+
+  if (palette.backgroundImage === null || typeof palette.backgroundImage === 'string') {
+    result.backgroundImage = palette.backgroundImage;
+  }
+
+  return result;
+}
+
+export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
+  const source = isRecord(settings) ? settings : {};
+  const requestedTheme = source.theme;
+  const theme: DisplayThemeId = typeof requestedTheme === 'string'
+    && DISPLAY_THEME_IDS.includes(requestedTheme as DisplayThemeId)
+    ? requestedTheme as DisplayThemeId
+    : 'premium';
+
+  const themePalettes = structuredClone(DEFAULT_THEME_PALETTES);
+  const storedPalettes = isRecord(source.themePalettes) ? source.themePalettes : null;
+
+  for (const themeId of DISPLAY_THEME_IDS) {
+    themePalettes[themeId] = validateThemePalette(
+      storedPalettes?.[themeId],
+      themePalettes[themeId]
+    );
+  }
+
+  // Migrate the previous single-palette format into Gala premium.
+  if (!storedPalettes) {
+    themePalettes.premium = validateThemePalette(source, themePalettes.premium);
+  }
+
+  const activePalette = themePalettes[theme];
+  const requestedVisualMode = source.visualMode;
+  const visualMode: DisplayVisualMode = typeof requestedVisualMode === 'string'
+    && DISPLAY_VISUAL_MODES.includes(requestedVisualMode as DisplayVisualMode)
+    ? requestedVisualMode as DisplayVisualMode
+    : 'none';
+  const customSvgUrl = source.customSvgUrl === null || typeof source.customSvgUrl === 'string'
+    ? source.customSvgUrl
+    : null;
+  const requestedAnimation = source.donationAnimation;
+  const donationAnimation: DonationAnimationStyle = typeof requestedAnimation === 'string'
+    && DONATION_ANIMATION_STYLES.includes(requestedAnimation as DonationAnimationStyle)
+    ? requestedAnimation as DonationAnimationStyle
+    : 'prestige';
+  const requestedDirection = source.textDirection;
+  const textDirection: DisplayTextDirection = typeof requestedDirection === 'string'
+    && DISPLAY_TEXT_DIRECTIONS.includes(requestedDirection as DisplayTextDirection)
+    ? requestedDirection as DisplayTextDirection
+    : 'auto';
+  const texts = normalizeDisplayTexts(source.texts);
+  const adminBranding = normalizeAdminBranding(source.adminBranding);
+  const donationSound = source.donationSound === null || typeof source.donationSound === 'string'
+    ? source.donationSound
+    : null;
+
+  return {
+    theme,
+    themePalettes,
+    ...activePalette,
+    visualMode,
+    customSvgUrl,
+    donationAnimation,
+    textDirection,
+    texts,
+    adminBranding,
+    donationSound
+  };
 }
 
 function validateSegment(seg: unknown): MenorahSegment {

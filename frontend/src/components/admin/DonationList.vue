@@ -1,14 +1,19 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useDonations, type Donation } from '../../composables/useDonations';
+import { useAdminI18n } from '../../composables/useAdminI18n';
+
+const { locale, t } = useAdminI18n();
 
 const emit = defineEmits<{
   (e: 'edit', donation: Donation): void;
 }>();
 
 const { donations, deleteDonation, formatAmount, isLoading } = useDonations();
+const exportUrl = computed(() => `/api/donations/export.csv?lang=${locale.value}`);
 
 async function handleDelete(donation: Donation): Promise<void> {
-  if (confirm(`Supprimer le don de ${donation.firstName} ${donation.lastName} ?`)) {
+  if (confirm(t('donation.deleteConfirm', { name: `${donation.firstName} ${donation.lastName}` }))) {
     await deleteDonation(donation.id);
   }
 }
@@ -18,7 +23,8 @@ function handleEdit(donation: Donation): void {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('fr-FR', {
+  const dateLocale = locale.value === 'he' ? 'he-IL' : locale.value === 'en' ? 'en-US' : 'fr-FR';
+  return new Date(dateStr).toLocaleDateString(dateLocale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -43,10 +49,18 @@ function getInitials(firstName: string, lastName: string): string {
             <circle cx="9" cy="7" r="4"/>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
-          Liste des dons
+          {{ t('donation.listTitle') }}
         </h3>
         <span class="count-badge">{{ donations.length }}</span>
       </div>
+      <a :href="exportUrl" class="export-btn" download>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3v12"/>
+          <path d="m7 10 5 5 5-5"/>
+          <path d="M5 21h14"/>
+        </svg>
+        {{ t('donation.exportCsv') }}
+      </a>
     </div>
 
     <!-- Empty State -->
@@ -56,8 +70,8 @@ function getInitials(firstName: string, lastName: string): string {
           <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
         </svg>
       </div>
-      <h4>Aucun don enregistré</h4>
-      <p>Les dons apparaîtront ici une fois ajoutés.</p>
+      <h4>{{ t('donation.emptyTitle') }}</h4>
+      <p>{{ t('donation.emptyDescription') }}</p>
     </div>
 
     <!-- Donations List -->
@@ -104,19 +118,19 @@ function getInitials(firstName: string, lastName: string): string {
             class="action-btn edit-btn"
             @click="handleEdit(donation)"
             :disabled="isLoading"
-            title="Modifier"
+            :title="t('common.edit')"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
-            Modifier
+            {{ t('common.edit') }}
           </button>
           <button
             class="action-btn delete-btn"
             @click="handleDelete(donation)"
             :disabled="isLoading"
-            title="Supprimer"
+            :title="t('common.delete')"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"/>
@@ -124,7 +138,7 @@ function getInitials(firstName: string, lastName: string): string {
               <line x1="10" y1="11" x2="10" y2="17"/>
               <line x1="14" y1="11" x2="14" y2="17"/>
             </svg>
-            Supprimer
+            {{ t('common.delete') }}
           </button>
         </div>
       </div>
@@ -143,9 +157,40 @@ function getInitials(firstName: string, lastName: string): string {
 
 /* Header */
 .list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 20px 24px;
   border-bottom: 1px solid var(--gray-100);
   background: var(--gray-50);
+}
+
+.export-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--primary-200);
+  border-radius: var(--radius);
+  background: white;
+  color: var(--primary-700);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.export-btn:hover {
+  border-color: var(--primary-400);
+  background: var(--primary-50);
+}
+
+.export-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .header-info {
@@ -323,7 +368,7 @@ h3 svg {
   display: flex;
   gap: 8px;
   margin-top: 12px;
-  padding-left: 64px;
+  padding-inline-start: 64px;
 }
 
 .action-btn {
@@ -370,6 +415,16 @@ h3 svg {
 
 /* Responsive */
 @media (max-width: 600px) {
+  .list-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .export-btn {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
   .card-main {
     flex-wrap: wrap;
   }
@@ -381,7 +436,7 @@ h3 svg {
   }
 
   .card-actions {
-    padding-left: 0;
+    padding-inline-start: 0;
     justify-content: center;
   }
 }

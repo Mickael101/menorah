@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import { useDonations } from '../../composables/useDonations';
+import {
+  useDonations,
+  type AdminBrandingLocale,
+  type AdminBrandingSettings,
+  DEFAULT_ADMIN_BRANDING
+} from '../../composables/useDonations';
+import { useAdminI18n } from '../../composables/useAdminI18n';
+
+const { t } = useAdminI18n();
 
 const { config, fetchConfig, updateConfig, formatAmount, isLoading, error } = useDonations();
 
@@ -11,6 +19,17 @@ const newPreset = ref('');
 const segments = ref<{ id: string; thresholdPercent: number; order: number }[]>([]);
 const newSegmentId = ref('');
 const newSegmentThreshold = ref(0);
+const brandingLocales: AdminBrandingLocale[] = ['fr', 'en', 'he'];
+
+function cloneAdminBranding(source: AdminBrandingSettings): AdminBrandingSettings {
+  return {
+    fr: { ...source.fr },
+    en: { ...source.en },
+    he: { ...source.he }
+  };
+}
+
+const adminBranding = ref<AdminBrandingSettings>(cloneAdminBranding(DEFAULT_ADMIN_BRANDING));
 
 // Load config on mount
 onMounted(async () => {
@@ -27,6 +46,18 @@ function syncFormWithConfig(): void {
   goalAmount.value = config.value.goalAmount / 100; // Convert agorot to shekels
   presetAmounts.value = [...config.value.presetAmounts];
   segments.value = [...config.value.menorahSegments];
+  adminBranding.value = cloneAdminBranding(
+    config.value.displaySettings.adminBranding ?? DEFAULT_ADMIN_BRANDING
+  );
+}
+
+async function saveAdminBranding(): Promise<void> {
+  await updateConfig({
+    displaySettings: {
+      ...config.value.displaySettings,
+      adminBranding: cloneAdminBranding(adminBranding.value)
+    }
+  });
 }
 
 // Save goal amount
@@ -92,32 +123,73 @@ async function saveSegments(): Promise<void> {
 
 <template>
   <div class="config-panel">
-    <h3>Configuration</h3>
+    <h3>{{ t('config.title') }}</h3>
 
     <p v-if="error" class="error">{{ error }}</p>
 
+    <!-- Administration identity -->
+    <div class="config-section branding-section">
+      <h4>{{ t('config.adminIdentity') }}</h4>
+      <p class="hint branding-hint">{{ t('config.adminIdentityDescription') }}</p>
+
+      <div class="branding-grid">
+        <fieldset
+          v-for="brandingLocale in brandingLocales"
+          :key="brandingLocale"
+          class="branding-card"
+          :dir="brandingLocale === 'he' ? 'rtl' : 'ltr'"
+        >
+          <legend>{{ t(`language.${brandingLocale}`) }}</legend>
+
+          <label class="branding-field">
+            <span>{{ t('config.adminTitle') }}</span>
+            <input
+              v-model="adminBranding[brandingLocale].title"
+              type="text"
+              maxlength="80"
+              dir="auto"
+            />
+          </label>
+
+          <label class="branding-field">
+            <span>{{ t('config.adminSubtitle') }}</span>
+            <input
+              v-model="adminBranding[brandingLocale].subtitle"
+              type="text"
+              maxlength="160"
+              dir="auto"
+            />
+          </label>
+        </fieldset>
+      </div>
+
+      <button @click="saveAdminBranding" :disabled="isLoading" class="save-btn">
+        {{ isLoading ? t('common.saving') : t('config.saveAdminIdentity') }}
+      </button>
+    </div>
+
     <!-- Goal Amount -->
     <div class="config-section">
-      <h4>Objectif de collecte</h4>
+      <h4>{{ t('config.goal') }}</h4>
       <div class="input-group">
         <input
           type="number"
           v-model="goalAmount"
           min="1"
           step="100"
-          placeholder="Objectif en shekels"
+          :placeholder="t('config.goalPlaceholder')"
         />
         <span class="suffix">₪</span>
         <button @click="saveGoalAmount" :disabled="isLoading">
-          {{ isLoading ? 'Enregistrement...' : 'Enregistrer' }}
+          {{ isLoading ? t('common.saving') : t('common.save') }}
         </button>
       </div>
-      <p class="hint">Objectif actuel: {{ formatAmount(config.goalAmount) }}</p>
+      <p class="hint">{{ t('config.currentGoal', { amount: formatAmount(config.goalAmount) }) }}</p>
     </div>
 
     <!-- Preset Amounts -->
     <div class="config-section">
-      <h4>Montants prédéfinis</h4>
+      <h4>{{ t('config.presets') }}</h4>
       <div class="preset-list">
         <span
           v-for="amount in presetAmounts"
@@ -134,29 +206,29 @@ async function saveSegments(): Promise<void> {
           v-model="newPreset"
           min="0.01"
           step="0.01"
-          placeholder="Nouveau montant (₪)"
+          :placeholder="t('config.newPreset')"
           @keyup.enter="addPreset"
         />
-        <button @click="addPreset">Ajouter</button>
+        <button @click="addPreset">{{ t('common.add') }}</button>
       </div>
       <button @click="savePresets" :disabled="isLoading" class="save-btn">
-        Enregistrer les montants
+        {{ t('config.savePresets') }}
       </button>
     </div>
 
     <!-- Menorah Segments -->
     <div class="config-section">
-      <h4>Segments de la Menorah</h4>
+      <h4>{{ t('config.menorahSegments') }}</h4>
       <p class="hint">
-        Définissez les segments SVG et leur seuil d'illumination (% de l'objectif).
+        {{ t('config.segmentsHint') }}
       </p>
 
       <table v-if="segments.length > 0" class="segments-table">
         <thead>
           <tr>
-            <th>ID Segment</th>
-            <th>Seuil (%)</th>
-            <th>Ordre</th>
+            <th>{{ t('config.segmentId') }}</th>
+            <th>{{ t('config.threshold') }}</th>
+            <th>{{ t('config.order') }}</th>
             <th></th>
           </tr>
         </thead>
@@ -176,19 +248,19 @@ async function saveSegments(): Promise<void> {
         <input
           type="text"
           v-model="newSegmentId"
-          placeholder="ID (ex: segment-1)"
+          :placeholder="t('config.segmentIdPlaceholder')"
         />
         <input
           type="number"
           v-model="newSegmentThreshold"
           min="0"
           max="100"
-          placeholder="Seuil %"
+          :placeholder="t('config.thresholdPlaceholder')"
         />
-        <button @click="addSegment">Ajouter</button>
+        <button @click="addSegment">{{ t('common.add') }}</button>
       </div>
       <button @click="saveSegments" :disabled="isLoading" class="save-btn">
-        Enregistrer les segments
+        {{ t('config.saveSegments') }}
       </button>
     </div>
   </div>
@@ -279,6 +351,64 @@ h4 {
   margin: 4px 0;
 }
 
+.branding-hint {
+  margin-bottom: 16px;
+}
+
+.branding-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.branding-card {
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid #dfe5ec;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.branding-card legend {
+  padding-inline: 6px;
+  color: #1a73e8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.branding-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: start;
+}
+
+.branding-field:last-child {
+  margin-bottom: 0;
+}
+
+.branding-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  color: #1e293b;
+  font: inherit;
+  font-weight: 500;
+  box-sizing: border-box;
+}
+
+.branding-field input:focus {
+  border-color: #1a73e8;
+  outline: 3px solid rgba(26, 115, 232, 0.12);
+}
+
 .error {
   color: #d93025;
   margin-bottom: 16px;
@@ -326,7 +456,7 @@ h4 {
 .segments-table th,
 .segments-table td {
   padding: 8px;
-  text-align: left;
+  text-align: start;
   border-bottom: 1px solid #eee;
 }
 
@@ -368,5 +498,27 @@ h4 {
 
 .segment-form button:hover {
   background: #e8eaed;
+}
+
+@media (max-width: 900px) {
+  .branding-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .config-panel {
+    padding: 16px;
+  }
+
+  .input-group,
+  .segment-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .segment-form input:nth-child(2) {
+    width: auto;
+  }
 }
 </style>
