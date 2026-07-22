@@ -1,62 +1,71 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useDonations, DEFAULT_PLEDGE_TEXTS, type PledgePageCopy } from '../composables/useDonations';
+import {
+  useDonations,
+  DEFAULT_PLEDGE_TEXTS,
+  DEFAULT_PLEDGE_REQUIRED_FIELDS,
+  type PledgePageCopy,
+  type PledgeRequiredFields
+} from '../composables/useDonations';
 
 const { config, fetchConfig, createDonation, formatAmount, isLoading, error } = useDonations();
 
 type Locale = 'fr' | 'he' | 'en';
-const locale = ref<Locale>('fr');
+const locale = ref<Locale>('he');
 
 const MESSAGES: Record<Locale, Record<string, string>> = {
   fr: {
     firstName: 'Prénom',
     firstNamePlaceholder: 'Votre prénom',
     lastName: 'Nom',
-    lastNamePlaceholder: 'Votre nom (optionnel)',
+    lastNamePlaceholder: 'Votre nom',
     phone: 'Téléphone',
-    phonePlaceholder: '05X XXX XXXX (optionnel)',
+    phonePlaceholder: '05X XXX XXXX',
     email: 'Email',
-    emailPlaceholder: 'exemple@email.com (optionnel)',
+    emailPlaceholder: 'exemple@email.com',
     amount: 'Montant du don',
     customAmount: 'Autre montant (₪)',
     submit: 'Valider mon don',
     submitting: 'Envoi en cours...',
     newDonation: 'Enregistrer un autre don',
-    required: 'Veuillez saisir votre prénom et un montant.',
+    required: 'Veuillez remplir tous les champs obligatoires (*) et un montant.',
+    anonymous: 'Anonyme',
     raised: 'déjà collectés'
   },
   he: {
     firstName: 'שם פרטי',
     firstNamePlaceholder: 'השם הפרטי שלך',
     lastName: 'שם משפחה',
-    lastNamePlaceholder: 'שם משפחה (לא חובה)',
+    lastNamePlaceholder: 'שם משפחה',
     phone: 'טלפון',
-    phonePlaceholder: '05X XXX XXXX (לא חובה)',
+    phonePlaceholder: '05X XXX XXXX',
     email: 'אימייל',
-    emailPlaceholder: 'exemple@email.com (לא חובה)',
+    emailPlaceholder: 'exemple@email.com',
     amount: 'סכום התרומה',
     customAmount: 'סכום אחר (₪)',
     submit: 'אישור התרומה',
     submitting: 'שולח...',
     newDonation: 'רישום תרומה נוספת',
-    required: 'נא למלא שם פרטי וסכום.',
+    required: 'נא למלא את כל שדות החובה (*) וסכום.',
+    anonymous: 'אנונימי',
     raised: 'נאספו עד כה'
   },
   en: {
     firstName: 'First name',
     firstNamePlaceholder: 'Your first name',
     lastName: 'Last name',
-    lastNamePlaceholder: 'Your last name (optional)',
+    lastNamePlaceholder: 'Your last name',
     phone: 'Phone',
-    phonePlaceholder: '05X XXX XXXX (optional)',
+    phonePlaceholder: '05X XXX XXXX',
     email: 'Email',
-    emailPlaceholder: 'example@email.com (optional)',
+    emailPlaceholder: 'example@email.com',
     amount: 'Donation amount',
     customAmount: 'Other amount (₪)',
     submit: 'Confirm my donation',
     submitting: 'Sending...',
     newDonation: 'Record another donation',
-    required: 'Please enter your first name and an amount.',
+    required: 'Please fill in all required fields (*) and an amount.',
+    anonymous: 'Anonymous',
     raised: 'raised so far'
   }
 };
@@ -95,6 +104,11 @@ const organizationName = computed(() =>
 // Editorial copy comes from the admin config (per locale); empty fields hide the element
 const pledgeCopy = computed<PledgePageCopy>(() =>
   config.value.displaySettings?.pledgeTexts?.[locale.value] ?? DEFAULT_PLEDGE_TEXTS[locale.value]
+);
+
+// Which fields are mandatory is decided by the admin config — nothing hard-imposed here.
+const requiredFields = computed<PledgeRequiredFields>(() =>
+  config.value.displaySettings?.pledgeRequiredFields ?? DEFAULT_PLEDGE_REQUIRED_FIELDS
 );
 
 const presets = computed(() => config.value.presetAmounts || []);
@@ -145,13 +159,22 @@ function animateAmount(target: number): void {
 
 async function submit(): Promise<void> {
   localError.value = '';
-  if (!firstName.value.trim() || amount.value <= 0) {
+  const req = requiredFields.value;
+  if (
+    (req.firstName && !firstName.value.trim()) ||
+    (req.lastName && !lastName.value.trim()) ||
+    (req.phone && !phone.value.trim()) ||
+    (req.email && !email.value.trim()) ||
+    amount.value <= 0
+  ) {
     localError.value = t('required');
     return;
   }
 
   const result = await createDonation({
-    firstName: firstName.value.trim(),
+    // firstName is enforced by the backend as the minimal identity; if the admin
+    // made it optional and it is left blank, fall back to a localized "Anonymous".
+    firstName: firstName.value.trim() || t('anonymous'),
     lastName: lastName.value.trim() || undefined,
     phone: phone.value.trim() || undefined,
     email: email.value.trim() || undefined,
@@ -213,23 +236,23 @@ function reset(): void {
       <form class="card" @submit.prevent="submit">
         <div class="field-row">
           <div class="field">
-            <label for="p-firstname">{{ t('firstName') }} *</label>
-            <input id="p-firstname" v-model="firstName" type="text" required :placeholder="t('firstNamePlaceholder')" />
+            <label for="p-firstname">{{ t('firstName') }}{{ requiredFields.firstName ? ' *' : '' }}</label>
+            <input id="p-firstname" v-model="firstName" type="text" :required="requiredFields.firstName" :placeholder="t('firstNamePlaceholder')" />
           </div>
           <div class="field">
-            <label for="p-lastname">{{ t('lastName') }}</label>
-            <input id="p-lastname" v-model="lastName" type="text" :placeholder="t('lastNamePlaceholder')" />
+            <label for="p-lastname">{{ t('lastName') }}{{ requiredFields.lastName ? ' *' : '' }}</label>
+            <input id="p-lastname" v-model="lastName" type="text" :required="requiredFields.lastName" :placeholder="t('lastNamePlaceholder')" />
           </div>
         </div>
 
         <div class="field-row">
           <div class="field">
-            <label for="p-phone">{{ t('phone') }}</label>
-            <input id="p-phone" v-model="phone" type="tel" :placeholder="t('phonePlaceholder')" />
+            <label for="p-phone">{{ t('phone') }}{{ requiredFields.phone ? ' *' : '' }}</label>
+            <input id="p-phone" v-model="phone" type="tel" :required="requiredFields.phone" :placeholder="t('phonePlaceholder')" />
           </div>
           <div class="field">
-            <label for="p-email">{{ t('email') }}</label>
-            <input id="p-email" v-model="email" type="email" :placeholder="t('emailPlaceholder')" />
+            <label for="p-email">{{ t('email') }}{{ requiredFields.email ? ' *' : '' }}</label>
+            <input id="p-email" v-model="email" type="email" :required="requiredFields.email" :placeholder="t('emailPlaceholder')" />
           </div>
         </div>
 

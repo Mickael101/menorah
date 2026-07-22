@@ -11,11 +11,14 @@ import {
   AdminBrandingSettings,
   PledgeTextsSettings,
   PledgePageCopy,
+  PledgeRequiredFields,
   DEFAULT_DISPLAY_SETTINGS,
   DEFAULT_DISPLAY_TEXTS,
   DEFAULT_ADMIN_BRANDING,
   DEFAULT_PLEDGE_TEXTS,
+  DEFAULT_PLEDGE_REQUIRED_FIELDS,
   DEFAULT_THEME_PALETTES,
+  PLEDGE_FIELD_KEYS,
   ADMIN_BRANDING_LOCALES,
   DISPLAY_THEME_IDS,
   DISPLAY_VISUAL_MODES,
@@ -154,6 +157,19 @@ function normalizePledgeTexts(value: unknown): PledgeTextsSettings {
   return result;
 }
 
+function normalizePledgeRequiredFields(value: unknown): PledgeRequiredFields {
+  const source = isRecord(value) ? value : {};
+  const result = { ...DEFAULT_PLEDGE_REQUIRED_FIELDS };
+
+  for (const key of PLEDGE_FIELD_KEYS) {
+    if (typeof source[key] === 'boolean') {
+      result[key] = source[key] as boolean;
+    }
+  }
+
+  return result;
+}
+
 function validateThemePalette(
   palette: unknown,
   defaults: DisplayThemePalette
@@ -220,6 +236,7 @@ export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
   const texts = normalizeDisplayTexts(source.texts);
   const adminBranding = normalizeAdminBranding(source.adminBranding);
   const pledgeTexts = normalizePledgeTexts(source.pledgeTexts);
+  const pledgeRequiredFields = normalizePledgeRequiredFields(source.pledgeRequiredFields);
   const donationSound = source.donationSound === null || typeof source.donationSound === 'string'
     ? source.donationSound
     : null;
@@ -235,6 +252,7 @@ export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
     texts,
     adminBranding,
     pledgeTexts,
+    pledgeRequiredFields,
     donationSound
   };
 }

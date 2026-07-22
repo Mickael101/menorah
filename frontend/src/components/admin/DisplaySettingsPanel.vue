@@ -106,6 +106,15 @@ const PLEDGE_LOCALE_TABS = [
   { id: 'he', label: 'עברית' }
 ] as const;
 
+// Toggles: which /don fields are required. The amount is always required and is
+// therefore not listed here.
+const PLEDGE_FIELD_TOGGLES = [
+  { id: 'firstName', labelKey: 'pledge.fieldFirstName' },
+  { id: 'lastName', labelKey: 'pledge.fieldLastName' },
+  { id: 'phone', labelKey: 'pledge.fieldPhone' },
+  { id: 'email', labelKey: 'pledge.fieldEmail' }
+] as const;
+
 async function uploadCustomSvg(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
   if (!input.files?.length) return;
@@ -503,6 +512,24 @@ function playSound(url: string): void {
             <label class="copy-field wide">
               <span>{{ t('pledge.thankMessage') }}</span>
               <textarea v-model="settings.pledgeTexts[pledgeLocale].thankMessage" maxlength="300" rows="3" dir="auto"></textarea>
+            </label>
+          </div>
+        </div>
+
+        <div class="copy-group">
+          <h4>{{ t('pledge.fieldsTitle') }}</h4>
+          <p class="section-description content-description">{{ t('pledge.fieldsDescription') }}</p>
+          <div class="pledge-fields-grid">
+            <label
+              v-for="field in PLEDGE_FIELD_TOGGLES"
+              :key="field.id"
+              class="pledge-field-toggle"
+            >
+              <input type="checkbox" v-model="settings.pledgeRequiredFields[field.id]" />
+              <span class="pledge-field-name">{{ t(field.labelKey) }}</span>
+              <span class="pledge-field-state">
+                {{ settings.pledgeRequiredFields[field.id] ? t('pledge.fieldRequired') : t('pledge.fieldOptional') }}
+              </span>
             </label>
           </div>
         </div>
@@ -996,6 +1023,50 @@ function playSound(url: string): void {
 
 .pledge-open-link:hover {
   background: var(--primary-50);
+}
+
+.pledge-fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pledge-field-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.pledge-field-toggle:hover {
+  border-color: var(--primary-300);
+  background: var(--primary-50);
+}
+
+.pledge-field-toggle input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--primary-600);
+  cursor: pointer;
+}
+
+.pledge-field-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.pledge-field-state {
+  margin-inline-start: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-700);
+  white-space: nowrap;
 }
 
 .copy-field {

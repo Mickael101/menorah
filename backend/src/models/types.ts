@@ -124,6 +124,20 @@ export interface PledgePageCopy {
 
 export type PledgeTextsSettings = Record<AdminBrandingLocale, PledgePageCopy>;
 
+// Which identity fields are mandatory on the public /don pledge page.
+// Fully admin-configurable: nothing is hard-imposed by the code.
+// The amount is always required (a donation is defined by its amount).
+export const PLEDGE_FIELD_KEYS = ['firstName', 'lastName', 'phone', 'email'] as const;
+export type PledgeFieldKey = typeof PLEDGE_FIELD_KEYS[number];
+export type PledgeRequiredFields = Record<PledgeFieldKey, boolean>;
+
+export const DEFAULT_PLEDGE_REQUIRED_FIELDS: PledgeRequiredFields = {
+  firstName: true,
+  lastName: true,
+  phone: true,
+  email: false
+};
+
 export const DEFAULT_PLEDGE_TEXTS: PledgeTextsSettings = {
   fr: {
     kicker: 'CAMPAGNE DE DONS',
@@ -246,6 +260,7 @@ export interface DisplaySettings extends DisplayThemePalette {
   texts: DisplayTextSettings;
   adminBranding: AdminBrandingSettings;
   pledgeTexts: PledgeTextsSettings;
+  pledgeRequiredFields: PledgeRequiredFields;
   donationSound: string | null;
 }
 
@@ -261,6 +276,7 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   texts: structuredClone(DEFAULT_DISPLAY_TEXTS),
   adminBranding: structuredClone(DEFAULT_ADMIN_BRANDING),
   pledgeTexts: structuredClone(DEFAULT_PLEDGE_TEXTS),
+  pledgeRequiredFields: { ...DEFAULT_PLEDGE_REQUIRED_FIELDS },
   donationSound: null
 };
 

@@ -3,6 +3,7 @@ import {
   DEFAULT_DISPLAY_TEXTS,
   DEFAULT_ADMIN_BRANDING,
   DEFAULT_PLEDGE_TEXTS,
+  DEFAULT_PLEDGE_REQUIRED_FIELDS,
   DEFAULT_THEME_PALETTES,
   DISPLAY_THEME_IDS,
   DISPLAY_VISUAL_MODES,
@@ -132,6 +133,10 @@ export function cloneDisplaySettings(settings?: Partial<DisplaySettings>): Displ
       fr: { ...DEFAULT_PLEDGE_TEXTS.fr, ...(source.pledgeTexts?.fr ?? {}) },
       en: { ...DEFAULT_PLEDGE_TEXTS.en, ...(source.pledgeTexts?.en ?? {}) },
       he: { ...DEFAULT_PLEDGE_TEXTS.he, ...(source.pledgeTexts?.he ?? {}) }
+    },
+    pledgeRequiredFields: {
+      ...DEFAULT_PLEDGE_REQUIRED_FIELDS,
+      ...(source.pledgeRequiredFields ?? {})
     },
     themePalettes,
     ...themePalettes[theme]
