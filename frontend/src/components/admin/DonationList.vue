@@ -193,10 +193,12 @@ function getInitials(firstName: string, lastName: string): string {
 
 <style scoped>
 .donation-list {
-  background: white;
+  background: var(--shell-card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  border: 1px solid var(--gray-100);
+  /* L'ombre ne se voit pas sur du navy : c'est cette bordure qui dessine
+     le bord de la liste (carte contre page = 1.14). */
+  border: 1px solid var(--shell-border);
   overflow: hidden;
 }
 
@@ -207,8 +209,8 @@ function getInitials(firstName: string, lastName: string): string {
   justify-content: space-between;
   gap: 12px;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--gray-100);
-  background: var(--gray-50);
+  border-bottom: 1px solid var(--shell-border);
+  background: var(--shell-page);
 }
 
 .export-btn {
@@ -218,10 +220,19 @@ function getInitials(firstName: string, lastName: string): string {
   gap: 7px;
   min-height: 38px;
   padding: 8px 12px;
-  border: 1px solid var(--primary-200);
+  /* Bouton SECONDAIRE : contour + texte or, jamais d'aplat or plein.
+     L'aplat or est reserve au montant du don (.donation-amount).
+     Contour gold rgba(228,190,99,0.32) ecarte : il se compose sur le fond
+     PROPRE du bouton (--shell-card, peint sous la bordure par background-clip
+     border-box), pas sur celui du parent — soit #585047, 2.10 contre
+     l'interieur du bouton, sous le seuil 3.0 d'un objet graphique.
+     Regle a retenir : une bordure rgba se compose toujours sur le background de
+     SON element, jamais sur celui du parent, sauf si ce background est
+     transparent. Le contour neutre retenu compose #53576D, soit 2.34. */
+  border: 1px solid var(--shell-border-strong);
   border-radius: var(--radius);
-  background: white;
-  color: var(--primary-700);
+  background: var(--shell-card);
+  color: var(--shell-accent); /* 10.68 sur --shell-page, 9.39 sur --shell-card */
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
@@ -229,8 +240,9 @@ function getInitials(firstName: string, lastName: string): string {
 }
 
 .export-btn:hover {
-  border-color: var(--primary-400);
-  background: var(--primary-50);
+  border-color: var(--shell-accent);
+  /* Voile or : rendu #292829 sur --shell-page, le texte or y mesure 8.28 */
+  background: rgba(228, 190, 99, 0.14);
 }
 
 .export-btn svg {
@@ -256,14 +268,14 @@ function getInitials(firstName: string, lastName: string): string {
 }
 
 .header-info:hover {
-  background: var(--gray-100);
+  background: var(--shell-raised);
 }
 
 .collapse-chevron {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   transition: transform var(--transition);
 }
 
@@ -287,14 +299,14 @@ h3 {
   gap: 10px;
   font-size: 16px;
   font-weight: 600;
-  color: var(--gray-800);
+  color: var(--shell-text-strong);
   margin: 0;
 }
 
 h3 svg {
   width: 20px;
   height: 20px;
-  color: var(--gray-400);
+  color: var(--shell-text-muted);
 }
 
 .count-badge {
@@ -304,8 +316,13 @@ h3 svg {
   min-width: 28px;
   height: 28px;
   padding: 0 10px;
-  background: var(--primary-500);
-  color: white;
+  /* Compteur DECORATIF : voile or, pas aplat or plein. L'aplat plein est
+     reserve au montant du don, l'information dominante de la ligne.
+     Deux etats a mesurer, pas un : le badge vit dans .header-info, dont le
+     survol pose --shell-raised. Voile rendu #2E2C2B sur --shell-page (texte or
+     7.84) et #3E3E52 quand l'en-tete est survole (5.88). Les deux passent. */
+  background: rgba(228, 190, 99, 0.16);
+  color: var(--shell-accent);
   border-radius: var(--radius-full);
   font-size: 13px;
   font-weight: 600;
@@ -321,7 +338,7 @@ h3 svg {
   width: 80px;
   height: 80px;
   margin: 0 auto 20px;
-  background: var(--gray-100);
+  background: var(--shell-raised);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
@@ -331,19 +348,19 @@ h3 svg {
 .empty-icon svg {
   width: 40px;
   height: 40px;
-  color: var(--gray-400);
+  color: var(--shell-text-muted);
 }
 
 .empty-state h4 {
   font-size: 18px;
   font-weight: 600;
-  color: var(--gray-800);
+  color: var(--shell-text-strong);
   margin: 0 0 8px;
 }
 
 .empty-state p {
   font-size: 14px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   margin: 0;
 }
 
@@ -356,7 +373,7 @@ h3 svg {
 /* Donation Card */
 .donation-card {
   padding: 16px 24px;
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1px solid var(--shell-border);
   transition: var(--transition);
   animation: fadeInUp 0.3s ease;
 }
@@ -366,7 +383,11 @@ h3 svg {
 }
 
 .donation-card:hover {
-  background: var(--gray-50);
+  /* La ligne survolee se CREUSE (--shell-page) au lieu de se lever.
+     Choix arithmetique, pas esthetique : survoler la ligne survole aussi
+     le bouton Supprimer, et son voile rouge translucide mesure 5.72 sur
+     --shell-page contre 4.30 sur --shell-raised, sous le seuil de 4.5. */
+  background: var(--shell-page);
 }
 
 .card-main {
@@ -403,7 +424,7 @@ h3 svg {
 .donor-name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--gray-900);
+  color: var(--shell-text-strong);
   margin-bottom: 4px;
 }
 
@@ -418,7 +439,7 @@ h3 svg {
   align-items: center;
   gap: 5px;
   font-size: 13px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
 }
 
 .meta-item svg {
@@ -428,8 +449,11 @@ h3 svg {
 }
 
 .meta-item.reference {
-  color: var(--primary-600);
-  background: var(--primary-50);
+  /* Voile or + texte or, pas d'aplat : la reference est une mention
+     secondaire. Voile rendu #333340 sur la carte (texte or 7.02) et
+     #292829 sur la ligne survolee (8.28). */
+  color: var(--shell-accent);
+  background: rgba(228, 190, 99, 0.14);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
 }
@@ -438,10 +462,12 @@ h3 svg {
 .donation-amount {
   font-size: 18px;
   font-weight: 700;
-  color: var(--primary-600);
+  /* SEUL aplat or plein du panneau : le montant est l'information
+     dominante de la ligne. Texte sombre sur l'or, jamais blanc (10.68). */
+  color: var(--shell-on-accent);
   white-space: nowrap;
   padding: 8px 16px;
-  background: var(--primary-50);
+  background: var(--shell-accent);
   border-radius: var(--radius);
 }
 
@@ -458,9 +484,9 @@ h3 svg {
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius);
-  background: white;
+  background: var(--shell-card);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -478,21 +504,35 @@ h3 svg {
 }
 
 .edit-btn {
-  color: var(--gray-700);
+  color: var(--shell-text);
 }
 
 .edit-btn:hover:not(:disabled) {
-  background: var(--gray-100);
-  border-color: var(--gray-300);
+  /* Le bouton se LEVE quand la ligne se creuse : les deux etats restent
+     distincts. --shell-border-strong, sinon le changement de bordure
+     serait un non-evenement (--shell-border -> --shell-border). */
+  background: var(--shell-raised);
+  border-color: var(--shell-border-strong);
 }
 
 .delete-btn {
-  color: var(--error);
-  border-color: var(--error);
+  /* --error #ef4444 echoue a 4.20 sur navy ; --shell-error #F87171 = 6.02 */
+  color: var(--shell-error);
+  border-color: var(--shell-error);
 }
 
 .delete-btn:hover:not(:disabled) {
-  background: var(--error-light);
+  /* INVERSION SEMANTIQUE, et non un voile. Un voile rouge translucide sur du
+     quasi-noir ne donne que 1.05 d'ecart de luminance avec le repos : sur la
+     SEULE action irreversible du panneau, l'operateur ne voyait pas s'il etait
+     sur « Modifier » ou sur « Supprimer » avant de cliquer — et le bouton le
+     moins dangereux avait le survol le mieux marque. Monter l'alpha ne pouvait
+     pas depasser 1.21 sans manger le texte rouge pose dessus.
+     Le remplissage plein leve toute ambiguite : --shell-on-accent y mesure 6.84.
+     Cela n'enfreint pas la hierarchie de l'or, qui ne porte que sur les aplats or. */
+  background: var(--shell-error);
+  border-color: var(--shell-error);
+  color: var(--shell-on-accent); /* 6.84 sur #F87171 */
 }
 
 /* Responsive */
