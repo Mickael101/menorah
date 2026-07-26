@@ -1,7 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { donationService } from '../services/donation.service';
 import { socketService } from '../services/socket.service';
-import { validateCreateRequest, validateUpdateRequest } from '../models/donation';
+import { validateCreateRequest, validateUpdateRequest, toPublicDonation } from '../models/donation';
 import { PREMIUM_TIERS } from '../models/types';
 import { requireAdmin } from '../middleware/admin-auth';
 import { rateLimit } from '../middleware/rate-limit';
@@ -74,13 +74,28 @@ router.get('/export.csv', requireAdmin, (req: Request, res: Response) => {
   }
 });
 
-// GET /api/donations - List all donations
-router.get('/', (_req: Request, res: Response) => {
+// Le payload complet (email, telephone, reference) est une demande explicite.
+const wantsFullPayload = (req: Request): boolean => req.query.full === '1';
+
+// GET /api/donations - liste depouillee par defaut (l'ecran public en depend).
+// GET /api/donations?full=1 - payload complet, reserve a l'admin.
+// Le depouillement etant le comportement par defaut, un oubli de garde
+// echoue ferme : on n'expose jamais de donnee personnelle par accident.
+router.get('/', (req: Request, res: Response, next: NextFunction) => {
+  if (wantsFullPayload(req)) {
+    requireAdmin(req, res, next);
+    return;
+  }
+  next();
+}, (req: Request, res: Response) => {
   try {
     const donations = donationService.getAll();
     const stats = donationService.getStats();
 
-    res.json({ donations, stats });
+    res.json({
+      donations: wantsFullPayload(req) ? donations : donations.map(toPublicDonation),
+      stats
+    });
   } catch (error) {
     console.error('Error fetching donations:', error);
     res.status(500).json({ error: 'Internal server error' });

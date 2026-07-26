@@ -158,3 +158,22 @@ export function validateUpdateRequest(data: unknown, currentAmount?: number): Up
 
   return result;
 }
+
+// Projection publique : ce que l'ecran de la salle et la page /don peuvent voir.
+// Nom et montant sont publics par nature (projetes sur un mur) ;
+// email, telephone et reference ne le sont jamais.
+export type PublicDonation = Pick<
+  Donation,
+  'id' | 'firstName' | 'lastName' | 'amount' | 'premiumWordId' | 'createdAt'
+>;
+
+export function toPublicDonation(donation: Donation): PublicDonation {
+  return {
+    id: donation.id,
+    firstName: donation.firstName,
+    lastName: donation.lastName,
+    amount: donation.amount,
+    premiumWordId: donation.premiumWordId,
+    createdAt: donation.createdAt
+  };
+}
