@@ -115,7 +115,10 @@ export default defineConfig({
     },
     // sql.js charge un wasm : laisser de la marge au premier démarrage
     testTimeout: 20000,
-    hookTimeout: 20000
+    hookTimeout: 20000,
+    // Les tests de securite mutent process.env (ADMIN_TOKEN, NODE_ENV).
+    // La parallelisation des fichiers rendrait la suite instable au hasard.
+    fileParallelism: false
   }
 });
 ```
