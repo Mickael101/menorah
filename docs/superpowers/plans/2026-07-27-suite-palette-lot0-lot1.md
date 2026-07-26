@@ -38,8 +38,14 @@ Si cette session est interrompue, reprendre ainsi :
   `ALTER TABLE` dans un `try/catch` (`backend/src/db/init.ts`). On suit cet idiome (KISS,
   constitution du projet), on n'introduit pas Knex ni Prisma.
 - **`sql.js` réécrit le fichier entier à chaque écriture.** Documenté comme dette, hors périmètre.
-- **Un dump précède toute migration de données** (`backup.service.ts` fournit le mécanisme, et un
-  dump de démarrage est déjà pris automatiquement).
+- **Un dump précède toute migration de données — et cette ligne a d'abord été FAUSSE.**
+  Elle disait « un dump de démarrage est déjà pris automatiquement », ce qui était vrai à la
+  lettre et trompeur en pratique : l'instantané `startup` s'exécutait **après** `initDatabase()`,
+  donc après la migration. C'est cette phrase, tenue pour acquise, qui explique que personne
+  n'ait ajouté de dump explicite — l'exigence était écrite à trois endroits et honorée à zéro.
+  Depuis `b786a87`, `index.ts` prend un instantané `pre-migration` **avant** `initDatabase()`.
+  Vérification, à faire à chaque migration future : démarrer sur une base à l'ancien schéma et
+  **inspecter les tables du fichier de sauvegarde produit**, pas seulement son existence.
 - **Décision de portée sur `GET /api/donations`** (voir tranche 6) : la route reste publique en
   projection dépouillée. Le critère §3.5 de la spec, écrit avant vérification, supposait que
   `/display` n'en dépendait pas — c'est faux : cinq écrans publics l'appellent. Les noms des
@@ -50,12 +56,26 @@ Si cette session est interrompue, reprendre ainsi :
 
 Un fichier = un commit = une relecture. Les cinq fichiers sont à styles `scoped` et disjoints.
 
-- [ ] 1. `ConfigPanel.vue` — 32 déclarations, 100 % hex bruts, aucun aperçu public
-- [ ] 2. `DonationList.vue` — 35 déclarations ; avatar par teinte de donateur préservé
-- [ ] 3. `GifManager.vue` — 42 déclarations ; l'aplat or plein va à « Déclencher », pas à « Importer »
-- [ ] 4. `DonationForm.vue` — 100 déclarations ; deux signaux à ne pas perdre (premium, édition)
-- [ ] 5. `DisplaySettingsPanel.vue` — 134 déclarations de peau, 31 d'aperçu à épargner, + bug latent
+- [x] 1. `ConfigPanel.vue` — 32 déclarations, 100 % hex bruts, aucun aperçu public
+- [x] 2. `DonationList.vue` — 35 déclarations ; avatar par teinte de donateur préservé
+- [x] 3. `GifManager.vue` — 42 déclarations ; l'aplat or plein va à « Déclencher », pas à « Importer »
+- [x] 4. `DonationForm.vue` — 100 déclarations ; deux signaux à ne pas perdre (premium, édition)
+- [x] 5. `DisplaySettingsPanel.vue` — 134 déclarations de peau, 31 d'aperçu à épargner, + bug latent
       du badge « Actif » (`color-mix` sur `--preview-primary` inexistant hors carte de thème)
+
+### Ce que la relecture a appris, et qui vaut au-delà de cette tranche
+
+**Un fond translucide de survol ne s'ajoute pas au fond du repos : il le REMPLACE et se
+compose sur le PARENT.** Tous les ratios de survol du lot étaient donc calculés sur la mauvaise
+base, et deux survols étaient devenus invisibles (1.01 et 1.06 d'écart). Un survol posé sur un
+repos opaque doit être figé en opaque, ou mesuré contre le vrai parent.
+
+**Une bordure `rgba` se compose sur le background de SON PROPRE élément**, peint sous elle par
+`background-clip: border-box` — jamais sur celui du parent, sauf si ce background est transparent.
+
+**Un ratio faux dans un commentaire est pire que pas de ratio** : il autorise une modification
+future qui casse le seuil en croyant avoir de la marge. Quatre ont été corrigés, dont le pire
+des quatre fonds sombres pour `--shell-text-muted`, qui est 4.53 sur `--shell-raised` et non 4.93.
 
 ## Tranche 6 — Acter la décision sur `GET /api/donations` dans la spec
 
@@ -65,13 +85,27 @@ Un fichier = un commit = une relecture. Les cinq fichiers sont à styles `scoped
 
 ## Tranche 7 à 9 — Résidus LOT 0 (vérifiés non faits, reproduits au navigateur)
 
-- [ ] 7. Typographie et hébreu : retirer Cinzel et Cormorant Garamond (chargées, jamais
+- [x] 7. Typographie et hébreu : retirer Cinzel et Cormorant Garamond (chargées, jamais
       référencées) ; remplacer l'`@import` bloquant de `global.css:2` par un `<link>` ;
       **charger Heebo** et déclarer `--font-he` (l'hébreu tombe aujourd'hui en repli système) ;
       neutraliser `letter-spacing` sur `[dir="rtl"]` et `:lang(he)` (5,76 px mesurés).
-- [ ] 8. Défilement des plaques : `scrollTop` sature à `scrollHeight - clientHeight` (12 px
+- [x] 8. Défilement des plaques : `scrollTop` sature à `scrollHeight - clientHeight` (12 px
       mesurés), la rotation ne s'exécute jamais et la première plaque reste coupée de 4 px en
       permanence. Piloter un `translateY()` et ne défiler que si le contenu dépasse.
+### Arbitrage rendu sur la courbe d'objectif (tranche 9)
+
+La relecture a prouvé, par échantillonnage de pixels sur le thème **réellement actif**, que
+supprimer l'écrasement anisotrope ne corrige pas le symptôme : à l'avancement réel de 23,7 %, la
+flèche de la courbe passe de 1,81 px à 2,23 px pour une corde de 285 px. La cause n'est pas
+l'anisotropie mais le rapport de boîte, d'environ 19:1.
+
+**Décision : on ne truque pas la courbure.** Ouvrir l'amplitude des points de contrôle rendrait
+un mensonge plus lisible — la donnée est une valeur unique, pas une série temporelle, et la spec
+a déjà tranché que la forme juste est une barre remplie. La tranche corrige donc ce qui est
+réellement corrigible (ancrage du dégradé, marqueur, transitions, robustesse de la mesure) et
+**ne prétend pas** que la courbure est devenue lisible. Le remplacement par une barre reste
+nécessaire, et cette tranche ne le remplace pas.
+
 - [ ] 9. Lisibilité de la courbe d'objectif et grille de presets : `preserveAspectRatio="none"`
       écrase un viewBox 640×88 sur 1088×54 (2,8× d'écrasement vertical) ; l'aplat à
       `stop-opacity 0.28` est invisible. Et `.preset-grid` en `auto-fit minmax(90px, 1fr)` dans
@@ -79,7 +113,7 @@ Un fichier = un commit = une relecture. Les cinq fichiers sont à styles `scoped
 
 ## Tranche 10 à 15 — LOT 1, fondation multi-événements
 
-- [ ] 10. Schéma et migration idempotente : `events`, `event_configs`, `media`, `themes`,
+- [x] 10. Schéma et migration idempotente : `events`, `event_configs`, `media`, `themes`,
       `donations.event_id` + index `(event_id, created_at)`. Création de la soirée 1
       `orot-netanel`, rattachement des dons existants, recopie de `config(id=1)`. Dump avant.
 - [ ] 11. `config.service` et `donation.service` prennent `eventId` en paramètre partout.
@@ -95,6 +129,22 @@ Un fichier = un commit = une relecture. Les cinq fichiers sont à styles `scoped
       `/display` et `/don` redirigent vers la soirée active. `window.prompt()` remplacé par un
       véritable écran de connexion avec message d'erreur explicite.
 
+### Divergences avec la spec, assumées — à ne pas perdre
+
+- **§4.2 point 5, « rattacher tous les médias existants » : non fait.** Les GIF, sons et SVG sont
+  stockés à plat sur le disque et ne sont pas encore inventoriés en base. La table `media` existe,
+  elle est vide. Le rattachement appartient à la tranche qui portera les routes de médias.
+- **§4.1, `donations.event_id NOT NULL REFERENCES events(id)` : la colonne est nullable et sans
+  contrainte.** SQLite refuse `ADD COLUMN NOT NULL` sans défaut et ne sait pas ajouter une clé
+  étrangère à une table existante ; les deux exigeraient de recréer la table et d'y recopier des
+  dons réels. L'intégrité est tenue par le rattachement des orphelins, qui traite les deux cas :
+  `NULL` et référence pendante.
+- **§4.1, `status` ∈ `draft|active|archived` : aucun `CHECK`.** À ajouter le jour où une route
+  écrit ce champ — aujourd'hui aucune ne le fait.
+- **§4.2 point 6, « conserver `config` en lecture seule » : pas encore vrai.** `config` reste la
+  table écrite jusqu'à la bascule des écritures vers `event_configs`. C'est précisément ce qui
+  justifie le rafraîchissement conditionnel introduit en `b786a87`.
+
 ## Tranche 16 — Vérification navigateur, deux soirées simultanées
 
 - [ ] 16. Deux soirées, deux onglets `/e/:slug/display` ouverts en même temps : un don saisi sur
@@ -103,6 +153,37 @@ Un fichier = un commit = une relecture. Les cinq fichiers sont à styles `scoped
 
 ## Journal
 
+- `8b05ca5` — tranche 1. `ConfigPanel` en navy/or. Quatre valeurs réfutées par le calcul ; deux
+  défauts corrigés au passage (tableau des segments héritant d'une couleur claire de `body` ;
+  boutons désactivés perdant tout bord à chaque sauvegarde).
+- `71420ba` — tranche 2. `DonationList`. Hiérarchie de l'or (montant en aplat, compteur en voile)
+  et survol destructif en remplissage plein — un voile rouge ne donnait que 1.05 d'écart.
+- `4c2e6e4` — tranche 3. `GifManager`. L'aplat or va à « Déclencher » ; l'état « en diffusion »
+  ne s'éteint plus ; damier clair pour les aperçus de fichier client.
+- `e639c90` — tranche 4. `DonationForm`. Deux signaux préservés (premium, édition) ; focus des
+  champs rendu percevable ; un défaut pré-existant du sélecteur de mot sacré corrigé.
+- `d84adf5` — tranche 5. `DisplaySettingsPanel`. 31 aperçus épargnés, plaque de vérification du
+  SVG remise en clair (le thème public actif est *clair*), bug latent du badge « Actif » corrigé.
+- `1fb1d83` — tranche 8. Le mur des donateurs ne coupe plus aucune plaque. `translateY()` au lieu
+  de `scrollTop` (borné par construction), plus une navette pour la bande où le contenu dépasse
+  de moins d'une rangée — sans elle, le rognage se déplaçait simplement de la première plaque
+  vers la dernière. Quatre défauts de cycle de vie corrigés au passage.
+- `ee524eb` — tranche 7. L'hébreu est rendu en Heebo. La relecture a réfuté la première version :
+  `[dir='rtl']` ne matche pas `dir="auto"`, la valeur livrée — la règle ne s'appliquait donc
+  jamais. Corrigé par les **piles de polices** (repli glyphe par glyphe), et le `letter-spacing`
+  traité à la source avec `:dir(rtl)`. Mesuré en configuration par défaut : 2 faces Heebo
+  réellement peintes, contre 0 avant.
+- `b786a87` — tranche 10 bis, après revue adversariale de `8976f67`. **La sauvegarde
+  « pré-déploiement » était prise APRÈS la migration** — le mécanisme existait, il était appelé du
+  mauvais côté, et tant qu'il l'était chaque autre défaut devenait irréversible au premier
+  démarrage. Corrigé et vérifié au démarrage réel (`pre-migration` puis `startup`).
+  La revue a aussi montré que **10 mutations sur 10 survivaient** aux cinq tests, dont une qui
+  réassignait tous les dons de toutes les soirées à chaque redémarrage : sept tests ajoutés.
+  Trois défauts de données corrigés (rattachement en dur vers l'id 1, résurrection d'une soirée
+  supprimée, installation neuve nommée d'après le premier client), la fenêtre de perte de
+  configuration fermée, `PRAGMA foreign_keys` activé et écriture disque rendue atomique.
+- `8976f67` — tranche 10. Schéma multi-événements et migration idempotente, vérifiée sur la base
+  réelle : 5 dons rattachés, somme inchangée, configuration recopiée, API toujours debout.
 - `c01cd5b` — tranche 6. Spec corrigée : la projection publique de `GET /api/donations` est la
   décision (5 écrans publics en dépendent, vérifié), le risque §6 est marqué réalisé, la
   référence de ligne du §3.2 est corrigée. Plan et captures « avant » ajoutés. Aucun code touché.
