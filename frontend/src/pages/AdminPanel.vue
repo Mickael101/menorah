@@ -394,12 +394,12 @@ function handleCancel(): void {
 <style scoped>
 .admin-panel {
   min-height: 100vh;
-  background: var(--gray-50);
+  background: var(--shell-page);
 }
 
 /* Header */
 .header {
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+  background: linear-gradient(135deg, #182042 0%, var(--shell-page) 100%);
   padding: 24px 32px 80px;
   position: relative;
 }
@@ -411,7 +411,7 @@ function handleCancel(): void {
   left: 0;
   right: 0;
   height: 60px;
-  background: var(--gray-50);
+  background: var(--shell-page);
   border-radius: 30px 30px 0 0;
 }
 
@@ -448,13 +448,13 @@ function handleCancel(): void {
 
 h1 {
   font-size: 24px;
-  color: white;
+  color: var(--shell-text-strong);
   margin: 0;
 }
 
 .subtitle {
   font-size: 14px;
-  color: var(--primary-200);
+  color: var(--shell-text-muted);
   margin: 4px 0 0;
 }
 
@@ -492,7 +492,7 @@ h1 {
 .language-trigger:hover,
 .language-trigger[aria-expanded='true'] {
   background: rgba(255, 255, 255, 0.18);
-  color: white;
+  color: var(--shell-text-strong);
 }
 
 .language-trigger svg {
@@ -512,9 +512,9 @@ h1 {
   z-index: 40;
   min-width: 168px;
   padding: 6px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius-md);
-  background: white;
+  background: var(--shell-card);
   box-shadow: var(--shadow-xl);
   animation: fadeInScale 120ms ease-out;
 }
@@ -530,7 +530,7 @@ h1 {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--gray-700);
+  color: var(--shell-text);
   font: inherit;
   font-size: 14px;
   text-align: start;
@@ -539,12 +539,12 @@ h1 {
 }
 
 .language-option:hover {
-  background: var(--gray-100);
-  color: var(--gray-900);
+  background: var(--shell-raised);
+  color: var(--shell-text-strong);
 }
 
 .language-option.active {
-  color: var(--primary-700);
+  color: var(--shell-accent);
   font-weight: 600;
 }
 
@@ -567,7 +567,7 @@ h1 {
   padding: 10px 20px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius);
-  color: white;
+  color: var(--shell-text-strong);
   text-decoration: none;
   font-weight: 500;
   font-size: 14px;
@@ -598,7 +598,7 @@ h1 {
 }
 
 .stat-card {
-  background: white;
+  background: var(--shell-card);
   border-radius: var(--radius-lg);
   padding: 20px 24px;
   display: flex;
@@ -624,9 +624,9 @@ h1 {
   height: 100%;
 }
 
-.stat-total::before { background: var(--gold-500); }
-.stat-count::before { background: var(--primary-500); }
-.stat-progress::before { background: var(--accent-500); }
+.stat-total::before { background: var(--shell-accent-strong); }
+.stat-count::before { background: var(--shell-accent); }
+.stat-progress::before { background: var(--shell-accent-deep); }
 
 .stat-icon {
   width: 48px;
@@ -644,13 +644,13 @@ h1 {
 }
 
 .stat-count .stat-icon {
-  background: var(--primary-100);
-  color: var(--primary-600);
+  background: rgba(228, 190, 99, 0.14);
+  color: var(--shell-accent);
 }
 
 .stat-progress .stat-icon {
-  background: var(--accent-100);
-  color: var(--accent-600);
+  background: rgba(200, 146, 42, 0.18);
+  color: var(--shell-accent-strong);
 }
 
 .stat-icon svg {
@@ -665,7 +665,7 @@ h1 {
 .stat-label {
   display: block;
   font-size: 13px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   margin-bottom: 4px;
 }
 
@@ -673,7 +673,7 @@ h1 {
   font-size: 24px;
   font-weight: 700;
   font-family: var(--font-display);
-  color: var(--gray-900);
+  color: var(--shell-text-strong);
 }
 
 /* Progress Ring */
@@ -691,13 +691,13 @@ h1 {
 
 .progress-bg {
   fill: none;
-  stroke: var(--gray-200);
+  stroke: var(--shell-border-strong);
   stroke-width: 3;
 }
 
 .progress-fill {
   fill: none;
-  stroke: var(--accent-500);
+  stroke: var(--shell-accent);
   stroke-width: 3;
   stroke-linecap: round;
   transition: stroke-dasharray 0.5s ease;
@@ -722,7 +722,7 @@ h1 {
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.1);
-  color: white;
+  color: var(--shell-text-strong);
   cursor: pointer;
   backdrop-filter: blur(10px);
   transition: var(--transition);
@@ -755,7 +755,7 @@ h1 {
   padding: 4px 9px;
   border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.12);
-  color: white;
+  color: var(--shell-on-accent);
   font-size: 12px;
   font-weight: 600;
 }
@@ -778,7 +778,7 @@ h1 {
 }
 
 .premium-tier-card {
-  background: white;
+  background: var(--shell-card);
   border-radius: var(--radius-lg);
   padding: 16px;
   box-shadow: var(--shadow-md);
@@ -796,7 +796,7 @@ h1 {
 .tier-level {
   font-size: 12px;
   font-weight: 600;
-  color: var(--gray-600);
+  color: var(--shell-text);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -810,8 +810,8 @@ h1 {
 .tier-count {
   font-size: 12px;
   font-weight: 600;
-  color: var(--gray-500);
-  background: var(--gray-100);
+  color: var(--shell-text-muted);
+  background: var(--shell-raised);
   padding: 4px 8px;
   border-radius: 12px;
 }
@@ -827,7 +827,7 @@ h1 {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: var(--gray-50);
+  background: var(--shell-page);
   border-radius: var(--radius);
   transition: all 0.2s ease;
 }
@@ -839,7 +839,7 @@ h1 {
 
 .word-icon {
   font-size: 18px;
-  color: var(--gray-400);
+  color: var(--shell-text-muted);
   transition: all 0.2s ease;
 }
 
@@ -858,7 +858,7 @@ h1 {
 .word-label {
   font-size: 13px;
   font-weight: 600;
-  color: var(--gray-700);
+  color: var(--shell-text);
 }
 
 .word-donor {
@@ -869,7 +869,7 @@ h1 {
 
 .word-available {
   font-size: 11px;
-  color: var(--gray-400);
+  color: var(--shell-text-muted);
   font-style: italic;
 }
 
@@ -890,7 +890,7 @@ h1 {
   display: flex;
   width: max-content;
   max-width: 100%;
-  background: white;
+  background: var(--shell-card);
   border-radius: var(--radius-md);
   padding: 6px;
   box-shadow: var(--shadow);
@@ -908,7 +908,7 @@ h1 {
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  color: var(--gray-600);
+  color: var(--shell-text);
   transition: var(--transition);
 }
 
@@ -918,13 +918,13 @@ h1 {
 }
 
 .tab:hover {
-  color: var(--gray-900);
-  background: var(--gray-100);
+  color: var(--shell-text-strong);
+  background: var(--shell-raised);
 }
 
 .tab.active {
-  background: var(--primary-500);
-  color: white;
+  background: var(--shell-accent);
+  color: var(--shell-on-accent);
   box-shadow: var(--shadow-md);
 }
 

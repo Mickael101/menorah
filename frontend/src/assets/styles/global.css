@@ -83,6 +83,58 @@
   /* Bordure neutre par defaut */
   --border: #e2e8f0;
 
+  /* ===========================================
+     COQUILLE NAVY + OR
+     Aligne l'administration sur l'identite de l'ecran public, qui etait
+     navy/or alors que l'admin etait bleu roi/blanc : deux produits
+     differents a l'oeil.
+
+     TOUS les ratios ci-dessous sont CALCULES, pas estimes. Ils sont
+     consignes pour qu'une edition future ne les defasse pas en silence.
+     Seuils WCAG AA : 4.5 pour du texte, 3.0 pour un objet graphique.
+
+     Trois pieges attrapes par l'arithmetique, invisibles a l'oeil :
+       - le gris sourd #8B8478 echouait a 4.27 (retenu : #968F82 a 5.19)
+       - le placeholder #8A8578 echouait a 3.38 et #7E796C a 3.98
+         (retenu : #726D61 a 4.73)
+       - --error #ef4444 echouait a 4.20 sur navy
+         (retenu pour fond sombre : #F87171 a 6.02)
+     =========================================== */
+
+  /* Surfaces. Les surfaces seules ne separent pas (carte/page = 1.14) :
+     c'est la bordure claire qui dessine le bord des cartes. */
+  --shell-page: #0B1020;
+  --shell-card: #161C3A;
+  --shell-raised: #1E264F;
+  --shell-border: rgba(255, 255, 255, 0.16);      /* rendu #3B405A, 1.64 sur la carte */
+  --shell-border-strong: rgba(255, 255, 255, 0.26);
+
+  /* Textes sur surfaces sombres */
+  --shell-text-strong: #F7F3EA;                   /* 15.03 sur la carte, 17.10 sur la page */
+  --shell-text: #DDD8CC;                          /* 11.71 sur la carte */
+  --shell-text-muted: #968F82;                    /* 5.19 sur la carte, 4.93 au pire des 4 fonds */
+
+  /* Accent or : teste comme TEXTE (libelles 13px gras), pas seulement en aplat */
+  --shell-accent: #E4BE63;                        /* 9.39 sur la carte, 8.92 au pire */
+  --shell-accent-strong: #F2CC72;                 /* 10.29 au pire */
+  --shell-accent-deep: #C8922A;
+  --shell-on-accent: #0B1020;                     /* 10.68 sur l'or, 6.85 sur l'or profond */
+
+  /* Champs de saisie : volontairement CLAIRS.
+     Taper longtemps dans un champ sombre fatigue, et un champ clair sur
+     carte sombre s'identifie par sa surface (15.28) — sa bordure n'a donc
+     pas besoin d'atteindre 3.0 au sens de WCAG 1.4.11. */
+  --field-bg: #F7F5F0;
+  --field-text: #1A1A22;                          /* 15.87 sur le champ */
+  --field-placeholder: #726D61;                   /* 4.73 sur le champ */
+  --field-border: #C9C3B4;
+  --field-border-focus: var(--shell-accent-deep);
+
+  /* Semantiques eclaircies pour fond sombre (les versions claires echouent) */
+  --shell-success: #34D399;                       /* 8.66 sur la carte */
+  --shell-error: #F87171;                         /* 6.02 sur la carte */
+  --shell-warning: #FBBF24;                       /* 9.97 sur la carte */
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
