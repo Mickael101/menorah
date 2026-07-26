@@ -11,6 +11,16 @@ const emit = defineEmits<{
 }>();
 
 const { donations, deleteDonation, formatAmount, isLoading } = useDonations();
+// Repli de la liste : sur une soiree chargee elle devient tres longue et
+// repousse le formulaire de saisie hors de l'ecran. L'etat est memorise.
+const COLLAPSE_KEY = 'menorah_admin_donations_collapsed';
+const isCollapsed = ref(localStorage.getItem(COLLAPSE_KEY) === '1');
+
+function toggleCollapsed(): void {
+  isCollapsed.value = !isCollapsed.value;
+  localStorage.setItem(COLLAPSE_KEY, isCollapsed.value ? '1' : '0');
+}
+
 const isExporting = ref(false);
 
 // L'export exige le token admin. adminFetch l'injecte et redemande le code
@@ -67,7 +77,17 @@ function getInitials(firstName: string, lastName: string): string {
   <div class="donation-list">
     <!-- Header -->
     <div class="list-header">
-      <div class="header-info">
+      <button
+        type="button"
+        class="header-info"
+        :aria-expanded="!isCollapsed"
+        aria-controls="donations-body"
+        :title="isCollapsed ? t('donation.expandList') : t('donation.collapseList')"
+        @click="toggleCollapsed"
+      >
+        <svg class="collapse-chevron" :class="{ collapsed: isCollapsed }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
         <h3>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
@@ -77,7 +97,7 @@ function getInitials(firstName: string, lastName: string): string {
           {{ t('donation.listTitle') }}
         </h3>
         <span class="count-badge">{{ donations.length }}</span>
-      </div>
+      </button>
       <button type="button" class="export-btn" :disabled="isExporting" @click="handleExport">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 3v12"/>
@@ -89,7 +109,7 @@ function getInitials(firstName: string, lastName: string): string {
     </div>
 
     <!-- Empty State -->
-    <div v-if="donations.length === 0" class="empty-state">
+    <div v-if="donations.length === 0 && !isCollapsed" class="empty-state">
       <div class="empty-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -100,7 +120,7 @@ function getInitials(firstName: string, lastName: string): string {
     </div>
 
     <!-- Donations List -->
-    <div v-else class="donations-container">
+    <div v-else-if="donations.length > 0 && !isCollapsed" id="donations-body" class="donations-container">
       <div
         v-for="donation in donations"
         :key="donation.id"
@@ -218,10 +238,47 @@ function getInitials(firstName: string, lastName: string): string {
   height: 16px;
 }
 
+/* L'en-tete est devenu un bouton : cliquer replie la liste. */
 .header-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 6px 8px;
+  margin-inline-start: -8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.header-info:hover {
+  background: var(--gray-100);
+}
+
+.collapse-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--gray-500);
+  transition: transform var(--transition);
+}
+
+.collapse-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+[dir='rtl'] .collapse-chevron.collapsed {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse-chevron {
+    transition: none;
+  }
 }
 
 h3 {
