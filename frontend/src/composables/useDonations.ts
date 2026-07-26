@@ -267,12 +267,17 @@ const error = ref<string | null>(null);
 
 export function useDonations() {
   // Fetch all donations
-  async function fetchDonations(): Promise<void> {
+  // full: true demande le payload complet (email, telephone, reference).
+  // Reserve a l'admin ; les ecrans publics appellent sans argument et
+  // recoivent une projection depouillee.
+  async function fetchDonations(options: { full?: boolean } = {}): Promise<void> {
     isLoading.value = true;
     error.value = null;
 
     try {
-      const response = await fetch('/api/donations');
+      const response = options.full
+        ? await adminFetch('/api/donations?full=1')
+        : await fetch('/api/donations');
       if (!response.ok) throw new Error('Failed to fetch donations');
 
       const data = await response.json();

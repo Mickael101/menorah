@@ -1,59 +1,29 @@
-import express from 'express';
-import cors from 'cors';
 import { createServer } from 'http';
-import path from 'path';
+import { createApp } from './app';
 import { initDatabase } from './db/init';
 import { socketService } from './services/socket.service';
-import donationsRouter from './routes/donations';
-import statsRouter from './routes/stats';
-import configRouter from './routes/config';
-import gifsRouter from './routes/gifs';
-import adminRouter from './routes/admin';
-import { uploadsRoot } from './config/storage';
 import { startBackupScheduler } from './services/backup.service';
 
-// Create Express app
-const app = express();
+const app = createApp();
 const server = createServer(app);
 
-// CORS (autorise tout en prod + localhost en dev)
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE']
-}));
-
-app.use(express.json());
-
-// Initialize Socket.IO
 socketService.init(server);
-
-// Serve frontend static files
-const publicPath = path.join(__dirname, "../public");
-app.use('/uploads', express.static(uploadsRoot));
-app.use(express.static(publicPath));
-
-// API Routes
-app.use('/api/donations', donationsRouter);
-app.use('/api/stats', statsRouter);
-app.use('/api/config', configRouter);
-app.use('/api/gifs', gifsRouter);
-app.use('/api/admin', adminRouter);
-
-// Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
-
-// Catch-all to serve frontend
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(publicPath, "index.html"));
-});
 
 const PORT = process.env.PORT || 3000;
 
-// Start server with async DB init
-async function start() {
+async function start(): Promise<void> {
   await initDatabase();
+
+  if (!process.env.ADMIN_TOKEN?.trim()) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        'SECURITY: ADMIN_TOKEN absent en production — toutes les routes admin renverront 503. Configurez la variable.'
+      );
+    } else {
+      console.warn('ADMIN_TOKEN absent : routes admin ouvertes (mode developpement).');
+    }
+  }
+
   startBackupScheduler();
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

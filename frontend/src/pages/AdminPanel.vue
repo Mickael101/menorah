@@ -67,7 +67,7 @@ const activeAdminBranding = computed(() => ({
 
 // Load initial data
 onMounted(async () => {
-  await Promise.all([fetchDonations(), fetchConfig(), fetchPremiumWords()]);
+  await Promise.all([fetchDonations({ full: true }), fetchConfig(), fetchPremiumWords()]);
 
   // Listen for real-time events
   on('donation:new', async (data: any) => {

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref } from 'vue';
 import { useDonations, type Donation } from '../../composables/useDonations';
 import { useAdminI18n } from '../../composables/useAdminI18n';
+import { adminFetch } from '../../composables/useAdminAuth';
 
 const { locale, t } = useAdminI18n();
 
@@ -10,7 +11,31 @@ const emit = defineEmits<{
 }>();
 
 const { donations, deleteDonation, formatAmount, isLoading } = useDonations();
-const exportUrl = computed(() => `/api/donations/export.csv?lang=${locale.value}`);
+const isExporting = ref(false);
+
+// L'export exige le token admin. adminFetch l'injecte et redemande le code
+// sur 401, ce qu'un simple <a href> ne permet pas.
+async function handleExport(): Promise<void> {
+  isExporting.value = true;
+  try {
+    const response = await adminFetch(`/api/donations/export.csv?lang=${locale.value}`);
+    if (!response.ok) throw new Error(`Export failed: ${response.status}`);
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `donations-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error('CSV export failed:', e);
+  } finally {
+    isExporting.value = false;
+  }
+}
 
 async function handleDelete(donation: Donation): Promise<void> {
   if (confirm(t('donation.deleteConfirm', { name: `${donation.firstName} ${donation.lastName}` }))) {
@@ -53,14 +78,14 @@ function getInitials(firstName: string, lastName: string): string {
         </h3>
         <span class="count-badge">{{ donations.length }}</span>
       </div>
-      <a :href="exportUrl" class="export-btn" download>
+      <button type="button" class="export-btn" :disabled="isExporting" @click="handleExport">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 3v12"/>
           <path d="m7 10 5 5 5-5"/>
           <path d="M5 21h14"/>
         </svg>
         {{ t('donation.exportCsv') }}
-      </a>
+      </button>
     </div>
 
     <!-- Empty State -->
