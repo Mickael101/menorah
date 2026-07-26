@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
+import { useAudioPreview } from '../../composables/useAudioPreview';
+import { useToast } from '../../composables/useToast';
 import {
   useDonations,
   type DisplaySettings,
@@ -53,15 +55,40 @@ onMounted(async () => {
   syncSettings();
 });
 
+const toast = useToast();
+
+// Empreinte du dernier etat enregistre, pour savoir si la saisie en cours
+// differe de ce qui est reellement en base.
+const savedSnapshot = ref('');
+
+// Vrai si des modifications sont en attente d'enregistrement.
+const isDirty = computed(() => JSON.stringify(settings.value) !== savedSnapshot.value);
+
+// Vrai si la config a change ailleurs (autre onglet, autre poste) pendant
+// qu'on editait : on ne recharge pas de force, on propose.
+const hasRemoteChange = ref(false);
+
 // Sync with config changes
 watch(() => config.value.displaySettings, () => {
+  // Avant, un evenement socket ecrasait silencieusement la saisie en cours.
+  if (isDirty.value) {
+    hasRemoteChange.value = true;
+    return;
+  }
   syncSettings();
 }, { deep: true });
 
 function syncSettings(): void {
   if (config.value.displaySettings) {
     settings.value = cloneDisplaySettings(config.value.displaySettings);
+    savedSnapshot.value = JSON.stringify(settings.value);
+    hasRemoteChange.value = false;
   }
+}
+
+// Abandonne les modifications locales et reprend l'etat enregistre.
+function discardChanges(): void {
+  syncSettings();
 }
 
 // Save all settings
@@ -70,11 +97,23 @@ async function saveSettings(): Promise<void> {
     ...settings.value,
     ...activePalette.value
   };
-  await updateConfig({ displaySettings: settings.value });
+  const saved = await updateConfig({ displaySettings: settings.value });
+
+  if (saved) {
+    savedSnapshot.value = JSON.stringify(settings.value);
+    hasRemoteChange.value = false;
+    toast.success(t('toast.savedDisplay'));
+  } else {
+    toast.error(t('toast.saveFailed'));
+  }
 }
 
 // Reset to defaults
 function resetDefaults(): void {
+  // Ce bouton efface TOUT : textes, couleurs, sons, page /don. Il etait
+  // juste a cote de « Restaurer ce theme », qui a une portee bien plus
+  // etroite — d'ou la confirmation explicite.
+  if (!confirm(t('display.resetConfirm'))) return;
   settings.value = cloneDisplaySettings(DEFAULT_DISPLAY_SETTINGS);
 }
 
@@ -241,11 +280,12 @@ function removeDonationSound(): void {
   settings.value.donationSound = null;
 }
 
-// Play sound preview
-function playSound(url: string): void {
-  const audio = new Audio(url);
-  audio.play();
-}
+// Lecture partagee avec le reste du panel : un seul son a la fois,
+// re-cliquer arrete. Voir composables/useAudioPreview.ts.
+const { toggle: toggleAudio, stop: stopAudio, isPlaying } = useAudioPreview();
+
+// Sans ceci, quitter l'onglet laissait le son tourner indefiniment.
+onUnmounted(stopAudio);
 </script>
 
 <template>
@@ -471,9 +511,18 @@ function playSound(url: string): void {
               {{ t('pledge.sectionDescription') }}
             </p>
           </div>
-          <a class="pledge-open-link" href="/don" target="_blank" rel="noopener">
+          <a
+            v-if="!isDirty"
+            class="pledge-open-link"
+            href="/don"
+            target="_blank"
+            rel="noopener"
+          >
             {{ t('pledge.openPage') }} ↗
           </a>
+          <span v-else class="pledge-open-link disabled" :title="t('display.saveBeforePreview')">
+            {{ t('display.saveBeforePreview') }}
+          </span>
         </div>
 
         <div class="copy-group">
@@ -578,7 +627,16 @@ function playSound(url: string): void {
               {{ t('display.theme.description') }}
             </p>
           </div>
-          <a href="/display" target="_blank" class="preview-link">{{ t('display.theme.preview') }}</a>
+          <a
+            v-if="!isDirty"
+            href="/display"
+            target="_blank"
+            rel="noopener"
+            class="preview-link"
+          >{{ t('display.theme.preview') }}</a>
+          <span v-else class="preview-link disabled" :title="t('display.saveBeforePreview')">
+            {{ t('display.saveBeforePreview') }}
+          </span>
         </div>
 
         <div class="theme-grid" role="radiogroup" :aria-label="t('display.theme.aria')">
@@ -760,8 +818,18 @@ function playSound(url: string): void {
               <span>{{ t('display.sound.configured') }}</span>
             </div>
             <div class="audio-actions">
-              <button class="play-btn" @click="playSound(settings.donationSound)" type="button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <button
+                class="play-btn"
+                :class="{ playing: isPlaying(settings.donationSound) }"
+                :title="isPlaying(settings.donationSound) ? t('common.stop') : t('common.play')"
+                :aria-label="isPlaying(settings.donationSound) ? t('common.stop') : t('common.play')"
+                @click="toggleAudio(settings.donationSound)"
+                type="button"
+              >
+                <svg v-if="isPlaying(settings.donationSound)" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                  <rect x="6" y="6" width="12" height="12" rx="2"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polygon points="5 3 19 12 5 21 5 3"/>
                 </svg>
               </button>
@@ -786,6 +854,27 @@ function playSound(url: string): void {
         </div>
       </section>
 
+      <!-- Barre de sauvegarde collante.
+           Avant, l'unique bouton Enregistrer etait tout en bas des 10
+           sections : on modifiait, on ne voyait aucune confirmation, et les
+           liens d'apercu affichaient l'ancienne version. -->
+      <Transition name="savebar">
+        <div v-if="isDirty" class="save-bar">
+          <div class="save-bar-text">
+            <strong>{{ t('display.unsaved') }}</strong>
+            <span>{{ hasRemoteChange ? t('display.remoteChanged') : t('display.unsavedHint') }}</span>
+          </div>
+          <div class="save-bar-actions">
+            <button type="button" class="save-bar-discard" @click="discardChanges">
+              {{ t('display.discard') }}
+            </button>
+            <button type="button" class="save-bar-save" :disabled="isLoading" @click="saveSettings">
+              {{ isLoading ? t('common.saving') : t('common.save') }}
+            </button>
+          </div>
+        </div>
+      </Transition>
+
       <!-- Actions -->
       <div class="actions">
         <button class="reset-btn" @click="resetDefaults">
@@ -809,6 +898,120 @@ function playSound(url: string): void {
 </template>
 
 <style scoped>
+/* Barre de sauvegarde collante en bas de l'ecran. */
+.save-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 14px 18px;
+  border: 1px solid var(--gold-500);
+  border-radius: var(--radius-md);
+  background: var(--gray-900);
+  box-shadow: var(--shadow-xl);
+}
+
+.save-bar-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.save-bar-text strong {
+  color: var(--gold-300);
+  font-size: 14px;
+}
+
+.save-bar-text span {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.save-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.save-bar-discard,
+.save-bar-save {
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.save-bar-discard {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.save-bar-discard:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.save-bar-save {
+  border: 0;
+  background: linear-gradient(135deg, var(--gold-400), var(--gold-600));
+  color: var(--gray-900);
+}
+
+.save-bar-save:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.save-bar-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.savebar-enter-active,
+.savebar-leave-active {
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+.savebar-enter-from,
+.savebar-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* Apercu neutralise tant que des modifications ne sont pas enregistrees :
+   sinon le lien affiche l'ancienne version et laisse croire a une panne. */
+.preview-link.disabled,
+.pledge-open-link.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  text-decoration: none;
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .savebar-enter-active,
+  .savebar-leave-active {
+    transition: opacity var(--transition-fast);
+  }
+
+  .savebar-enter-from,
+  .savebar-leave-to {
+    transform: none;
+  }
+}
+
 .display-settings-panel {
   width: 100%;
 }
@@ -1838,6 +2041,28 @@ function playSound(url: string): void {
 
 .play-btn:hover {
   background: var(--gold-200);
+}
+
+/* Etat "en lecture" : le bouton doit dire clairement qu'un second clic arrete. */
+.play-btn.playing {
+  background: var(--gold-600);
+  color: #fff;
+  animation: audio-playing-pulse 1.4s ease-in-out infinite;
+}
+
+.play-btn.playing:hover {
+  background: var(--gold-700);
+}
+
+@keyframes audio-playing-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 161, 6, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(212, 161, 6, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-btn.playing {
+    animation: none;
+  }
 }
 
 .play-btn svg {

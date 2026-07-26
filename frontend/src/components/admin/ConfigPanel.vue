@@ -7,8 +7,10 @@ import {
   DEFAULT_ADMIN_BRANDING
 } from '../../composables/useDonations';
 import { useAdminI18n } from '../../composables/useAdminI18n';
+import { useToast } from '../../composables/useToast';
 
 const { t } = useAdminI18n();
+const toast = useToast();
 
 const { config, fetchConfig, updateConfig, formatAmount, isLoading, error } = useDonations();
 
@@ -52,19 +54,23 @@ function syncFormWithConfig(): void {
 }
 
 async function saveAdminBranding(): Promise<void> {
-  await updateConfig({
+  const saved = await updateConfig({
     displaySettings: {
       ...config.value.displaySettings,
       adminBranding: cloneAdminBranding(adminBranding.value)
     }
   });
+  if (saved) toast.success(t('toast.savedIdentity'));
+  else toast.error(t('toast.saveFailed'));
 }
 
 // Save goal amount
 async function saveGoalAmount(): Promise<void> {
-  await updateConfig({
+  const saved = await updateConfig({
     goalAmount: Math.round(goalAmount.value * 100) // Convert shekels to agorot
   });
+  if (saved) toast.success(t('toast.savedGoal'));
+  else toast.error(t('toast.saveFailed'));
 }
 
 // Add preset amount
@@ -87,7 +93,9 @@ function removePreset(amount: number): void {
 
 // Save preset amounts
 async function savePresets(): Promise<void> {
-  await updateConfig({ presetAmounts: presetAmounts.value });
+  const saved = await updateConfig({ presetAmounts: presetAmounts.value });
+  if (saved) toast.success(t('toast.savedPresets'));
+  else toast.error(t('toast.saveFailed'));
 }
 
 // Add segment
@@ -117,7 +125,9 @@ function removeSegment(id: string): void {
 
 // Save segments
 async function saveSegments(): Promise<void> {
-  await updateConfig({ menorahSegments: segments.value });
+  const saved = await updateConfig({ menorahSegments: segments.value });
+  if (saved) toast.success(t('toast.savedSegments'));
+  else toast.error(t('toast.saveFailed'));
 }
 </script>
 

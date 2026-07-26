@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useAdminI18n } from '../../composables/useAdminI18n';
 import { adminFetch } from '../../composables/useAdminAuth';
+import { useAudioPreview } from '../../composables/useAudioPreview';
+import { useToast } from '../../composables/useToast';
 
 const { t } = useAdminI18n();
+const toast = useToast();
 
 interface Gif {
   filename: string;
@@ -89,8 +92,10 @@ async function uploadAudioForGif(event: Event, gifFilename: string): Promise<voi
 
     await fetchGifs();
     input.value = '';
+    toast.success(t('toast.soundAttached'));
   } catch (error) {
-    console.error('Error uploading audio:', error);
+    // Avant : console.error seulement, donc echec totalement invisible.
+    toast.error(error instanceof Error ? error.message : t('gifs.audioUploadFailed'));
   } finally {
     uploadingAudioFor.value = null;
   }
@@ -98,27 +103,36 @@ async function uploadAudioForGif(event: Event, gifFilename: string): Promise<voi
 
 async function removeAudioFromGif(gifFilename: string): Promise<void> {
   try {
-    await adminFetch(`${API_BASE}/api/gifs/associate-audio`, {
+    // Le code HTTP n'etait pas verifie : un 401 passait pour un succes.
+    const response = await adminFetch(`${API_BASE}/api/gifs/associate-audio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gifFilename, audioUrl: null })
     });
+    if (!response.ok) throw new Error(t('toast.actionFailed'));
+
     await fetchGifs();
+    toast.success(t('toast.soundRemoved'));
   } catch (error) {
-    console.error('Error removing audio:', error);
+    toast.error(error instanceof Error ? error.message : t('toast.actionFailed'));
   }
 }
 
 async function triggerGif(gif: Gif): Promise<void> {
   triggeringGif.value = gif.url;
   try {
-    await adminFetch(`${API_BASE}/api/gifs/trigger`, {
+    // Le code HTTP n'etait pas verifie : rien n'arrivait a l'ecran et
+    // l'admin voyait quand meme « Envoye ! ».
+    const response = await adminFetch(`${API_BASE}/api/gifs/trigger`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gifUrl: gif.url, audioUrl: gif.audioUrl })
     });
+    if (!response.ok) throw new Error(t('toast.actionFailed'));
+
+    toast.success(t('toast.gifTriggered'));
   } catch (error) {
-    console.error('Error triggering GIF:', error);
+    toast.error(error instanceof Error ? error.message : t('toast.actionFailed'));
   } finally {
     setTimeout(() => {
       triggeringGif.value = null;
@@ -130,21 +144,26 @@ async function deleteGif(filename: string): Promise<void> {
   if (!confirm(t('gifs.deleteConfirm'))) return;
 
   try {
-    await adminFetch(`${API_BASE}/api/gifs/${filename}`, {
+    const response = await adminFetch(`${API_BASE}/api/gifs/${filename}`, {
       method: 'DELETE'
     });
+    if (!response.ok) throw new Error(t('toast.actionFailed'));
+
     await fetchGifs();
+    toast.success(t('toast.gifDeleted'));
   } catch (error) {
-    console.error('Error deleting GIF:', error);
+    toast.error(error instanceof Error ? error.message : t('toast.actionFailed'));
   }
 }
 
-function playAudio(url: string): void {
-  const audio = new Audio(url);
-  audio.play();
-}
+// Lecture partagee avec le reste du panel : un seul son a la fois,
+// re-cliquer arrete. Voir composables/useAudioPreview.ts.
+const { toggle: toggleAudio, stop: stopAudio, isPlaying } = useAudioPreview();
 
 onMounted(fetchGifs);
+
+// Sans ceci, quitter l'onglet laissait le son tourner indefiniment.
+onUnmounted(stopAudio);
 </script>
 
 <template>
@@ -207,8 +226,18 @@ onMounted(fetchGifs);
                 <span>{{ t('gifs.soundAttached') }}</span>
               </div>
               <div class="audio-mini-actions">
-                <button class="play-mini-btn" @click="playAudio(gif.audioUrl)" type="button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button
+                  class="play-mini-btn"
+                  :class="{ playing: isPlaying(gif.audioUrl) }"
+                  :title="isPlaying(gif.audioUrl) ? t('common.stop') : t('common.play')"
+                  :aria-label="isPlaying(gif.audioUrl) ? t('common.stop') : t('common.play')"
+                  @click="toggleAudio(gif.audioUrl)"
+                  type="button"
+                >
+                  <svg v-if="isPlaying(gif.audioUrl)" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <rect x="6" y="6" width="12" height="12" rx="2"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon points="5 3 19 12 5 21 5 3"/>
                   </svg>
                 </button>
@@ -520,6 +549,28 @@ onMounted(fetchGifs);
 
 .play-mini-btn:hover {
   background: var(--gold-200);
+}
+
+/* Etat "en lecture" : le bouton doit dire clairement qu'un second clic arrete. */
+.play-mini-btn.playing {
+  background: var(--gold-600);
+  color: #fff;
+  animation: audio-playing-pulse 1.4s ease-in-out infinite;
+}
+
+.play-mini-btn.playing:hover {
+  background: var(--gold-700);
+}
+
+@keyframes audio-playing-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 161, 6, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(212, 161, 6, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play-mini-btn.playing {
+    animation: none;
+  }
 }
 
 .play-mini-btn svg {

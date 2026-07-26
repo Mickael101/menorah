@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useSocket } from '../composables/useSocket';
 import {
   useDonations,
@@ -11,10 +11,42 @@ import DonationList from '../components/admin/DonationList.vue';
 import ConfigPanel from '../components/admin/ConfigPanel.vue';
 import GifManager from '../components/admin/GifManager.vue';
 import DisplaySettingsPanel from '../components/admin/DisplaySettingsPanel.vue';
+import UiToast from '../components/ui/UiToast.vue';
 import { useAdminI18n, type AdminLocale } from '../composables/useAdminI18n';
 
 const { locale, direction, setLocale, t } = useAdminI18n();
 const availableLocales: AdminLocale[] = ['fr', 'en', 'he'];
+
+// Selecteur de langue compact : les 3 langues etaient affichees en permanence
+// dans l'en-tete, ce qui encombrait sans servir (on change de langue rarement).
+const langMenuOpen = ref(false);
+const langMenuRef = ref<HTMLElement | null>(null);
+
+function selectLanguage(next: AdminLocale): void {
+  setLocale(next);
+  langMenuOpen.value = false;
+}
+
+function closeLangMenuOnOutsideClick(event: MouseEvent): void {
+  if (!langMenuOpen.value) return;
+  if (langMenuRef.value && !langMenuRef.value.contains(event.target as Node)) {
+    langMenuOpen.value = false;
+  }
+}
+
+function closeLangMenuOnEscape(event: KeyboardEvent): void {
+  if (event.key === 'Escape') langMenuOpen.value = false;
+}
+
+onMounted(() => {
+  document.addEventListener('click', closeLangMenuOnOutsideClick);
+  document.addEventListener('keydown', closeLangMenuOnEscape);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeLangMenuOnOutsideClick);
+  document.removeEventListener('keydown', closeLangMenuOnEscape);
+});
 
 const { on } = useSocket();
 const {
@@ -121,18 +153,40 @@ function handleCancel(): void {
         </div>
 
         <div class="header-actions">
-          <div class="language-switcher" role="group" :aria-label="t('language.label')">
+          <div class="language-menu" ref="langMenuRef">
             <button
-              v-for="language in availableLocales"
-              :key="language"
               type="button"
-              class="language-btn"
-              :class="{ active: locale === language }"
-              :aria-pressed="locale === language"
-              @click="setLocale(language)"
+              class="language-trigger"
+              :aria-label="t('language.label')"
+              :aria-expanded="langMenuOpen"
+              aria-haspopup="listbox"
+              @click="langMenuOpen = !langMenuOpen"
             >
-              {{ t(`language.${language}`) }}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M2 12h20"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              <span class="language-current">{{ t(`language.short.${locale}`) }}</span>
             </button>
+
+            <div v-if="langMenuOpen" class="language-dropdown" role="listbox">
+              <button
+                v-for="language in availableLocales"
+                :key="language"
+                type="button"
+                role="option"
+                class="language-option"
+                :class="{ active: locale === language }"
+                :aria-selected="locale === language"
+                @click="selectLanguage(language)"
+              >
+                <span>{{ t(`language.${language}`) }}</span>
+                <svg v-if="locale === language" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <path d="M20 6 9 17l-5-5"/>
+                </svg>
+              </button>
+            </div>
           </div>
 
           <a href="/display" target="_blank" class="display-link">
@@ -257,8 +311,14 @@ function handleCancel(): void {
           :class="['tab', { active: activeTab === 'donations' }]"
           @click="activeTab = 'donations'"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          <!-- Main qui offre un coeur : signifie "don" sans supposer de devise.
+               L'ancienne icone etait un glyphe dollar, alors que la campagne
+               est en shekels. -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 14h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 16"/>
+            <path d="m7 20 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/>
+            <path d="m2 15 6 6"/>
+            <path d="M19.5 8.5c.7-.7 1.5-1.6 1.5-2.7A2.73 2.73 0 0 0 16 4a2.78 2.78 0 0 0-5 1.8c0 1.2.8 2 1.5 2.8L16 12Z"/>
           </svg>
           {{ t('admin.tabs.donations') }}
         </button>
@@ -325,6 +385,9 @@ function handleCancel(): void {
         <ConfigPanel />
       </div>
     </main>
+
+    <!-- Retours utilisateur : monte une seule fois, s'affiche par Teleport. -->
+    <UiToast />
   </div>
 </template>
 
@@ -401,40 +464,100 @@ h1 {
   gap: 12px;
 }
 
-.language-switcher {
+/* Selecteur de langue compact.
+   Auparavant les 3 langues occupaient l'en-tete en permanence ; on change de
+   langue rarement, donc une seule pastille suffit et le reste se deroule. */
+.language-menu {
+  position: relative;
+}
+
+.language-trigger {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 4px;
+  gap: 6px;
+  min-height: 38px;
+  padding: 8px 12px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.09);
   backdrop-filter: blur(10px);
-}
-
-.language-btn {
-  min-height: 34px;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.9);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition);
 }
 
-.language-btn:hover {
+.language-trigger:hover,
+.language-trigger[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.18);
   color: white;
-  background: rgba(255, 255, 255, 0.1);
 }
 
-.language-btn.active {
-  color: var(--primary-900);
+.language-trigger svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.language-current {
+  line-height: 1;
+}
+
+.language-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  z-index: 40;
+  min-width: 168px;
+  padding: 6px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
   background: white;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+  box-shadow: var(--shadow-xl);
+  animation: fadeInScale 120ms ease-out;
+}
+
+.language-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gray-700);
+  font: inherit;
+  font-size: 14px;
+  text-align: start;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.language-option:hover {
+  background: var(--gray-100);
+  color: var(--gray-900);
+}
+
+.language-option.active {
+  color: var(--primary-700);
+  font-weight: 600;
+}
+
+.language-option svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .language-dropdown {
+    animation: none;
+  }
 }
 
 .display-link {
@@ -912,15 +1035,14 @@ h1 {
     width: 100%;
   }
 
-  .language-switcher,
-  .display-link {
-    flex: 1;
+  /* Sur mobile le declencheur reste compact et le lien ecran prend la place. */
+  .language-trigger {
     justify-content: center;
   }
 
-  .language-btn {
+  .display-link {
     flex: 1;
-    padding-inline: 7px;
+    justify-content: center;
   }
 
   .stats-grid {
