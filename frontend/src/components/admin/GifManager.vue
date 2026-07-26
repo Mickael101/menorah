@@ -296,7 +296,10 @@ onUnmounted(stopAudio);
 }
 
 .card {
-  background: white;
+  background: var(--shell-card);
+  /* L'ombre portee ne se voit pas sur du navy : c'est la bordure claire qui
+     dessine le bord de la carte (carte contre page = 1.14). */
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: var(--shadow-md);
@@ -308,21 +311,21 @@ onUnmounted(stopAudio);
   gap: 12px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--gray-800);
+  color: var(--shell-text-strong);
   margin: 0 0 24px;
 }
 
 .card-title svg {
   width: 24px;
   height: 24px;
-  color: var(--gold-500);
+  color: var(--shell-accent);
 }
 
 /* Upload Section */
 .upload-section {
   margin-bottom: 24px;
   padding-bottom: 24px;
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--shell-border);
 }
 
 .upload-btn {
@@ -330,19 +333,28 @@ onUnmounted(stopAudio);
   align-items: center;
   gap: 10px;
   padding: 14px 28px;
-  background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
-  color: white;
+  /* Un seul aplat or par panneau : il est pris par « Declencher », l'action de
+     diffusion en direct repetee toute la soiree. « Importer » se prepare une
+     fois, donc elle descend en contour et perd son degrade or. */
+  /* Ratios consignes des trois plans, pas seulement du texte : la surface ne
+     vaut que 1.15 contre la carte, et la bordure --shell-border-strong composee
+     sur ce fond donne #595E7D, soit 2.63 contre la carte. Le controle se lit
+     donc par son libelle, pas par sa boite. Ce n'est pas une regression :
+     l'ancien degrade or valait 1.63 a 2.36 contre le blanc et son libelle blanc
+     environ 1.9 — la conversion ameliore les deux. */
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border-strong);
+  color: var(--shell-accent);           /* 8.19 sur --shell-raised */
   border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
 }
 
 .upload-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.4);
+  border-color: var(--shell-accent);
 }
 
 .upload-btn.uploading {
@@ -360,13 +372,13 @@ onUnmounted(stopAudio);
 }
 
 .upload-error {
-  color: var(--error-500);
+  color: var(--shell-error);             /* #ef4444 echouait a 4.20 sur navy ; 6.02 ici */
   font-size: 13px;
   margin-top: 8px;
 }
 
 .upload-hint {
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   font-size: 12px;
   margin-top: 8px;
 }
@@ -385,7 +397,7 @@ onUnmounted(stopAudio);
   align-items: center;
   justify-content: center;
   padding: 48px 24px;
-  color: var(--gray-400);
+  color: var(--shell-text-muted);
   text-align: center;
 }
 
@@ -402,15 +414,15 @@ onUnmounted(stopAudio);
 }
 
 .gif-card {
-  background: var(--gray-50);
+  background: var(--shell-page);
   border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   transition: all 0.2s ease;
 }
 
 .gif-card:hover {
-  border-color: var(--gold-300);
+  border-color: var(--shell-accent);
   box-shadow: var(--shadow);
 }
 
@@ -418,7 +430,15 @@ onUnmounted(stopAudio);
   width: 100%;
   aspect-ratio: 16/10;
   overflow: hidden;
-  background: var(--gray-100);
+  /* Damier : ces GIF televerses sont souvent a fond transparent. Un aplat clair
+     ferait un trou dans la carte, un aplat sombre mentirait (le theme public
+     peut etre clair) ; le damier est la convention qui montre la transparence. */
+  background-color: var(--shell-raised);
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.07) 75%),
+    linear-gradient(45deg, rgba(255, 255, 255, 0.07) 25%, transparent 25%, transparent 75%, rgba(255, 255, 255, 0.07) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
 }
 
 .gif-preview img {
@@ -440,8 +460,9 @@ onUnmounted(stopAudio);
   justify-content: center;
   gap: 8px;
   padding: 10px 16px;
-  background: var(--primary-500);
-  color: white;
+  /* L'aplat or plein du panneau : l'action dominante, la diffusion en direct. */
+  background: var(--shell-accent);
+  color: var(--shell-on-accent);         /* 10.68 sur l'or */
   border: none;
   border-radius: var(--radius);
   font-weight: 600;
@@ -451,16 +472,24 @@ onUnmounted(stopAudio);
 }
 
 .trigger-btn:hover:not(:disabled) {
-  background: var(--primary-600);
+  background: var(--shell-accent-deep);  /* --shell-on-accent : 6.85 sur l'or profond */
 }
 
-.trigger-btn:disabled {
+/* :not(.triggering) — le bouton qui DIFFUSE n'est pas un bouton eteint.
+   Le template desactive tous les boutons pendant qu'un GIF part, donc l'opacite
+   frappait aussi celui qui declenche : le vert tombait a #248569 et son texte a
+   4.17, alors que le commentaire ci-dessous annoncait 9.85. Le seul retour
+   visuel de la diffusion en direct doit etre a pleine intensite. */
+.trigger-btn:disabled:not(.triggering) {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
+/* L'etat « en cours de diffusion » garde une couleur SEMANTIQUE distincte de
+   l'or, sinon il se confondrait avec le repos maintenant que l'or est la peau. */
 .trigger-btn.triggering {
-  background: var(--success-500);
+  cursor: not-allowed;
+  background: var(--shell-success);      /* --shell-on-accent : 9.85 sur le vert */
   animation: pulse-success 0.5s ease;
 }
 
@@ -480,8 +509,8 @@ onUnmounted(stopAudio);
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: var(--gray-100);
-  color: var(--gray-500);
+  background: var(--shell-raised);
+  color: var(--shell-text-muted);
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
@@ -489,8 +518,9 @@ onUnmounted(stopAudio);
 }
 
 .delete-btn:hover {
-  background: var(--error-100);
-  color: var(--error-500);
+  /* --error-100 etait un aplat clair : sur carte sombre il devient un voile. */
+  background: rgba(248, 113, 113, 0.16); /* compose #31202D sur --shell-page */
+  color: var(--shell-error);             /* 5.52 sur ce compose */
 }
 
 .delete-btn svg {
@@ -501,8 +531,8 @@ onUnmounted(stopAudio);
 /* Audio Section */
 .audio-section {
   padding: 8px 12px;
-  border-top: 1px solid var(--gray-200);
-  background: var(--gray-100);
+  border-top: 1px solid var(--shell-border);
+  background: var(--shell-raised);
 }
 
 .audio-attached {
@@ -517,7 +547,7 @@ onUnmounted(stopAudio);
   gap: 6px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--gold-600);
+  color: var(--shell-accent);            /* 8.19 sur --shell-raised */
 }
 
 .audio-badge svg {
@@ -543,28 +573,28 @@ onUnmounted(stopAudio);
 }
 
 .play-mini-btn {
-  background: var(--gold-100);
-  color: var(--gold-600);
+  background: rgba(228, 190, 99, 0.14);  /* compose #3A3B52 sur --shell-raised */
+  color: var(--shell-accent);            /* 6.15 sur ce compose */
 }
 
 .play-mini-btn:hover {
-  background: var(--gold-200);
+  background: rgba(228, 190, 99, 0.20);  /* compose #464453 ; l'or reste a 5.35 */
 }
 
 /* Etat "en lecture" : le bouton doit dire clairement qu'un second clic arrete. */
 .play-mini-btn.playing {
-  background: var(--gold-600);
-  color: #fff;
+  background: var(--shell-accent);
+  color: var(--shell-on-accent);         /* 10.68 sur l'or, la ou #fff echouait */
   animation: audio-playing-pulse 1.4s ease-in-out infinite;
 }
 
 .play-mini-btn.playing:hover {
-  background: var(--gold-700);
+  background: var(--shell-accent-deep);  /* --shell-on-accent : 6.85 sur l'or profond */
 }
 
 @keyframes audio-playing-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 161, 6, 0.5); }
-  50% { box-shadow: 0 0 0 5px rgba(212, 161, 6, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(228, 190, 99, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(228, 190, 99, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -580,12 +610,12 @@ onUnmounted(stopAudio);
 
 .remove-mini-btn {
   background: transparent;
-  color: var(--gray-400);
+  color: var(--shell-text-muted);
 }
 
 .remove-mini-btn:hover {
-  background: var(--error-100);
-  color: var(--error-500);
+  background: rgba(248, 113, 113, 0.16); /* compose #413254 sur --shell-raised */
+  color: var(--shell-error);             /* 4.20 sur ce compose : objet graphique, seuil 3.0 */
 }
 
 .remove-mini-btn svg {
@@ -601,18 +631,22 @@ onUnmounted(stopAudio);
   width: 100%;
   padding: 8px;
   background: transparent;
-  border: 1px dashed var(--gray-300);
+  /* Trait fort : ce pointille est le seul contour du controle (2.30 sur
+     --shell-raised, contre 1.36 pour l'ancien --gray-300 sur --gray-100).
+     Son libelle visible a 4.53 reste le porteur de l'identification. */
+  border: 1px dashed var(--shell-border-strong);
   border-radius: var(--radius);
   font-size: 12px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);        /* 4.53 sur --shell-raised, le pire des fonds sombres */
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .add-audio-btn:hover {
-  border-color: var(--gold-400);
-  color: var(--gold-600);
-  background: var(--gold-50);
+  border-color: var(--shell-accent);
+  /* --gold-50 etait un aplat clair : sur carte sombre il devient un voile. */
+  background: rgba(228, 190, 99, 0.14);  /* compose #3A3B52 sur --shell-raised */
+  color: var(--shell-accent);            /* 6.15 sur ce compose */
 }
 
 .add-audio-btn.uploading {
