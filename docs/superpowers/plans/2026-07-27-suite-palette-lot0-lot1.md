@@ -152,12 +152,26 @@ ouverte **côté temps réel** : `emitDonationNew` et `emitDonationUpdated` tran
 `Donation` complet, et **cinq pages publiques** écoutent `donation:new`. N'importe qui ouvrant
 l'écran public reçoit donc en direct les coordonnées de chaque donateur.
 
+Vérifié directement, pas sur rapport : `emitDonationNew` passe l'objet `donation` entier, et
+`grep -rl "donation:new" frontend/src/` renvoie **six fichiers d'affichage public** en plus de
+l'administration (`DisplayPage`, `DisplayPage8`, `DisplayHiddenPage`, `MenorahAscension`,
+`MenorahDisplay`, `DonorPlatesGrid`).
+
 Pré-existant, non introduit par le chantier en cours, mais de la même nature exactement que ce
-que le LOT 0a existait pour corriger. La correction n'est pas triviale : l'administration
-consomme le même événement et a besoin du payload complet. Deux voies, à trancher :
-émettre la projection publique sur la room de la soirée et laisser l'administration recharger par
-HTTP (simple, dégrade légèrement l'admin), ou émettre deux payloads — public sur `event:<id>`,
-complet sur une room d'administration, ce qui suppose l'authentification de la tranche 13.
+que le LOT 0a existait pour corriger.
+
+**Ce qui rend le correctif bon marché**, également vérifié : l'administration insère le payload
+du socket **directement** dans sa liste (`handleDonationNew`, `useDonations.ts:484-490`) — mais
+son handler effectue *déjà* un appel asynchrone juste après (`fetchPremiumWords()`,
+`AdminPanel.vue:105-108`). Émettre la projection publique sur la room et faire recharger
+l'administration par sa route authentifiée `?full=1` tient donc en quelques lignes, dans un
+handler qui fait déjà un aller-retour. La seule dégradation est que les coordonnées d'un don
+tout juste arrivé apparaissent au rechargement plutôt qu'à l'instant même.
+
+L'alternative — deux payloads, public sur `event:<id>` et complet sur une room
+d'administration — est plus propre mais suppose l'authentification de la tranche 13, donc
+elle reporte la fermeture de la fuite. Ce n'est pas le bon arbitrage pour une fuite de
+données personnelles déjà en production.
 
 ### Bloquant identifié sur les tranches 11-12 — le direct serait coupé
 
