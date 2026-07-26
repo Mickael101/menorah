@@ -2,6 +2,7 @@ import initSqlJs, { Database } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 import { databaseFilePath } from '../config/storage';
+import { runMigrations } from './migrations';
 
 const DB_PATH = databaseFilePath;
 
@@ -79,6 +80,10 @@ export async function initDatabase(): Promise<void> {
 
   // Insert default config if not exists
   db.run(`INSERT OR IGNORE INTO config (id) VALUES (1)`);
+
+  // Schema multi-evenements. Idempotent, et volontairement APRES la creation
+  // des tables historiques : il recopie `config` et rattache les dons.
+  runMigrations(db);
 
   // Save to file
   saveDatabase();

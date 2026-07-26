@@ -59,7 +59,7 @@ Un fichier = un commit = une relecture. Les cinq fichiers sont à styles `scoped
 
 ## Tranche 6 — Acter la décision sur `GET /api/donations` dans la spec
 
-- [ ] 6. Corriger §3.1, §3.5 et §6 de `specs/2026-07-26-fondation-multi-evenements-design.md` :
+- [x] 6. Corriger §3.1, §3.5 et §6 de `specs/2026-07-26-fondation-multi-evenements-design.md` :
       la projection publique est la décision, pas un manque. Corriger aussi la référence de ligne
       erronée du §3.2 (le point 2 visait `.curve-point-glow`, pas `.curve-area`).
 
@@ -103,4 +103,6 @@ Un fichier = un commit = une relecture. Les cinq fichiers sont à styles `scoped
 
 ## Journal
 
-_(vide — une ligne par commit, SHA copié depuis `git log`, jamais avant)_
+- `c01cd5b` — tranche 6. Spec corrigée : la projection publique de `GET /api/donations` est la
+  décision (5 écrans publics en dépendent, vérifié), le risque §6 est marqué réalisé, la
+  référence de ligne du §3.2 est corrigée. Plan et captures « avant » ajoutés. Aucun code touché.
