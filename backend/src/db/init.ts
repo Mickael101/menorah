@@ -19,6 +19,17 @@ export async function initDatabase(): Promise<void> {
     db = new SQL.Database();
   }
 
+  // SQLite desactive les cles etrangeres PAR DEFAUT, et par connexion. Sans
+  // cette ligne, les REFERENCES declarees dans le schema multi-evenements ne
+  // contraignent RIEN : `PRAGMA foreign_key_list(donations)` renvoyait une liste
+  // vide, et `media.event_id NOT NULL REFERENCES events(id)` avait l'air d'une
+  // garantie sans en etre une. Des trois etats possibles — contraintes reelles,
+  // contraintes retirees, contraintes decoratives — le dernier est le pire.
+  // Activer le pragma ne valide PAS les lignes existantes, seulement les
+  // ecritures a venir : l'activation est donc sans risque sur une base deja en
+  // service.
+  db.run('PRAGMA foreign_keys = ON');
+
   // Create donations table
   db.run(`
     CREATE TABLE IF NOT EXISTS donations (
@@ -105,5 +116,12 @@ export function saveDatabase(): void {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  fs.writeFileSync(DB_PATH, buffer);
+  // Ecriture ATOMIQUE. sql.js reecrit le fichier ENTIER a chaque sauvegarde, et
+  // c'est l'unique point d'ecriture de la base : une interruption au milieu d'un
+  // writeFileSync direct laissait un fichier tronque, c'est-a-dire la perte de
+  // tous les dons. Ecrire a cote puis renommer rend l'operation tout-ou-rien —
+  // un rename sur le meme systeme de fichiers est atomique.
+  const tmpPath = `${DB_PATH}.tmp`;
+  fs.writeFileSync(tmpPath, buffer);
+  fs.renameSync(tmpPath, DB_PATH);
 }

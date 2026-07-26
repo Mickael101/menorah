@@ -33,12 +33,59 @@ function tableExists(db: Database, table: string): boolean {
   return result.length > 0 && result[0].values.length > 0;
 }
 
-function scalar(db: Database, sql: string): unknown {
-  const result = db.exec(sql);
+function scalar(db: Database, sql: string, params: (string | number)[] = []): unknown {
+  const result = db.exec(sql, params);
   if (result.length === 0 || result[0].values.length === 0) {
     return null;
   }
   return result[0].values[0][0];
+}
+
+// Y a-t-il quelque chose a adopter ? Autrement dit : cette base a-t-elle deja
+// servi ? La reponse decide du NOM de la premiere soiree, et ce nom finit dans
+// une URL publique — une synagogue qui deploie l'application pour la premiere
+// fois ne doit pas heriter du slug du client fondateur.
+function hasLegacyData(db: Database): boolean {
+  if (tableExists(db, 'donations') && scalar(db, 'SELECT COUNT(*) FROM donations') !== 0) {
+    return true;
+  }
+  if (!tableExists(db, 'config')) {
+    return false;
+  }
+  // init.ts insere TOUJOURS une ligne config(id=1) avec ses valeurs par defaut,
+  // meme sur une base vierge : la presence de la ligne ne prouve donc rien, il
+  // faut regarder si elle a ete TOUCHEE.
+  const touched = scalar(
+    db,
+    `SELECT COUNT(*) FROM config
+      WHERE id = 1
+        AND (COALESCE(display_settings, '') NOT IN ('', '{}')
+          OR goal_amount <> 10000000
+          OR COALESCE(menorah_segments, '[]') <> '[]')`
+  );
+  return touched !== 0;
+}
+
+// La migration a-t-elle deja tourne sur cette base ? Sans cette question, une
+// soiree que l'organisateur a volontairement SUPPRIMEE ressuscite au
+// redemarrage suivant, avec son slug d'origine et le statut actif.
+function migrationAlreadyApplied(db: Database): boolean {
+  if (tableExists(db, 'event_configs') && scalar(db, 'SELECT COUNT(*) FROM event_configs') !== 0) {
+    return true;
+  }
+  return (
+    tableExists(db, 'donations') &&
+    hasColumn(db, 'donations', 'event_id') &&
+    scalar(db, 'SELECT COUNT(*) FROM donations WHERE event_id IS NOT NULL') !== 0
+  );
+}
+
+function mostRecentActiveEventId(db: Database): number | null {
+  const id = scalar(
+    db,
+    `SELECT id FROM events WHERE status = 'active' ORDER BY created_at DESC, id DESC LIMIT 1`
+  );
+  return typeof id === 'number' ? id : null;
 }
 
 export function runMigrations(db: Database): void {
@@ -129,6 +176,14 @@ function addEventIdToDonations(db: Database): void {
   if (!tableExists(db, 'donations') || hasColumn(db, 'donations', 'event_id')) {
     return;
   }
+  // DIVERGENCE ASSUMEE avec la spec §4.1, qui demande
+  // `event_id INTEGER NOT NULL REFERENCES events(id)`. SQLite refuse
+  // `ADD COLUMN NOT NULL` sans valeur par defaut, et ne sait pas ajouter une
+  // contrainte de cle etrangere a une table existante : les deux exigeraient de
+  // recreer la table et d'y recopier des dons reels, ce qui est un risque bien
+  // superieur au benefice. La colonne est donc nullable et sans REFERENCES ;
+  // l'integrite est tenue par attachOrphanDonations, qui rattrape a la fois les
+  // NULL et les identifiants qui ne pointent vers rien.
   db.run(`ALTER TABLE donations ADD COLUMN event_id INTEGER`);
 }
 
@@ -158,20 +213,72 @@ function legacyEventName(db: Database): string {
 }
 
 function seedFirstEvent(db: Database): void {
-  const existing = scalar(db, 'SELECT COUNT(*) FROM events');
-  if (existing === 0) {
-    db.run(
-      `INSERT INTO events (id, slug, name, status) VALUES (?, ?, ?, 'active')`,
-      [FIRST_EVENT_ID, FIRST_EVENT_SLUG, legacyEventName(db)]
-    );
+  const noEventYet = scalar(db, 'SELECT COUNT(*) FROM events') === 0;
+
+  if (noEventYet && !migrationAlreadyApplied(db)) {
+    const legacy = hasLegacyData(db);
+    db.run(`INSERT INTO events (id, slug, name, status) VALUES (?, ?, ?, 'active')`, [
+      FIRST_EVENT_ID,
+      legacy ? FIRST_EVENT_SLUG : freshInstallSlug(),
+      legacy ? legacyEventName(db) : freshInstallName()
+    ]);
   }
 
-  // Rattachement des dons orphelins. Volontairement dissocie de la creation :
-  // un don peut arriver sans event_id apres coup (ancienne route deployee en
-  // cohabitation), et cette ligne doit alors le rattraper au demarrage suivant.
-  if (tableExists(db, 'donations') && hasColumn(db, 'donations', 'event_id')) {
-    db.run(`UPDATE donations SET event_id = ? WHERE event_id IS NULL`, [FIRST_EVENT_ID]);
+  attachOrphanDonations(db);
+}
+
+// Rattachement des dons sans soiree valide. Volontairement dissocie de la
+// creation, et volontairement en DEUX cas :
+//   - event_id NULL : un don insere par une ancienne route deployee en
+//     cohabitation, que le demarrage suivant doit rattraper ;
+//   - event_id qui ne pointe vers RIEN : etat atteint des qu'une soiree est
+//     supprimee. C'est le plus dangereux des deux, parce que le don n'est ni
+//     NULL — donc jamais repris par un rattrapage naif — ni valide : il
+//     disparait de tous les ecrans, de tous les totaux et de tous les exports
+//     des que les routes filtrent par soiree.
+// On vise la soiree active la plus recente, jamais un identifiant en dur : le
+// numero 1 peut avoir ete supprime.
+function attachOrphanDonations(db: Database): void {
+  if (!tableExists(db, 'donations') || !hasColumn(db, 'donations', 'event_id')) {
+    return;
   }
+
+  const target = mostRecentActiveEventId(db);
+  if (target === null) {
+    // Aucune soiree active : rattacher a l'aveugle recreerait le probleme.
+    // Mieux vaut laisser l'anomalie visible que la deplacer.
+    const orphans = scalar(
+      db,
+      `SELECT COUNT(*) FROM donations d
+        WHERE d.event_id IS NULL
+           OR NOT EXISTS (SELECT 1 FROM events e WHERE e.id = d.event_id)`
+    );
+    if (orphans !== 0) {
+      console.warn(
+        `MIGRATION: ${orphans} don(s) sans soiree valide, et aucune soiree active pour les recevoir.`
+      );
+    }
+    return;
+  }
+
+  db.run(
+    `UPDATE donations SET event_id = ?
+      WHERE event_id IS NULL
+         OR NOT EXISTS (SELECT 1 FROM events e WHERE e.id = donations.event_id)`,
+    [target]
+  );
+}
+
+// Une installation neuve porte un nom neutre, surchargeable par l'environnement.
+// Le slug est visible dans l'URL publique /e/<slug>/... : y laisser la marque du
+// premier client serait un defaut de conception pour un produit destine a
+// plusieurs synagogues.
+function freshInstallSlug(): string {
+  return process.env.EVENT_DEFAULT_SLUG?.trim() || 'soiree-1';
+}
+
+function freshInstallName(): string {
+  return process.env.EVENT_DEFAULT_NAME?.trim() || 'Soiree 1';
 }
 
 // Recopie unique de l'ancien singleton vers la configuration de la soiree 1.
@@ -180,34 +287,85 @@ function seedFirstEvent(db: Database): void {
 // migration qui reecrirait a chaque demarrage reinitialiserait silencieusement
 // la configuration du client a chaque redemarrage du serveur.
 function copyLegacyConfig(db: Database): void {
-  const alreadyCopied = scalar(db, `SELECT COUNT(*) FROM event_configs WHERE event_id = ${FIRST_EVENT_ID}`);
-  if (alreadyCopied !== 0) {
+  // Pas de configuration pour une soiree qui n'existe pas. Sans cette garde, une
+  // soiree supprimee laissait derriere elle une ligne fantome que le rejeu
+  // recreait indefiniment.
+  const eventExists = scalar(db, 'SELECT COUNT(*) FROM events WHERE id = ?', [FIRST_EVENT_ID]);
+  if (eventExists === 0) {
     return;
   }
 
+  const alreadyCopied = scalar(db, 'SELECT COUNT(*) FROM event_configs WHERE event_id = ?', [
+    FIRST_EVENT_ID
+  ]) !== 0;
+
   if (!tableExists(db, 'config')) {
-    db.run(`INSERT INTO event_configs (event_id) VALUES (?)`, [FIRST_EVENT_ID]);
+    if (!alreadyCopied) {
+      db.run(`INSERT INTO event_configs (event_id) VALUES (?)`, [FIRST_EVENT_ID]);
+    }
     return;
   }
 
   const result = db.exec(
-    `SELECT goal_amount, preset_amounts, menorah_segments, display_settings FROM config WHERE id = 1`
+    `SELECT goal_amount, preset_amounts, menorah_segments, display_settings, updated_at
+       FROM config WHERE id = 1`
   );
   if (result.length === 0 || result[0].values.length === 0) {
-    db.run(`INSERT INTO event_configs (event_id) VALUES (?)`, [FIRST_EVENT_ID]);
+    if (!alreadyCopied) {
+      db.run(`INSERT INTO event_configs (event_id) VALUES (?)`, [FIRST_EVENT_ID]);
+    }
     return;
   }
 
-  const [goalAmount, presetAmounts, menorahSegments, displaySettings] = result[0].values[0];
+  const [goalAmount, presetAmounts, menorahSegments, displaySettings, legacyUpdatedAt] =
+    result[0].values[0];
+
+  // LA FENETRE. Entre le deploiement de cette migration et celui de la tranche
+  // qui bascule les ECRITURES vers event_configs, l'administration ecrit encore
+  // dans `config`. Une recopie strictement unique perdrait alors, au
+  // basculement et sans un mot, tout ce que le client a regle dans
+  // l'intervalle : objectif, segments, thème, marque.
+  // On rafraichit donc tant que l'ancienne table est PLUS RECENTE. C'est sûr
+  // precisement parce que rien n'ecrit encore event_configs : le jour ou elle
+  // devient la source ecrite, son updated_at depasse celui de config et le
+  // rafraichissement s'arrete de lui-meme, sans code a retirer.
+  if (alreadyCopied) {
+    const legacyIsNewer = scalar(
+      db,
+      `SELECT COUNT(*) FROM event_configs
+        WHERE event_id = ? AND COALESCE(?, '') > COALESCE(updated_at, '')`,
+      [FIRST_EVENT_ID, (legacyUpdatedAt as string) ?? '']
+    );
+    if (legacyIsNewer === 0) {
+      return;
+    }
+    db.run(
+      `UPDATE event_configs
+          SET goal_amount = ?, preset_amounts = ?, menorah_segments = ?, display_settings = ?,
+              updated_at = ?
+        WHERE event_id = ?`,
+      [
+        goalAmount as number,
+        presetAmounts as string,
+        menorahSegments as string,
+        displaySettings as string,
+        (legacyUpdatedAt as string) ?? '',
+        FIRST_EVENT_ID
+      ]
+    );
+    return;
+  }
+
   db.run(
-    `INSERT INTO event_configs (event_id, goal_amount, preset_amounts, menorah_segments, display_settings)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO event_configs (event_id, goal_amount, preset_amounts, menorah_segments, display_settings, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
     [
       FIRST_EVENT_ID,
       goalAmount as number,
       presetAmounts as string,
       menorahSegments as string,
-      displaySettings as string
+      displaySettings as string,
+      (legacyUpdatedAt as string) ?? ''
     ]
   );
 }
