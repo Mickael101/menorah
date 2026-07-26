@@ -12,15 +12,35 @@ const props = withDefaults(defineProps<{
 
 // Données gérées par le parent (DisplayPage) via useDonations
 const { donations } = useDonations();
-const { on } = useSocket();
+const { on, off } = useSocket();
+
+const SCROLL_SPEED_PX_PER_SECOND = 30;
+const SHUTTLE_PAUSE_SECONDS = 2;
 
 const gridRef = ref<HTMLDivElement | null>(null);
 const newDonationIds = ref<Set<number>>(new Set());
 const isPaused = ref(false);
+// Décalage vertical du carrousel, en pixels. Piloté par transform (non borné,
+// composé sur le GPU) et non par scrollTop, qui sature à scrollHeight - clientHeight.
+const scrollOffset = ref(0);
 let animationFrameId: number | null = null;
 let resumeTimeoutId: number | null = null;
+// Le démarrage différé doit être annulable : sans cela, démonter le composant dans
+// les deux secondes (navigation entre /display, /display-light et /display-hidden,
+// qui montent tous trois ce composant) laisse le timeout survivre a
+// stopAutoScroll(), relancer la boucle, et plus rien ne peut l'annuler.
+let startTimeoutId: number | null = null;
 let lastTime = 0;
+// Sens et pause de la navette utilisee quand le contenu depasse de moins d'une rangee.
+let shuttleDirection: 1 | -1 = 1;
+let shuttlePauseRemaining = 0;
 const newDonationTimers = new Map<number, number>();
+
+const platesTransform = computed(() => `translateY(${-scrollOffset.value}px)`);
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 
 // Rotation order - IDs in display order (first element shown first)
 const rotationOrder = ref<number[]>([]);
@@ -64,45 +84,101 @@ function rotateFirst(): void {
   rotationOrder.value.push(...firstRow);
 }
 
+// Hauteur réellement visible du mur : sa boîte de contenu, padding exclu.
+function getVisibleHeight(wall: HTMLElement): number {
+  const style = getComputedStyle(wall);
+  const padding = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom);
+  return wall.clientHeight - padding;
+}
+
+// Hauteur d'une rangée : une plaque plus sa gouttière (une rangée = 2 plaques en spotlight).
+function getRowHeight(grid: HTMLElement, firstPlate: HTMLElement): number {
+  const rowGap = Number.parseFloat(getComputedStyle(grid).rowGap) || 0;
+  return firstPlate.offsetHeight + rowGap;
+}
+
 // Infinite scroll with element rotation
 function infiniteScroll(currentTime: number): void {
-  if (!gridRef.value || isPaused.value) {
-    lastTime = currentTime;
-    animationFrameId = requestAnimationFrame(infiniteScroll);
-    return;
-  }
+  animationFrameId = requestAnimationFrame(infiniteScroll);
 
-  const el = gridRef.value;
-  const firstPlate = el.querySelector('.plaque') as HTMLElement;
-
-  if (!firstPlate || displayDonations.value.length <= 1) {
-    animationFrameId = requestAnimationFrame(infiniteScroll);
-    return;
-  }
-
-  // Calculate time-based scroll
   const deltaTime = lastTime ? (currentTime - lastTime) / 1000 : 0;
   lastTime = currentTime;
 
-  const scrollSpeed = 30; // pixels per second
-  const scrollDelta = scrollSpeed * deltaTime;
+  const wall = gridRef.value;
+  const grid = wall?.querySelector('.plates-grid') as HTMLElement | null;
+  const firstPlate = grid?.querySelector('.plaque') as HTMLElement | null;
 
-  el.scrollTop += scrollDelta;
-
-  // When first element is fully scrolled out, rotate it to end and reset scroll
-  const grid = el.querySelector('.plates-grid') as HTMLElement | null;
-  const rowGap = grid ? Number.parseFloat(getComputedStyle(grid).rowGap) || 10 : 10;
-  const firstPlateHeight = firstPlate.offsetHeight + rowGap;
-  if (el.scrollTop >= firstPlateHeight) {
-    rotateFirst();
-    el.scrollTop = el.scrollTop - firstPlateHeight;
+  // Plus rien à faire tourner : le décalage doit REVENIR à zéro, pas rester figé.
+  // Contrairement à scrollTop, que le navigateur re-borne quand le contenu rétrécit,
+  // un transform garde sa valeur : sans cette remise à zéro, supprimer des dons en
+  // fin de soirée laisserait l'unique plaque restante translatée vers le haut et
+  // rognée, avec un vide équivalent en bas, sans autocorrection.
+  if (!wall || !grid || !firstPlate || displayDonations.value.length <= 1) {
+    scrollOffset.value = 0;
+    return;
   }
 
-  animationFrameId = requestAnimationFrame(infiniteScroll);
+  // La pause, elle, doit CONSERVER le décalage : on reprend où on s'était arrêté.
+  if (isPaused.value) return;
+
+  const rowHeight = getRowHeight(grid, firstPlate);
+  // offsetHeight ignore le transform : c'est bien la hauteur de mise en page du contenu.
+  const hiddenHeight = grid.offsetHeight - getVisibleHeight(wall);
+
+  // Tout tient à l'écran : rien ne bouge, rien n'est rogné.
+  if (hiddenHeight <= 0) {
+    scrollOffset.value = 0;
+    return;
+  }
+
+  // BANDE MARGINALE : le contenu dépasse, mais de moins d'une rangée entière.
+  // Ne rien faire ici recréerait le défaut même que cette tranche corrige, déplacé
+  // de la première plaque vers la DERNIÈRE — mesuré à 13,5 px de rognage permanent
+  // en 1440x720 avec cinq dons, et jusqu'à 39,6 px en une colonne. Et faire tourner
+  // la rotation découvrirait un vide en bas.
+  // La navette résout les deux : le décalage oscille entre 0 et hiddenHeight, donc il
+  // n'expose jamais de vide, ne fait sortir aucune rangée (aucune rotation nécessaire),
+  // et chaque plaque redevient périodiquement entièrement visible.
+  if (hiddenHeight < rowHeight) {
+    shuttleScroll(hiddenHeight, deltaTime);
+    return;
+  }
+
+  shuttleDirection = 1;
+  shuttlePauseRemaining = 0;
+  scrollOffset.value += SCROLL_SPEED_PX_PER_SECOND * deltaTime;
+
+  // Première rangée entièrement sortie par le haut : elle repart à la fin et le
+  // décalage revient à zéro dans le même frame, donc sans saut visible.
+  if (scrollOffset.value >= rowHeight) {
+    rotateFirst();
+    scrollOffset.value -= rowHeight;
+  }
+}
+
+// Va-et-vient entre 0 et `travel`, avec une pause à chaque extrémité pour laisser
+// le temps de lire les noms des deux bouts.
+function shuttleScroll(travel: number, deltaTime: number): void {
+  if (shuttlePauseRemaining > 0) {
+    shuttlePauseRemaining -= deltaTime;
+    return;
+  }
+
+  scrollOffset.value += SCROLL_SPEED_PX_PER_SECOND * deltaTime * shuttleDirection;
+
+  if (scrollOffset.value >= travel) {
+    scrollOffset.value = travel;
+    shuttleDirection = -1;
+    shuttlePauseRemaining = SHUTTLE_PAUSE_SECONDS;
+  } else if (scrollOffset.value <= 0) {
+    scrollOffset.value = 0;
+    shuttleDirection = 1;
+    shuttlePauseRemaining = SHUTTLE_PAUSE_SECONDS;
+  }
 }
 
 function startAutoScroll(): void {
-  if (animationFrameId) return;
+  if (animationFrameId || prefersReducedMotion()) return;
   lastTime = 0;
   animationFrameId = requestAnimationFrame(infiniteScroll);
 }
@@ -127,43 +203,52 @@ function pauseScroll(duration: number): void {
   }, duration);
 }
 
+// Handler nomme pour pouvoir le retirer au demontage : sans cela il s'accumule a
+// chaque remontage du composant, et un affichage kiosque qui enchaine les vues
+// pendant des heures finit avec autant de handlers que de navigations.
+function handleNewDonation(data: any): void {
+  const donationId = data.donation.id as number;
+  newDonationIds.value.add(donationId);
+
+  // Keep the latest donation visible immediately before it joins the carousel.
+  rotationOrder.value = [
+    donationId,
+    ...rotationOrder.value.filter(id => id !== donationId)
+  ];
+
+  // Pause scroll and go to top for new donation
+  pauseScroll(5000);
+  scrollOffset.value = 0;
+
+  const previousTimer = newDonationTimers.get(donationId);
+  if (previousTimer !== undefined) {
+    window.clearTimeout(previousTimer);
+  }
+
+  const timerId = window.setTimeout(() => {
+    newDonationIds.value.delete(donationId);
+    newDonationTimers.delete(donationId);
+  }, 5000);
+  newDonationTimers.set(donationId, timerId);
+}
+
 // Écoute les événements uniquement pour l'animation des nouveaux dons
 onMounted(() => {
-  on('donation:new', (data: any) => {
-    const donationId = data.donation.id as number;
-    newDonationIds.value.add(donationId);
-
-    // Keep the latest donation visible immediately before it joins the carousel.
-    rotationOrder.value = [
-      donationId,
-      ...rotationOrder.value.filter(id => id !== donationId)
-    ];
-
-    // Pause scroll and go to top for new donation
-    pauseScroll(5000);
-    if (gridRef.value) {
-      gridRef.value.scrollTop = 0;
-    }
-
-    const previousTimer = newDonationTimers.get(donationId);
-    if (previousTimer !== undefined) {
-      window.clearTimeout(previousTimer);
-    }
-
-    const timerId = window.setTimeout(() => {
-      newDonationIds.value.delete(donationId);
-      newDonationTimers.delete(donationId);
-    }, 5000);
-    newDonationTimers.set(donationId, timerId);
-  });
+  on('donation:new', handleNewDonation);
 
   // Start auto-scroll after a delay
-  setTimeout(() => {
+  startTimeoutId = window.setTimeout(() => {
+    startTimeoutId = null;
     startAutoScroll();
   }, 2000);
 });
 
 onUnmounted(() => {
+  off('donation:new', handleNewDonation);
+  if (startTimeoutId !== null) {
+    window.clearTimeout(startTimeoutId);
+    startTimeoutId = null;
+  }
   stopAutoScroll();
   if (resumeTimeoutId !== null) {
     window.clearTimeout(resumeTimeoutId);
@@ -189,8 +274,10 @@ function isNewDonation(id: number): boolean {
         :class="{
           spotlight: props.spotlight,
           few: props.spotlight && displayDonations.length <= 4,
-          single: props.spotlight && displayDonations.length === 1
+          single: props.spotlight && displayDonations.length === 1,
+          'is-scrolling': scrollOffset > 0
         }"
+        :style="{ transform: platesTransform }"
       >
         <DonorPlate
           v-for="donation in displayDonations"
@@ -223,20 +310,13 @@ function isNewDonation(id: number): boolean {
 
 .donor-wall {
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
+  /* Le défilement est piloté par transform sur .plates-grid : le mur ne fait que rogner. */
+  overflow: hidden;
   padding: 8px;
   padding-bottom: 20px;
   max-height: 100%;
   min-height: 100px;
   box-sizing: border-box;
-  /* Hide scrollbar for cleaner look with auto-scroll */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.donor-wall::-webkit-scrollbar {
-  display: none;
 }
 
 /* Une plaque par ligne - pleine largeur */
@@ -245,6 +325,25 @@ function isNewDonation(id: number): boolean {
   flex-direction: column;
   gap: 10px;
   width: 100%;
+}
+
+/* will-change n'est pose que pendant le mouvement. En permanence, il reserve une
+   couche de composition et de la memoire GPU meme sur les affichages ou le
+   carrousel ne bougera jamais — le cas majoritaire, puisque cinq dons tiennent a
+   l'ecran a toutes les resolutions TV usuelles. */
+.plates-grid.is-scrolling {
+  will-change: transform;
+}
+
+/* Mouvement reduit demande : le defilement automatique s'arrete, il faut donc
+   rendre le defilement MANUEL. Sans cela, les plaques hors champ deviennent
+   definitivement inaccessibles — mesure : 1153 px de contenu invisible sur 1466.
+   Aucun conflit avec le transform : dans ce mode le decalage reste nul par
+   construction, startAutoScroll() sortant avant le premier frame. */
+@media (prefers-reduced-motion: reduce) {
+  .donor-wall {
+    overflow-y: auto;
+  }
 }
 
 .plates-grid :deep(.plaque) {
