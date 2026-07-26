@@ -515,11 +515,22 @@ input:focus {
   box-shadow: 0 0 0 4px rgba(228, 190, 99, 0.12);
 }
 
+/* Le nombre de montants est editable par l'admin, donc inconnu ici. Avec
+   repeat(auto-fit, minmax(90px, 1fr)) le nombre de colonnes dependait de la
+   largeur : 5 colonnes a 560 px, 4 vers 480 px, 3 sur mobile. Tout compte de
+   montants valant "colonnes + 1" laissait alors un montant seul sur sa ligne
+   (6 montants sur 5 colonnes, 5 sur 4, 4 sur 3). On fixe donc le nombre de
+   colonnes, et la regle :last-child ci-dessous fait occuper toute la ligne au
+   dernier montant s'il s'y retrouve seul — quel que soit le nombre de montants. */
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.preset-grid > .preset:last-child:nth-child(3n + 1) {
+  grid-column: 1 / -1;
 }
 
 .preset {
@@ -717,6 +728,20 @@ input:focus {
   .field-row {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+
+  /* Deux colonnes sur mobile : meme garantie, un dernier montant impair
+     occupe toute la ligne au lieu de rester seul dans sa colonne. */
+  .preset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .preset-grid > .preset:last-child:nth-child(3n + 1) {
+    grid-column: auto;
+  }
+
+  .preset-grid > .preset:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .org-name {

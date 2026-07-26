@@ -835,11 +835,20 @@ label svg {
 }
 
 /* Preset Amounts */
+/* Meme defaut d'orphelin que la grille de la page /don, et meme correctif : le
+   nombre de montants est editable par l'admin, donc inconnu ici. Tout compte
+   valant « colonnes + 1 » laissait un montant seul sur sa ligne (6 sur 5
+   colonnes, 4 sur 3 en mobile). La regle :last-child fait occuper toute la
+   ligne au dernier montant s'il s'y retrouve seul, quel que soit leur nombre. */
 .preset-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 7px;
   margin-bottom: 16px;
+}
+
+.preset-grid > .preset-btn:last-child:nth-child(5n + 1) {
+  grid-column: 1 / -1;
 }
 
 .preset-btn {
@@ -1211,7 +1220,15 @@ label svg {
   }
 
   .preset-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .preset-grid > .preset-btn:last-child:nth-child(5n + 1) {
+    grid-column: auto;
+  }
+
+  .preset-grid > .preset-btn:last-child:nth-child(3n + 1) {
+    grid-column: 1 / -1;
   }
 
   .premium-grid {

@@ -48,13 +48,74 @@ function animateCounter(target: number): void {
 watch(() => stats.value.totalAmount, animateCounter, { immediate: true });
 watch(() => stats.value.percentComplete, (v) => { displayPercent.value = v; }, { immediate: true });
 
+// La courbe est dessinee en pixels CSS : le viewBox suit la taille reelle du SVG,
+// donc l'echelle vaut 1 sur les deux axes. Avec un viewBox fixe de 640x88 etire par
+// preserveAspectRatio="none", scaleY/scaleX tombait a 0,38 dans une boite large et
+// basse : la courbe etait ecrasee verticalement et le point d'arrivee, un cercle,
+// se rendait en ovale. En 1:1 les longueurs du style (stroke-width, dasharray,
+// rayons) valent aussi exactement ce qu'elles annoncent.
+//
+// Ce bloc est declare AVANT onMounted / onUnmounted, qui l'utilisent. L'ordre
+// inverse fonctionnait — les hooks ne s'executent qu'apres la fin de setup —
+// mais tout appel remonte dans le corps synchrone aurait leve un ReferenceError
+// sur `chartResizeObserver` (temporal dead zone du `let`).
+const chartEl = ref<SVGSVGElement | null>(null);
+const chartWidth = ref(640);
+const chartHeight = ref(88);
+const isResizing = ref(false);
+let chartResizeObserver: ResizeObserver | null = null;
+let resizeSettleFrame: number | null = null;
+
+function measureChart(): void {
+  const el = chartEl.value;
+  if (!el) return;
+  const { width, height } = el.getBoundingClientRect();
+  if (width <= 0 || height <= 0) return;
+  if (width === chartWidth.value && height === chartHeight.value) return;
+
+  // Le `d` de la courbe est derive de la boite mesuree, et il est en transition
+  // sur 700 ms. Sans cette suspension, un redimensionnement fait glisser la
+  // courbe vers sa nouvelle geometrie pendant que les paliers en pointilles,
+  // eux, sautent tout de suite : mesure 1440x900 -> 700x700, jusqu'a 9,2 px
+  // d'ecart vertical entre le depart de la courbe et sa ligne de zero, et
+  // 118 px d'ecart horizontal sur le point d'arrivee, pendant ~490 ms.
+  // La classe et le nouveau `d` sont poses dans le meme patch DOM ; deux frames
+  // plus tard le trace est peint a sa place et la transition peut reprendre.
+  isResizing.value = true;
+  chartWidth.value = width;
+  chartHeight.value = height;
+  if (resizeSettleFrame !== null) cancelAnimationFrame(resizeSettleFrame);
+  resizeSettleFrame = requestAnimationFrame(() => {
+    resizeSettleFrame = requestAnimationFrame(() => {
+      resizeSettleFrame = null;
+      isResizing.value = false;
+    });
+  });
+}
+
 onMounted(() => {
   displayValue.value = stats.value.totalAmount;
   displayPercent.value = stats.value.percentComplete;
+  measureChart();
+  if (chartEl.value) {
+    chartResizeObserver = new ResizeObserver(measureChart);
+    chartResizeObserver.observe(chartEl.value);
+  }
+  // Ceinture et bretelles : le rendu depend maintenant d'une mesure JS. Si le
+  // ResizeObserver ne se declenche pas, le viewBox reste sur l'ancienne taille
+  // et tout le graphique est redessine en letterbox (preserveAspectRatio vaut
+  // xMidYMid meet par defaut). Ce rappel ne coute rien et fait tomber le mode
+  // de degradation sur « rien ne bouge » plutot que « tout retrecit ».
+  window.addEventListener('resize', measureChart);
 });
 
 onUnmounted(() => {
   if (animationFrame) cancelAnimationFrame(animationFrame);
+  if (resizeSettleFrame !== null) cancelAnimationFrame(resizeSettleFrame);
+  resizeSettleFrame = null;
+  chartResizeObserver?.disconnect();
+  chartResizeObserver = null;
+  window.removeEventListener('resize', measureChart);
 });
 
 function formatNumber(cents: number): string {
@@ -62,25 +123,82 @@ function formatNumber(cents: number): string {
 }
 
 const normalizedProgress = computed(() => Math.max(0, Math.min(displayPercent.value, 100)) / 100);
-const curveEnd = computed(() => {
-  const progress = normalizedProgress.value;
+
+const CURVE_INSET = 14; // marge laterale, en pixels
+const CURVE_HEADROOM = 8; // marge haute et basse, pour le point d'arrivee et son halo
+
+const chartViewBox = computed(() => `0 0 ${chartWidth.value} ${chartHeight.value}`);
+
+const curveGeometry = computed(() => {
+  const left = CURVE_INSET;
+  const right = Math.max(left + 1, chartWidth.value - CURVE_INSET);
+  const topY = CURVE_HEADROOM;
+  const baseY = Math.max(topY + 1, chartHeight.value - CURVE_HEADROOM);
   return {
-    x: 14 + (612 * progress),
-    y: 70 - (52 * progress)
+    left,
+    right,
+    topY, // niveau atteint a 100%
+    baseY, // ligne de zero
+    midY: (topY + baseY) / 2, // palier intermediaire
+    areaY: chartHeight.value - 2, // base de l'aplat, juste sous la ligne de zero
+    span: right - left,
+    rise: baseY - topY
   };
 });
-const curvePath = computed(() => {
-  const delta = curveEnd.value.x - 14;
-  return `M 14 70 C ${14 + delta * 0.28} 66, ${14 + delta * 0.66} ${curveEnd.value.y + 10}, ${curveEnd.value.x} ${curveEnd.value.y}`;
+
+const curveEnd = computed(() => {
+  const { left, baseY, span, rise } = curveGeometry.value;
+  const progress = normalizedProgress.value;
+  return {
+    x: left + span * progress,
+    y: baseY - rise * progress
+  };
 });
-const curveAreaPath = computed(() => `${curvePath.value} L ${curveEnd.value.x} 76 L 14 76 Z`);
+// A l'ecran ce trace se lit comme un trait droit, a tout avancement, et le
+// passage du viewBox en 1:1 n'y a rien change. Mesure du 2026-07-27, boite
+// 1229 x 64,8 px (rapport 18,97:1) ; fleche = ecart maximal a la corde :
+//     10 %   corde  120 px   fleche 2,88 px   2,40 % de la corde
+//     23,7 % corde  285 px   fleche 2,23 px   0,78 %   <- avancement reel
+//     60 %   corde  721 px   fleche 1,76 px   0,24 %
+//     100 %  corde 1202 px   fleche 3,10 px   0,26 %
+// La fleche ne depasse jamais ~3 px sur toute la plage. C'est la boite qui est
+// plate, pas les coefficients ci-dessous. Ne PAS ouvrir leur amplitude pour
+// compenser : la donnee sous-jacente est une valeur unique, pas une serie
+// temporelle. Une courbe promet deja un historique qui n'existe pas ; la bomber
+// rendrait ce mensonge plus lisible, pas moins. La vraie reponse est le
+// remplacement par une barre de progression remplie, prevu en tranche ulterieure.
+const curvePath = computed(() => {
+  const { left, baseY, rise } = curveGeometry.value;
+  const end = curveEnd.value;
+  const delta = end.x - left;
+  const startControlY = baseY - rise * 0.08; // depart presque plat
+  const endControlY = end.y + rise * 0.19; // redressement avant le point : ~2 a 3 px, voir ci-dessus
+  return `M ${left} ${baseY} C ${left + delta * 0.28} ${startControlY}, ${left + delta * 0.66} ${endControlY}, ${end.x} ${end.y}`;
+});
+const curveAreaPath = computed(() => {
+  const { left, areaY } = curveGeometry.value;
+  return `${curvePath.value} L ${curveEnd.value.x} ${areaY} L ${left} ${areaY} Z`;
+});
+const baseGuidePath = computed(() => {
+  const { left, right, baseY } = curveGeometry.value;
+  return `M ${left} ${baseY} H ${right}`;
+});
+const midGuidePath = computed(() => {
+  const { left, right, midY } = curveGeometry.value;
+  return `M ${left} ${midY} H ${right}`;
+});
 const curveAriaLabel = computed(() => (
   `${displayPercent.value.toFixed(1)}% — ${displayTexts.value.goalLabel} ${formatAmount(config.value.goalAmount)}`
 ));
 </script>
 
 <template>
-  <div class="stats-compact" :style="statsStyles" :dir="textDirection">
+  <div
+    class="stats-compact"
+    :class="{ 'is-measuring': isResizing }"
+    :style="statsStyles"
+    :dir="textDirection"
+  >
     <!-- Main amount -->
     <div class="main-row">
       <div class="amount-block">
@@ -95,9 +213,9 @@ const curveAriaLabel = computed(() => (
     <!-- Goal curve -->
     <div class="goal-curve">
       <svg
+        ref="chartEl"
         class="curve-chart"
-        viewBox="0 0 640 88"
-        preserveAspectRatio="none"
+        :viewBox="chartViewBox"
         role="img"
         :aria-label="curveAriaLabel"
       >
@@ -106,18 +224,52 @@ const curveAriaLabel = computed(() => (
             <stop offset="0" stop-color="var(--chart-secondary-color)" />
             <stop offset="1" stop-color="var(--chart-primary-color)" />
           </linearGradient>
-          <linearGradient id="goalCurveArea" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="var(--chart-primary-color)" stop-opacity="0.28" />
-            <stop offset="1" stop-color="var(--chart-primary-color)" stop-opacity="0" />
+          <!-- Aplat sous la courbe. Reste en objectBoundingBox — un ancrage sur
+               la BOITE du graphique a ete essaye, MESURE, puis abandonne.
+               Mesure au pixel le 2026-07-27, theme Ivoire clair (#B08328),
+               1440x900, avancement reel 23,7 %, temoin exact = meme capture avec
+               .curve-area masque, donc sans confondant : l'ancrage sur la boite
+               PALIT l'aplat, de 1,46:1 a 1,18:1 au maximum et de 1,27:1 a 1,12:1
+               juste sous le trait. C'est structurel et non reglable : ancre sur
+               la boite, le stop le plus dense n'est atteint QUE lorsque la courbe
+               atteint le haut, c'est-a-dire a 100 % ; retrouver la densite
+               actuelle a 23,7 % demanderait un stop a 1,43, qui n'existe pas.
+               Ce qu'on renonce a corriger, en connaissance de cause : en
+               objectBoundingBox le degrade s'etire avec la bbox du trace, donc
+               l'aplat palit a mesure que la collecte monte (alpha 0,21 a 23,7 %,
+               0,13 a 80 % — calcule, non mesure). On prefere l'etat le meilleur
+               la ou l'application se trouve reellement.
+               Aucune des deux options ne rend l'aplat franchement lisible : la
+               vraie reponse est le remplacement par une barre remplie. -->
+          <linearGradient
+            id="goalCurveArea"
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
+          >
+            <stop offset="0" stop-color="var(--chart-primary-color)" stop-opacity="0.55" />
+            <stop offset="1" stop-color="var(--chart-primary-color)" stop-opacity="0.08" />
           </linearGradient>
         </defs>
-        <path class="curve-guide" d="M 14 70 H 626" />
-        <path class="curve-guide curve-guide-mid" d="M 14 44 H 626" />
+        <path class="curve-guide" :d="baseGuidePath" />
+        <path class="curve-guide curve-guide-mid" :d="midGuidePath" />
         <path class="curve-area" :d="curveAreaPath" />
         <path class="curve-line" :d="curvePath" />
         <circle class="curve-point-glow" :cx="curveEnd.x" :cy="curveEnd.y" r="8" />
         <circle class="curve-point" :cx="curveEnd.x" :cy="curveEnd.y" r="4" />
-        <line class="goal-marker" x1="626" y1="12" x2="626" y2="76" />
+        <!-- Le marqueur s'arrete a la ligne de zero, pas a la base de l'aplat :
+             areaY vaut chartHeight - 2 et .curve-labels remonte de 5 px, ce qui
+             faisait mordre le marqueur de 3 px sur l'etiquette de l'objectif.
+             topY -> baseY, c'est aussi exactement la montee que le marqueur
+             represente. -->
+        <line
+          class="goal-marker"
+          :x1="curveGeometry.right"
+          :y1="curveGeometry.topY"
+          :x2="curveGeometry.right"
+          :y2="curveGeometry.baseY"
+        />
       </svg>
       <div class="curve-labels">
         <span>0 ₪</span>
@@ -247,6 +399,26 @@ const curveAriaLabel = computed(() => (
   stroke: color-mix(in srgb, var(--chart-primary-color) 48%, transparent);
   stroke-width: 2;
   stroke-dasharray: 3 5;
+}
+
+/* Pendant une remesure de la boite (voir measureChart) : la courbe doit sauter
+   avec les paliers en pointilles, qui n'ont aucune transition. */
+.stats-compact.is-measuring .curve-area,
+.stats-compact.is-measuring .curve-line,
+.stats-compact.is-measuring .curve-point-glow,
+.stats-compact.is-measuring .curve-point {
+  transition: none;
+}
+
+/* Le `d` de la courbe suit desormais une mesure JS : chaque redimensionnement
+   est devenu un declencheur de mouvement qui n'existait pas avant. */
+@media (prefers-reduced-motion: reduce) {
+  .curve-area,
+  .curve-line,
+  .curve-point-glow,
+  .curve-point {
+    transition: none;
+  }
 }
 
 .curve-labels {
