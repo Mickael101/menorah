@@ -5,10 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/assets/menorah.svg" />
     <title>OROT NETANEL</title>
-    <!-- Polices Google pour les plaques dorées -->
+    <!-- Polices reellement utilisees, chargees en une seule requete.
+         Inter et Poppins etaient importees depuis global.css par @import, ce qui
+         serialise le telechargement (le navigateur doit d'abord recevoir et
+         parser global.css avant de decouvrir l'URL des polices) : elles sont
+         donc declarees ici.
+         Heebo couvre l'hebreu (U+0590-05FF), le shekel (U+20AA), le latin et
+         les chiffres ; Inter et Poppins n'ont aucune couverture hebraique.
+         Heebo est une police variable : `400..900` = un seul fichier par
+         sous-ensemble, et les pages publiques vont jusqu'a 900. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400..900&family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
       * {
         margin: 0;

@@ -712,6 +712,22 @@ function toggleFullscreen(): void {
   text-shadow: 0 0 28px color-mix(in srgb, var(--header-text-color) 28%, transparent);
 }
 
+/* L'hebreu ne s'espace pas comme le latin : les 3 a 8 px de tracking de ces
+   titres, legitimes en capitales latines, collent la lecture en hebreu — 6,48 px
+   mesures sur cet ecran. Neutralise a la source plutot que par une regle globale,
+   pour ne pas annuler du tracking latin legitime ailleurs.
+   :dir(rtl) et non [dir='rtl'] : la premiere matche la directionnalite RESOLUE,
+   donc aussi dir="auto" sur du contenu hebreu — qui est la configuration LIVREE
+   PAR DEFAUT (textDirection vaut 'auto'). Avec [dir='rtl'] la regle ne se serait
+   jamais declenchee sans intervention manuelle d'un administrateur. */
+.gala-title:dir(rtl),
+.gala-org:dir(rtl),
+.section-kicker:dir(rtl),
+.section-title:dir(rtl),
+.donor-count:dir(rtl) {
+  letter-spacing: normal;
+}
+
 /* The campaign visual is optional and deliberately secondary. */
 .display-grid {
   display: grid;

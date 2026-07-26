@@ -1,5 +1,6 @@
-/* Import Google Fonts - Must be first */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap');
+/* Les familles Inter, Poppins et Heebo sont chargees par le <link> unique de
+   frontend/index.html. Ne PAS les reimporter ici : un @import CSS serialise les
+   telechargements au lieu de les paralleliser. */
 
 /* ===========================================
    OHEL YEOCHOUA - Design System
@@ -158,8 +159,22 @@
   --transition-slow: 300ms ease;
 
   /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Le public de cette application est hebraophone, et ni Inter ni Poppins n'a
+     UN SEUL glyphe hebreu : l'hebreu tombait donc sur un repli systeme.
+     Heebo est placee DANS les piles, juste apres la police latine. Le repli de
+     police en CSS se fait GLYPHE PAR GLYPHE : le latin garde Inter ou Poppins,
+     et chaque caractere hebreu, absent de celles-ci, descend sur Heebo. Aucune
+     regle directionnelle n'est necessaire, et c'est ce qui rend le correctif
+     robuste : il fonctionne quelle que soit la valeur de textDirection, y
+     compris sur un bloc MIXTE (« 5 תרומות », « 1 800 ₪ ») ou la direction
+     resolue est latine alors que le libelle est hebreu. */
+  --font-sans: 'Inter', 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Pas de 'Heebo' explicite ici : var(--font-sans) l'apporte deja, et le
+     repeter le faisait apparaitre deux fois dans la pile resolue. */
   --font-display: 'Poppins', var(--font-sans);
+  /* Pile hebreu-d'abord, pour un bloc dont on sait qu'il est integralement en
+     hebreu et ou l'on veut l'unite typographique plutot que le repli. */
+  --font-he: 'Heebo', var(--font-sans);
 }
 
 /* Reset & Base */
@@ -190,6 +205,41 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.25;
   margin: 0;
 }
+
+/* ===========================================
+   HEBREU / RTL — ce qu'il ne faut PAS faire ici, et pourquoi
+
+   Une premiere version posait
+     [dir='rtl'], [dir='rtl'] *, :lang(he), :lang(he) * {
+       font-family: var(--font-he) !important; letter-spacing: normal !important;
+     }
+   Elle a ete retiree apres mesure. Deux raisons, toutes deux verifiees au
+   navigateur :
+
+   1. ELLE NE S'APPLIQUAIT PRESQUE JAMAIS. La valeur livree par defaut de
+      displaySettings.textDirection est 'auto', pas 'rtl', et aucune page
+      publique ne pose lang="he". Le selecteur ne matchait donc rien dans la
+      configuration par defaut : les cinq faces Heebo restaient en status
+      'unloaded' et l'hebreu conservait 6.48 px de tracking latin. Le correctif
+      n'aurait pris effet que si un administrateur basculait manuellement le
+      reglage — autrement dit jamais.
+
+   2. ELLE REPEIGNAIT DU LATIN. Le « * » plus le « !important » atteignaient tout
+      contenu latin place sous un ancetre dir="rtl", y compris dans des ecrans
+      francais : le libelle « Hebreu (droite -> gauche) » du selecteur de
+      direction, les libelles francais de la carte de marque hebreu, et le
+      logotype latin de la page /don dans son etat par defaut. Ils annulaient
+      aussi des intentions deliberees, dont le tracking reduit de l'animation de
+      plaque et la chasse fixe de la saisie hexadecimale.
+
+   La couverture de l'hebreu est desormais assuree par les PILES DE POLICES
+   (voir --font-sans et --font-display ci-dessus) : le repli se fait glyphe par
+   glyphe, sans ecraser personne et sans dependre de la direction.
+
+   Le letter-spacing, lui, est traite a la SOURCE, dans les seuls titres qui en
+   portent, avec :dir(rtl) — qui matche la directionnalite RESOLUE, donc aussi
+   dir="auto" sur du contenu hebreu, ce que [dir='rtl'] ne faisait pas.
+   =========================================== */
 
 /* Animations */
 @keyframes fadeIn {

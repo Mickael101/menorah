@@ -13,6 +13,12 @@ import {
   type DisplayVisualMode
 } from '../composables/useDonations';
 
+// 'Heebo' figure dans CHAQUE pile de polices, juste apres la police latine du
+// theme. Le repli CSS se fait glyphe par glyphe : le latin garde la police du
+// theme, et chaque caractere hebreu — absent d'Inter, de Poppins et de Georgia —
+// descend sur Heebo au lieu de tomber sur un repli systeme. Ne pas retirer sans
+// verifier /display avec des noms de donateurs hebreux : ce sont eux, et non les
+// titres, qui constituent le contenu principal de l'ecran.
 export interface DisplayThemeDefinition {
   id: DisplayThemeId;
   name: string;
@@ -42,8 +48,8 @@ export const DISPLAY_THEMES: DisplayThemeDefinition[] = [
     plateSurface: 'linear-gradient(135deg, rgba(30, 33, 49, 0.98), rgba(11, 13, 27, 0.98))',
     plateBorder: 'rgba(255, 255, 255, 0.12)',
     visualBackdrop: 'radial-gradient(circle, color-mix(in srgb, var(--header-text-color) 16%, transparent), transparent 68%)',
-    fontBody: "'Inter', 'Segoe UI', sans-serif",
-    fontDisplay: "'Poppins', 'Segoe UI', sans-serif",
+    fontBody: "'Inter', 'Heebo', 'Segoe UI', sans-serif",
+    fontDisplay: "'Poppins', 'Heebo', 'Segoe UI', sans-serif",
     radius: '18px',
     tracking: '0.08em'
   },
@@ -58,8 +64,8 @@ export const DISPLAY_THEMES: DisplayThemeDefinition[] = [
     plateSurface: 'linear-gradient(105deg, rgba(7, 34, 46, 0.98), rgba(3, 20, 31, 0.98))',
     plateBorder: 'color-mix(in srgb, var(--chart-primary-color) 30%, transparent)',
     visualBackdrop: 'radial-gradient(circle, color-mix(in srgb, var(--chart-primary-color) 18%, transparent), transparent 66%)',
-    fontBody: "'Inter', 'Segoe UI', sans-serif",
-    fontDisplay: "'Inter', 'Segoe UI', sans-serif",
+    fontBody: "'Inter', 'Heebo', 'Segoe UI', sans-serif",
+    fontDisplay: "'Inter', 'Heebo', 'Segoe UI', sans-serif",
     radius: '10px',
     tracking: '0.14em'
   },
@@ -74,8 +80,8 @@ export const DISPLAY_THEMES: DisplayThemeDefinition[] = [
     plateSurface: 'linear-gradient(135deg, rgba(60, 20, 28, 0.98), rgba(28, 9, 14, 0.98))',
     plateBorder: 'color-mix(in srgb, var(--header-text-color) 26%, transparent)',
     visualBackdrop: 'radial-gradient(circle, color-mix(in srgb, var(--header-text-color) 14%, transparent), transparent 68%)',
-    fontBody: "Georgia, 'Times New Roman', serif",
-    fontDisplay: "Georgia, 'Times New Roman', serif",
+    fontBody: "Georgia, 'Heebo', 'Times New Roman', serif",
+    fontDisplay: "Georgia, 'Heebo', 'Times New Roman', serif",
     radius: '6px',
     tracking: '0.1em'
   },
@@ -90,8 +96,8 @@ export const DISPLAY_THEMES: DisplayThemeDefinition[] = [
     plateSurface: 'linear-gradient(135deg, rgba(48, 22, 68, 0.98), rgba(20, 8, 31, 0.98))',
     plateBorder: 'color-mix(in srgb, var(--header-text-color) 24%, transparent)',
     visualBackdrop: 'radial-gradient(circle, color-mix(in srgb, var(--chart-primary-color) 18%, transparent), transparent 68%)',
-    fontBody: "'Inter', 'Segoe UI', sans-serif",
-    fontDisplay: "'Poppins', 'Segoe UI', sans-serif",
+    fontBody: "'Inter', 'Heebo', 'Segoe UI', sans-serif",
+    fontDisplay: "'Poppins', 'Heebo', 'Segoe UI', sans-serif",
     radius: '16px',
     tracking: '0.09em'
   },
@@ -106,8 +112,8 @@ export const DISPLAY_THEMES: DisplayThemeDefinition[] = [
     plateSurface: 'linear-gradient(135deg, rgba(10, 46, 32, 0.98), rgba(3, 22, 15, 0.98))',
     plateBorder: 'color-mix(in srgb, var(--chart-primary-color) 26%, transparent)',
     visualBackdrop: 'radial-gradient(circle, color-mix(in srgb, var(--chart-primary-color) 16%, transparent), transparent 66%)',
-    fontBody: "'Inter', 'Segoe UI', sans-serif",
-    fontDisplay: "'Poppins', 'Segoe UI', sans-serif",
+    fontBody: "'Inter', 'Heebo', 'Segoe UI', sans-serif",
+    fontDisplay: "'Poppins', 'Heebo', 'Segoe UI', sans-serif",
     radius: '14px',
     tracking: '0.08em'
   },
@@ -124,8 +130,8 @@ export const DISPLAY_THEMES: DisplayThemeDefinition[] = [
     plateSurface: 'linear-gradient(135deg, #FFFFFF, #F2EADA)',
     plateBorder: 'rgba(34, 28, 16, 0.14)',
     visualBackdrop: 'radial-gradient(circle, color-mix(in srgb, var(--header-text-color) 14%, transparent), transparent 70%)',
-    fontBody: "'Inter', 'Segoe UI', sans-serif",
-    fontDisplay: "'Poppins', 'Segoe UI', sans-serif",
+    fontBody: "'Inter', 'Heebo', 'Segoe UI', sans-serif",
+    fontDisplay: "'Poppins', 'Heebo', 'Segoe UI', sans-serif",
     radius: '12px',
     tracking: '0.06em'
   },
@@ -140,8 +146,8 @@ export const DISPLAY_THEMES: DisplayThemeDefinition[] = [
     plateSurface: 'linear-gradient(135deg, rgba(22, 22, 26, 0.98), rgba(6, 6, 8, 0.98))',
     plateBorder: 'rgba(255, 255, 255, 0.14)',
     visualBackdrop: 'radial-gradient(circle, rgba(255, 255, 255, 0.08), transparent 66%)',
-    fontBody: "'Inter', 'Segoe UI', sans-serif",
-    fontDisplay: "'Inter', 'Segoe UI', sans-serif",
+    fontBody: "'Inter', 'Heebo', 'Segoe UI', sans-serif",
+    fontDisplay: "'Inter', 'Heebo', 'Segoe UI', sans-serif",
     radius: '4px',
     tracking: '0.16em'
   }
