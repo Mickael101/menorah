@@ -490,11 +490,11 @@ function cancel(): void {
 }
 
 .donation-form {
-  background: white;
+  background: var(--shell-card);
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: var(--shadow-lg);
-  border: 1px solid var(--gray-100);
+  border: 1px solid var(--shell-border);
 }
 
 /* Header */
@@ -504,42 +504,55 @@ function cancel(): void {
   gap: 16px;
   margin-bottom: 20px;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--gray-100);
+  border-bottom: 1px solid var(--shell-border);
 }
 
+/* Signal creation / edition : la CREATION est neutre, l'EDITION garde l'or en
+   aplat plein. Dans une admin devenue doree, l'or ne signale plus rien s'il
+   habille les deux etats. */
 .form-icon {
   width: 52px;
   height: 52px;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
+  background: var(--shell-raised);
+  color: var(--shell-text-strong); /* glyphe 15.03 sur la carte, 13.12 sur --shell-raised */
+  border: 1px solid var(--shell-border);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+  box-shadow: none; /* l'ancienne lueur bleue rgba(26,115,232,.3) ne se voit pas sur navy */
 }
 
+/* ARBITRAGE : la pastille indique, elle n'agit pas. En mode edition, trois
+   aplats or pleins coexistaient — cette pastille et les DEUX boutons de
+   validation — ce qui aplatit la hierarchie : un ornement d'en-tete criait
+   aussi fort que l'action de sauvegarde. L'or plein reste donc aux boutons ;
+   l'edition se signale par un CONTOUR or plus un glyphe or, ce qui conserve
+   le signal creation-contre-edition sans le mettre en concurrence. */
 .form-icon.editing {
-  background: linear-gradient(135deg, var(--gold-500) 0%, var(--gold-600) 100%);
-  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+  background: rgba(228, 190, 99, 0.14); /* compose #333340 sur la carte */
+  color: var(--shell-accent); /* glyphe 7.02 sur #333340 */
+  border-color: var(--shell-accent);
+  box-shadow: 0 0 0 3px rgba(228, 190, 99, 0.18);
 }
 
 .form-icon svg {
   width: 26px;
   height: 26px;
-  color: white;
+  color: inherit;
 }
 
 h3 {
   font-size: 18px;
   font-weight: 600;
-  color: var(--gray-900);
+  color: var(--shell-text-strong);
   margin: 0 0 4px;
 }
 
 .form-subtitle {
   font-size: 13px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   margin: 0;
 }
 
@@ -561,18 +574,18 @@ label {
   margin-bottom: 8px;
   font-weight: 500;
   font-size: 14px;
-  color: var(--gray-700);
+  color: var(--shell-text);
 }
 
 label svg {
   width: 16px;
   height: 16px;
-  color: var(--gray-400);
+  color: var(--shell-text-muted);
 }
 
 .optional {
   font-weight: 400;
-  color: var(--gray-400);
+  color: var(--shell-text-muted);
   font-size: 12px;
 }
 
@@ -584,18 +597,23 @@ label svg {
   gap: 12px;
   margin: -2px 0 16px;
   padding: 11px 14px;
-  border: 1px dashed var(--gray-300);
+  border: 1px dashed var(--shell-border);
   border-radius: var(--radius);
-  background: var(--gray-50);
-  color: var(--gray-600);
+  background: var(--shell-page); /* creux dans la carte */
+  color: var(--shell-text); /* 13.31 sur #0B1020 */
   cursor: pointer;
   transition: var(--transition);
 }
 
 .optional-toggle:hover {
-  border-color: var(--primary-300);
-  background: var(--primary-50);
-  color: var(--primary-700);
+  border-color: rgba(228, 190, 99, 0.32);
+  /* FIGE EN OPAQUE, et ce n'est pas un detail. Un voile translucide ne s'AJOUTE
+     pas au fond du repos : il le REMPLACE et se compose sur le PARENT (la carte
+     #161C3A), pas sur --shell-page. Il rendait #2B2C3E, ou la mention
+     « (optionnel) » tombait a 4.27 — un echec cree par le survol lui-meme.
+     #212127 est le compose voulu (voile or 0.10 sur --shell-page) fige. */
+  background: #212127;
+  color: var(--shell-accent); /* 9.03 sur #212127 ; la mention secondaire y tient 4.99 */
 }
 
 .optional-toggle > span {
@@ -628,31 +646,38 @@ label svg {
   animation: fadeInUp 0.2s ease;
 }
 
-/* Input Styles */
+/* Input Styles — les champs restent volontairement CLAIRS (voir global.css l.123-131).
+   background ET color sont declares explicitement : sans eux, un champ sur carte
+   sombre s'en remet au defaut du navigateur et devient illisible chez certains. */
 .input {
   width: 100%;
   padding: 12px 16px;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--field-border);
   border-radius: var(--radius);
   font-size: 14px;
-  color: var(--gray-900);
-  background: var(--gray-50);
+  color: var(--field-text); /* 15.87 sur le champ */
+  background: var(--field-bg);
   transition: var(--transition);
 }
 
 .input::placeholder {
-  color: var(--gray-400);
+  color: var(--field-placeholder); /* 4.73 sur le champ */
 }
 
-.input:hover {
-  border-color: var(--gray-300);
-}
-
+/* Pas de couleur de bordure au survol : elle valait exactement celle du focus,
+   si bien qu'a la souris le champ paraissait deja focalise avant tout focus, et
+   que l'ecart mesure entre non-focus et focus tombait a 1.57. La bordure or est
+   desormais EXCLUSIVE au focus, ce qui est la seule facon de rendre le
+   deplacement au clavier lisible sur un formulaire de six champs. */
 .input:focus {
   outline: none;
-  border-color: var(--primary-500);
-  background: white;
-  box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.1);
+  /* Indicateur de focus porte par la bordure 2px #C8922A : 6.03 contre la carte
+     navy qui borde le champ. L'anneau le renforce, et il doit lui-meme franchir
+     le seuil de 3.0 d'un objet graphique : a 0.30 il composait #544D46 = 1.99,
+     un halo sous le seuil. A 0.47 il compose #77684D = 3.07. */
+  border-color: var(--field-border-focus);
+  background: var(--field-bg);
+  box-shadow: 0 0 0 4px rgba(228, 190, 99, 0.47);
 }
 
 /* Premium Section */
@@ -664,10 +689,14 @@ label svg {
   gap: 12px;
   margin-bottom: 12px;
   padding: 11px 13px;
-  border: 1px solid rgba(212, 175, 55, 0.45);
+  /* 0.47 et non 0.45 : c'est ce trait, pas la surface (1.27 contre la carte),
+     qui dessine le bouton. A 0.45 il composait #73654C = 2.92, sous le seuil de
+     3.0 d'un objet graphique — un echec, pas un arrondi. A 0.47 : #77684D = 3.07. */
+  border: 1px solid rgba(228, 190, 99, 0.47);
   border-radius: var(--radius);
-  background: #fffaf0;
-  color: #8b6914;
+  /* l'aplat creme #fffaf0 devient un voile or : compose #2F2F3F sur la carte */
+  background: rgba(228, 190, 99, 0.12);
+  color: var(--shell-accent); /* 7.41 sur #2F2F3F */
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
@@ -692,16 +721,19 @@ label svg {
 }
 
 .premium-star {
-  color: #d4af37;
+  color: var(--shell-accent); /* 7.41 sur #2F2F3F */
   font-size: 16px;
 }
 
+/* Ce bloc n'est PAS un apercu : il stylе de vrais controles admin. Les navys en
+   dur #1a1a2e/#16213e se re-expriment dans l'echelle. Il est POSE sur une carte
+   --shell-card, donc il doit etre plus CLAIR qu'elle, pas plus sombre. */
 .premium-section {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: var(--shell-raised);
   border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 20px;
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  border: 1px solid var(--shell-border-strong);
 }
 
 .premium-header {
@@ -712,14 +744,14 @@ label svg {
 }
 
 .premium-badge {
-  color: #D4AF37;
+  color: var(--shell-accent); /* 8.19 sur --shell-raised */
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 1px;
 }
 
 .premium-subtitle {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--shell-text); /* 10.22 sur --shell-raised */
   font-size: 12px;
   margin-top: 4px;
 }
@@ -735,8 +767,10 @@ label svg {
   flex-direction: column;
   align-items: center;
   padding: 16px 12px;
-  border: 2px solid rgba(212, 175, 55, 0.3);
+  border: 2px solid rgba(228, 190, 99, 0.32);
   border-radius: var(--radius);
+  /* voile blanc conserve tel quel : le bouton reste plus clair que son bloc.
+     Compose #293158 sur --shell-raised. */
   background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -744,40 +778,46 @@ label svg {
 }
 
 .premium-btn:hover {
-  border-color: #D4AF37;
-  background: rgba(212, 175, 55, 0.1);
+  border-color: var(--shell-accent);
+  background: rgba(228, 190, 99, 0.10); /* compose #323551 */
   transform: translateY(-2px);
 }
 
 .premium-btn.selected {
-  border-color: #FFD700;
-  background: rgba(212, 175, 55, 0.2);
-  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+  border-color: var(--shell-accent-strong);
+  background: rgba(228, 190, 99, 0.20); /* compose #464453 */
+  box-shadow: 0 0 20px rgba(228, 190, 99, 0.30);
 }
 
+/* rgba(255,255,255,0.5) mesure 3.78 sur #16213e : ECHEC. --shell-text-muted ne
+   sauve pas la regle ici (3.91 sur #293158, 3.71 au survol, 2.96 en selection,
+   tous sous 4.5) car le bouton porte un voile eclaircissant. Retenu
+   --shell-text : 8.82 au repos, 8.37 au survol, 6.68 en selection. */
 .premium-tier {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--shell-text);
   margin-bottom: 6px;
 }
 
 .premium-btn .premium-amount {
   font-size: 18px;
   font-weight: 700;
-  color: #D4AF37;
+  color: var(--shell-accent); /* 7.07 sur #293158 */
   margin-bottom: 4px;
 }
 
 .premium-btn.selected .premium-amount {
-  color: #FFD700;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  color: var(--shell-accent-strong); /* 6.17 sur #464453 */
+  text-shadow: 0 0 10px rgba(242, 204, 114, 0.45);
 }
 
+/* rgba(255,255,255,0.4) = 3.78 sur #16213e : ECHEC. Meme arbitrage que
+   .premium-tier ci-dessus. */
 .premium-words {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--shell-text);
 }
 
 /* Regular Section */
@@ -788,7 +828,7 @@ label svg {
 .regular-label {
   display: block;
   font-size: 12px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   margin-bottom: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -804,33 +844,38 @@ label svg {
 
 .preset-btn {
   padding: 11px 5px;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--shell-border);
   border-radius: var(--radius);
-  background: white;
+  /* pose SUR la carte : il doit etre plus clair qu'elle, pas egal a elle */
+  background: var(--shell-raised);
   cursor: pointer;
   transition: var(--transition);
   text-align: center;
 }
 
 .preset-btn:hover {
-  border-color: var(--primary-300);
-  background: var(--primary-50);
+  border-color: rgba(228, 190, 99, 0.32);
+  /* Fige le compose du voile or 0.10 pose sur --shell-raised, le fond du repos.
+     Laisse translucide, il se composait sur la CARTE et non sur le repos :
+     l'ecart survol/repos tombait a 1.06, autrement dit invisible sur une grille
+     de six cellules cote a cote. Fige a #323551, l'ecart remonte a 1.22. */
+  background: #323551;
 }
 
 .preset-btn.selected {
-  border-color: var(--primary-500);
-  background: var(--primary-50);
-  box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.1);
+  border-color: var(--shell-accent);
+  background: rgba(228, 190, 99, 0.14); /* compose #333340 sur la carte */
+  box-shadow: 0 0 0 4px rgba(228, 190, 99, 0.22);
 }
 
 .preset-amount {
   font-size: 12px;
   font-weight: 600;
-  color: var(--gray-800);
+  color: var(--shell-text-strong); /* 13.12 sur --shell-raised */
 }
 
 .preset-btn.selected .preset-amount {
-  color: var(--primary-600);
+  color: var(--shell-accent); /* 7.02 sur #333340 */
 }
 
 /* Custom Amount */
@@ -845,7 +890,9 @@ label svg {
   transform: translateY(-50%);
   font-size: 16px;
   font-weight: 600;
-  color: var(--gray-400);
+  /* ce symbole est POSE DANS le champ clair (padding-inline-start: 36px), pas sur
+     la carte sombre : il suit l'echelle --field-*, pas l'echelle --shell-*. */
+  color: var(--field-placeholder); /* 4.73 sur --field-bg */
 }
 
 .custom-input {
@@ -866,7 +913,7 @@ label svg {
   align-items: center;
   gap: 10px;
   margin: 2px 0 12px;
-  color: var(--gray-400);
+  color: var(--shell-text-muted); /* 5.19 sur la carte */
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -877,34 +924,40 @@ label svg {
   content: '';
   height: 1px;
   flex: 1;
-  background: var(--gray-200);
+  background: var(--shell-border);
 }
 
-/* Selected Amount */
+/* Selected Amount — SIGNAL don ordinaire contre don premium. C'est ainsi que
+   l'operateur voit qu'il a selectionne un palier premium : si tout devenait
+   navy/or, le signal mourrait. Le montant ORDINAIRE garde donc une identite
+   VERTE sur fond sombre, le PREMIUM garde l'identite OR. */
 .selected-amount {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 12px;
   padding: 12px 16px;
-  background: var(--success-light);
+  /* --success-light est un aplat clair : il ne survit pas sur carte sombre.
+     Voile vert a la place, compose #1A3245 sur la carte. */
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.32); /* une ombre ne se voit pas sur navy */
   border-radius: var(--radius);
-  color: var(--success);
+  color: var(--shell-success); /* 6.89 sur #1A3245 */
   font-size: 14px;
 }
 
 .selected-amount.premium {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border: 1px solid rgba(212, 175, 55, 0.3);
-  color: #D4AF37;
+  background: rgba(228, 190, 99, 0.12); /* compose #2F2F3F sur la carte */
+  border: 1px solid rgba(228, 190, 99, 0.32);
+  color: var(--shell-accent); /* 7.41 sur #2F2F3F */
 }
 
 .selected-amount.premium strong {
-  color: #FFD700;
+  color: var(--shell-accent-strong); /* 8.54 sur #2F2F3F */
 }
 
 .selected-amount.premium .premium-info {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--shell-text); /* 9.23 sur #2F2F3F */
   font-size: 12px;
   margin-inline-start: 4px;
 }
@@ -915,24 +968,27 @@ label svg {
   flex-shrink: 0;
 }
 
+/* #047857 est illisible sur navy (aplat vert fonce prevu pour du blanc) */
 .selected-amount strong {
-  color: #047857;
+  color: var(--shell-success); /* 6.89 sur #1A3245 */
 }
 
-/* Word Selector */
+/* Word Selector — comme .premium-section, ce n'est PAS un apercu : ce sont de
+   vrais controles admin. Les navys en dur rgba(26,26,46,.95)/rgba(22,33,62,.95)
+   se re-expriment dans l'echelle, plus clairs que la carte qui les porte. */
 .word-selector {
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(22, 33, 62, 0.95) 100%);
+  background: var(--shell-raised);
   border-radius: var(--radius);
   padding: 16px;
   margin-top: 16px;
-  border: 1px solid rgba(212, 175, 55, 0.3);
+  border: 1px solid var(--shell-border-strong);
 }
 
 .word-selector-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #D4AF37;
+  color: var(--shell-accent); /* 8.19 sur --shell-raised */
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 12px;
@@ -941,7 +997,7 @@ label svg {
 .word-selector-label svg {
   width: 18px;
   height: 18px;
-  color: #FFD700;
+  color: var(--shell-accent-strong); /* 9.45 sur --shell-raised */
 }
 
 .word-options {
@@ -955,55 +1011,72 @@ label svg {
   flex-direction: column;
   align-items: center;
   padding: 12px 8px;
-  border: 2px solid rgba(212, 175, 55, 0.3);
+  border: 2px solid rgba(228, 190, 99, 0.32);
   border-radius: var(--radius);
+  /* voile blanc conserve : compose #293158 sur --shell-raised */
   background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
 }
 
-.word-option:hover:not(.unavailable) {
-  border-color: #D4AF37;
-  background: rgba(212, 175, 55, 0.1);
+/* :not(:disabled) et non :not(.unavailable) : le mot deja detenu par le don en
+   cours d'edition porte la classe .unavailable tout en restant cliquable — il
+   doit donc recevoir le retour de survol comme n'importe quel bouton actif. */
+.word-option:hover:not(:disabled) {
+  border-color: var(--shell-accent);
+  background: rgba(228, 190, 99, 0.10); /* compose #323551 */
 }
 
 .word-option.selected {
-  border-color: #FFD700;
-  background: rgba(212, 175, 55, 0.2);
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+  border-color: var(--shell-accent-strong);
+  background: rgba(228, 190, 99, 0.20); /* compose #464453 */
+  box-shadow: 0 0 15px rgba(228, 190, 99, 0.30);
 }
 
-.word-option.unavailable {
+/* :disabled et non .unavailable seul — correction d'un defaut pre-existant.
+   Le template pose la classe des que le mot est pris, mais ne desactive le
+   bouton que si ce n'est pas LE mot deja detenu par le don en cours d'edition.
+   En reprise d'un don premium, la case du mot qu'il detient etait donc la seule
+   cliquable du selecteur ET la moins lisible : opacity 0.5 ecrasait son nom a
+   2.81 et sa coche a 2.43, et cette bordure blanche, a specificite egale et
+   declaree apres, effacait la bordure or de l'etat selectionne. */
+.word-option.unavailable:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  /* voile blanc 0.1 conserve tel quel (deja pose sur du navy) */
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+/* rgba(255,255,255,0.4) = 3.78 sur #16213e : ECHEC. --shell-text-muted echoue
+   aussi ici (3.91 sur #293158, 2.96 en selection). Retenu --shell-text : 8.82. */
 .word-star {
   font-size: 20px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--shell-text);
   margin-bottom: 4px;
 }
 
 .word-option.selected .word-star {
-  color: #FFD700;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  color: var(--shell-accent-strong); /* 6.17 sur #464453 */
+  text-shadow: 0 0 10px rgba(242, 204, 114, 0.45);
 }
 
 .word-name {
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--shell-text-strong); /* 11.32 sur #293158 */
 }
 
 .word-option.selected .word-name {
-  color: #FFD700;
+  color: var(--shell-accent-strong); /* 6.17 sur #464453 */
 }
 
+/* rgba(255,255,255,0.4) : meme arbitrage que .word-star. Ce libelle n'apparait
+   que sur .word-option.unavailable, un controle desactive (exempt WCAG 1.4.3),
+   mais --shell-text lui donne la meilleure lisibilite disponible. */
 .word-taken {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--shell-text);
   margin-top: 4px;
   white-space: nowrap;
   overflow: hidden;
@@ -1013,7 +1086,7 @@ label svg {
 
 .word-check {
   font-size: 14px;
-  color: #4ade80;
+  color: var(--shell-success); /* 4.94 sur #464453, l'option selectionnee */
   margin-top: 4px;
 }
 
@@ -1023,9 +1096,12 @@ label svg {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: var(--error-light);
+  /* --error-light est un aplat clair : il ne survit pas sur carte sombre. Voile
+     rouge a la place, compose #312641. --error #ef4444 echoue a 4.20 sur navy. */
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.32);
   border-radius: var(--radius);
-  color: var(--error);
+  color: var(--shell-error); /* 5.12 sur #312641 */
   font-size: 14px;
   margin-bottom: 16px;
   animation: fadeInUp 0.3s ease;
@@ -1042,9 +1118,10 @@ label svg {
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  background: var(--success-light);
+  background: rgba(52, 211, 153, 0.12); /* compose #1A3245 */
+  border: 1px solid rgba(52, 211, 153, 0.32);
   border-radius: var(--radius);
-  color: var(--success);
+  color: var(--shell-success); /* 6.89 sur #1A3245 */
   font-size: 14px;
   margin-bottom: 16px;
   animation: fadeInUp 0.3s ease;
@@ -1082,32 +1159,39 @@ label svg {
   height: 18px;
 }
 
+/* Les DEUX submit de ce formulaire (raccourci sous le champ montant et action de
+   pied de formulaire) portent cette meme classe : ils restent identiques. */
 .btn-primary {
   flex: 1;
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+  background: var(--shell-accent);
+  color: var(--shell-on-accent); /* 10.68 sur l'or — jamais 'white' sur un aplat or */
+  box-shadow: 0 4px 12px rgba(228, 190, 99, 0.28);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+  background: var(--shell-accent-strong);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(26, 115, 232, 0.4);
+  box-shadow: 0 6px 16px rgba(228, 190, 99, 0.35);
 }
 
 .btn-primary:disabled {
-  background: var(--gray-300);
+  background: var(--shell-raised);
+  /* sans ce color, le --shell-on-accent herite serait du sombre sur du sombre */
+  color: var(--shell-text-muted); /* 4.53 sur --shell-raised */
   box-shadow: none;
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: var(--shell-raised);
+  color: var(--shell-text); /* 10.22 sur --shell-raised */
+  /* inset plutot qu'une bordure : --shell-raised contre la carte ne fait que
+     1.16, et un inset ne decale pas le bouton d'un pixel face au submit. */
+  box-shadow: inset 0 0 0 1px var(--shell-border);
 }
 
 .btn-secondary:hover {
-  background: var(--gray-200);
+  background: var(--shell-border); /* voile blanc .16, rendu #3B405A ; texte a 7.15 */
 }
 
 /* Spinner */
