@@ -957,7 +957,7 @@ onUnmounted(stopAudio);
 /* Rappel de portee sous chaque bloc de couleurs. */
 .theme-scope-hint {
   margin: -6px 0 14px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   font-size: 12.5px;
   line-height: 1.45;
 }
@@ -969,9 +969,11 @@ onUnmounted(stopAudio);
   gap: 4px;
   margin-bottom: 22px;
   padding: 4px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius-md);
-  background: var(--gray-100);
+  /* Creux DANS la carte : la piste doit descendre sous --shell-card,
+     l'onglet actif remonte ensuite a --shell-raised (1.30 contre la piste). */
+  background: var(--shell-page);
 }
 
 .screen-tab {
@@ -981,7 +983,7 @@ onUnmounted(stopAudio);
   border: 0;
   border-radius: var(--radius);
   background: transparent;
-  color: var(--gray-600);
+  color: var(--shell-text);
   font: inherit;
   font-size: 13.5px;
   font-weight: 600;
@@ -991,14 +993,23 @@ onUnmounted(stopAudio);
 }
 
 .screen-tab:hover {
-  color: var(--gray-900);
-  background: white;
+  color: var(--shell-text-strong);
+  background: var(--shell-raised);
 }
 
+/* L'aplat or plein est deja pris par l'onglet principal de l'admin
+   (AdminPanel .tab.active) : ici l'etat actif se porte par le TEXTE or,
+   sinon deux aplats or se concurrencent dans le meme ecran. */
 .screen-tab.active {
-  color: var(--gray-900);
-  background: white;
-  box-shadow: var(--shadow);
+  color: var(--shell-accent-strong);
+  background: var(--shell-raised);
+  /* Anneau or au lieu de l'ombre noire, qui ne se voit pas sur navy. Sans lui,
+     l'onglet actif et l'onglet survole partageaient EXACTEMENT la meme surface
+     (--shell-raised, ratio 1.00) et ne se distinguaient que par une nuance or
+     contre creme mesuree a 1.39 : au moindre passage du pointeur, deux onglets
+     paraissaient ouverts. #C8922A = 5.26 contre --shell-raised, et un anneau
+     interieur ne decale pas la mise en page. */
+  box-shadow: inset 0 0 0 1px var(--shell-accent-deep);
 }
 
 @media (max-width: 700px) {
@@ -1021,9 +1032,20 @@ onUnmounted(stopAudio);
   gap: 14px;
   margin-top: 20px;
   padding: 14px 18px;
-  border: 1px solid var(--gold-500);
+  /* --gray-900 (#0f172a) etait a un cheveu de --shell-card (#161C3A) :
+     deux navys aussi proches se lisent comme un bug. La barre descend a
+     la surface la plus profonde, ce qui la fait lire comme flottant
+     AU-DESSUS de l'espace de travail. */
+  /* Contour COMPLET, pas seulement un trait superieur : la barre est un enfant
+     de .card, et --shell-page ne vaut que 1.14 contre --shell-card. Son ombre
+     portee est du noir alpha, donc invisible sur navy. Avec un seul border-top,
+     trois de ses quatre aretes n'existaient pas et le border-radius laissait
+     deux coins bas arrondis flotter sans contour : la barre se lisait comme un
+     trou dans la carte. box-sizing: border-box est global, donc le contour
+     complet ne decale rien. #C8922A : 6.03 contre la carte, 6.85 contre la page. */
+  border: 1px solid var(--shell-accent-deep);
   border-radius: var(--radius-md);
-  background: var(--gray-900);
+  background: var(--shell-page);
   box-shadow: var(--shadow-xl);
 }
 
@@ -1035,12 +1057,12 @@ onUnmounted(stopAudio);
 }
 
 .save-bar-text strong {
-  color: var(--gold-300);
+  color: var(--shell-accent-strong);
   font-size: 14px;
 }
 
 .save-bar-text span {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--shell-text);
   font-size: 12.5px;
   line-height: 1.4;
 }
@@ -1065,20 +1087,22 @@ onUnmounted(stopAudio);
 }
 
 .save-bar-discard {
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid var(--shell-border-strong);
   background: transparent;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--shell-text);
 }
 
 .save-bar-discard:hover {
-  border-color: rgba(255, 255, 255, 0.5);
-  color: white;
+  border-color: var(--shell-accent);
+  color: var(--shell-text-strong);
 }
 
+/* Action DOMINANTE de la barre : le seul aplat or plein de la barre,
+   texte sombre (10.68 sur l'or). 'Annuler' reste en contour. */
 .save-bar-save {
   border: 0;
-  background: linear-gradient(135deg, var(--gold-400), var(--gold-600));
-  color: var(--gray-900);
+  background: var(--shell-accent);
+  color: var(--shell-on-accent);
 }
 
 .save-bar-save:hover:not(:disabled) {
@@ -1128,7 +1152,14 @@ onUnmounted(stopAudio);
 }
 
 .card {
-  background: white;
+  background: var(--shell-card);
+  /* L'ombre portee ne se voit pas sur du navy (carte contre page = 1.14) :
+     c'est la bordure claire qui dessine desormais le bord. */
+  border: 1px solid var(--shell-border);
+  /* body pose color: var(--gray-800) : sans couleur explicite ici, tout le
+     texte herite (libelles, .pledge-field-name, cartes en color: inherit)
+     resterait sombre sur sombre. */
+  color: var(--shell-text);
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: var(--shadow-md);
@@ -1140,19 +1171,21 @@ onUnmounted(stopAudio);
   gap: 12px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--gray-800);
+  color: var(--shell-text-strong);
   margin: 0 0 24px;
 }
 
 .card-title svg {
   width: 24px;
   height: 24px;
-  color: var(--gold-500);
+  color: var(--shell-accent);
 }
 
 .error-msg {
-  color: var(--error-500);
-  background: var(--error-50);
+  color: var(--shell-error);
+  /* --error-50 (#fef2f2) etait un aplat CLAIR : il ne survit pas sur carte
+     sombre. Voile rouge calcule : fond rendu #362842, #F87171 dessus = 4.95. */
+  background: rgba(248, 113, 113, 0.14);
   padding: 12px;
   border-radius: var(--radius);
   margin-bottom: 16px;
@@ -1161,7 +1194,7 @@ onUnmounted(stopAudio);
 .settings-section {
   margin-bottom: 24px;
   padding-bottom: 24px;
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 1px solid var(--shell-border);
 }
 
 .settings-section:last-of-type {
@@ -1173,7 +1206,7 @@ onUnmounted(stopAudio);
 .settings-section h3 {
   font-size: 14px;
   font-weight: 600;
-  color: var(--gray-600);
+  color: var(--shell-text);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin: 0 0 16px;
@@ -1195,12 +1228,13 @@ onUnmounted(stopAudio);
   margin: 0;
 }
 
+/* Bouton SECONDAIRE : contour + texte or, jamais d'aplat plein. */
 .preview-link {
   flex-shrink: 0;
   padding: 8px 12px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius);
-  color: var(--primary-600);
+  color: var(--shell-accent);
   font-size: 13px;
   font-weight: 600;
   text-decoration: none;
@@ -1208,8 +1242,8 @@ onUnmounted(stopAudio);
 }
 
 .preview-link:hover {
-  border-color: var(--primary-300);
-  background: var(--primary-50);
+  border-color: var(--shell-accent);
+  background: rgba(228, 190, 99, 0.14);
 }
 
 .visual-description {
@@ -1234,9 +1268,9 @@ onUnmounted(stopAudio);
   flex-direction: column;
   gap: 6px;
   padding: 13px;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--shell-border);
   border-radius: 12px;
-  background: white;
+  background: var(--shell-card);
   color: inherit;
   cursor: pointer;
   text-align: start;
@@ -1246,24 +1280,24 @@ onUnmounted(stopAudio);
 .direction-card:hover,
 .animation-card:hover {
   transform: translateY(-2px);
-  border-color: var(--gray-300);
+  border-color: var(--shell-border-strong);
   box-shadow: var(--shadow-md);
 }
 
 .direction-card.selected,
 .animation-card.selected {
-  border-color: var(--gold-500);
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.14);
+  border-color: var(--shell-accent);
+  box-shadow: 0 0 0 3px rgba(228, 190, 99, 0.14);
 }
 
 .direction-card strong {
-  color: var(--gray-900);
+  color: var(--shell-text-strong);
   font-size: 14px;
 }
 
 .direction-card small,
 .animation-card small {
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   font-size: 11px;
   line-height: 1.45;
 }
@@ -1271,14 +1305,14 @@ onUnmounted(stopAudio);
 .copy-group {
   margin-top: 18px;
   padding: 16px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius-md);
-  background: var(--gray-50);
+  background: var(--shell-page);
 }
 
 .copy-group h4 {
   margin: 0 0 13px;
-  color: var(--gray-700);
+  color: var(--shell-text);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1303,10 +1337,10 @@ onUnmounted(stopAudio);
 
 .pledge-locale-tab {
   padding: 8px 16px;
-  border: 1.5px solid var(--gray-200);
+  border: 1.5px solid var(--shell-border);
   border-radius: var(--radius);
-  background: white;
-  color: var(--gray-600);
+  background: var(--shell-card);
+  color: var(--shell-text);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -1314,29 +1348,33 @@ onUnmounted(stopAudio);
 }
 
 .pledge-locale-tab:hover {
-  border-color: var(--primary-300);
+  border-color: var(--shell-border-strong);
 }
 
+/* L'etat selectionne etait porte par le bleu contre le blanc : il devient
+   voile or + contour or + texte or (7.07 au pire des fonds calcules),
+   pour rester distinct du survol qui, lui, ne bouge que la bordure. */
 .pledge-locale-tab.selected {
-  border-color: var(--primary-500);
-  background: var(--primary-50);
-  color: var(--primary-700);
+  border-color: var(--shell-accent);
+  background: rgba(228, 190, 99, 0.14);
+  color: var(--shell-accent-strong);
 }
 
+/* Bouton SECONDAIRE : contour, jamais d'aplat plein. */
 .pledge-open-link {
   flex-shrink: 0;
   font-size: 13px;
   font-weight: 600;
-  color: var(--primary-600);
+  color: var(--shell-accent);
   text-decoration: none;
   padding: 8px 14px;
-  border: 1px solid var(--primary-200);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius);
   transition: var(--transition);
 }
 
 .pledge-open-link:hover {
-  background: var(--primary-50);
+  background: rgba(228, 190, 99, 0.14);
 }
 
 .pledge-fields-grid {
@@ -1351,22 +1389,22 @@ onUnmounted(stopAudio);
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius);
   cursor: pointer;
   transition: var(--transition);
 }
 
 .pledge-field-toggle:hover {
-  border-color: var(--primary-300);
-  background: var(--primary-50);
+  border-color: var(--shell-accent);
+  background: rgba(228, 190, 99, 0.14);
 }
 
 .pledge-field-toggle input {
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  accent-color: var(--primary-600);
+  accent-color: var(--shell-accent);
   cursor: pointer;
 }
 
@@ -1379,7 +1417,7 @@ onUnmounted(stopAudio);
   margin-inline-start: auto;
   font-size: 12px;
   font-weight: 600;
-  color: var(--primary-700);
+  color: var(--shell-accent);
   white-space: nowrap;
 }
 
@@ -1395,23 +1433,32 @@ onUnmounted(stopAudio);
 }
 
 .copy-field > span {
-  color: var(--gray-600);
+  color: var(--shell-text);
   font-size: 12px;
   font-weight: 600;
 }
 
+/* Les champs restent volontairement CLAIRS : taper longtemps dans un champ
+   sombre fatigue, et un champ clair s'identifie par sa surface (15.28
+   contre la carte). background ET color sont declares : s'en remettre au
+   defaut du navigateur ne passait que par chance sur carte blanche. */
 .copy-field input,
 .copy-field textarea {
   width: 100%;
   box-sizing: border-box;
   padding: 10px 12px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--field-border);
   border-radius: 9px;
-  background: white;
-  color: var(--gray-900);
+  background: var(--field-bg);
+  color: var(--field-text);
   font: inherit;
   font-size: 14px;
   line-height: 1.45;
+}
+
+.copy-field input::placeholder,
+.copy-field textarea::placeholder {
+  color: var(--field-placeholder);
 }
 
 .copy-field textarea {
@@ -1421,8 +1468,11 @@ onUnmounted(stopAudio);
 
 .copy-field input:focus,
 .copy-field textarea:focus {
-  border-color: var(--gold-500);
-  outline: 3px solid rgba(212, 175, 55, 0.13);
+  border-color: var(--field-border-focus);
+  /* L'ancien halo a 0.13 disparaissait sur navy. Voile or calcule :
+     trait rendu #827045, 3.92 contre la page, 3.73 contre la carte —
+     un indicateur de focus doit atteindre 3.0. */
+  outline: 3px solid rgba(228, 190, 99, 0.55);
 }
 
 .animation-grid {
@@ -1439,9 +1489,9 @@ onUnmounted(stopAudio);
   gap: 14px;
   min-height: 108px;
   padding: 12px;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--shell-border);
   border-radius: 14px;
-  background: white;
+  background: var(--shell-card);
   color: inherit;
   cursor: pointer;
   text-align: start;
@@ -1462,7 +1512,7 @@ onUnmounted(stopAudio);
 }
 
 .animation-card-copy strong {
-  color: var(--gray-900);
+  color: var(--shell-text-strong);
   font-size: 14px;
 }
 
@@ -1556,9 +1606,9 @@ onUnmounted(stopAudio);
   min-width: 0;
   min-height: 126px;
   padding: 14px;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--shell-border);
   border-radius: 14px;
-  background: white;
+  background: var(--shell-card);
   color: inherit;
   cursor: pointer;
   text-align: start;
@@ -1567,21 +1617,23 @@ onUnmounted(stopAudio);
 
 .visual-mode-card:hover {
   transform: translateY(-2px);
-  border-color: var(--gray-300);
+  border-color: var(--shell-border-strong);
   box-shadow: var(--shadow-md);
 }
 
 .visual-mode-card.selected {
-  border-color: var(--gold-500);
-  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.14);
+  border-color: var(--shell-accent);
+  box-shadow: 0 0 0 3px rgba(228, 190, 99, 0.14);
 }
 
+/* --gold-100/-700 etait un aplat CLAIR : il ne survit pas sur carte sombre.
+   La pastille reprend le voile or par defaut de .selected-badge. */
 .visual-mode-card > .selected-badge {
   position: absolute;
   top: 8px;
   inset-inline-end: 8px;
-  background: var(--gold-100);
-  color: var(--gold-700);
+  background: rgba(228, 190, 99, 0.14);
+  color: var(--shell-accent-strong);
 }
 
 .visual-mode-preview {
@@ -1651,12 +1703,12 @@ onUnmounted(stopAudio);
 }
 
 .visual-mode-copy strong {
-  color: var(--gray-900);
+  color: var(--shell-text-strong);
   font-size: 14px;
 }
 
 .visual-mode-copy small {
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   font-size: 11px;
   line-height: 1.45;
 }
@@ -1664,9 +1716,9 @@ onUnmounted(stopAudio);
 .custom-svg-panel {
   margin-top: 14px;
   padding: 16px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius-md);
-  background: var(--gray-50);
+  background: var(--shell-page);
 }
 
 .custom-svg-current {
@@ -1680,9 +1732,22 @@ onUnmounted(stopAudio);
   width: 86px;
   height: 72px;
   padding: 8px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   border-radius: 10px;
-  background: white;
+  /* PLAQUE DE VERIFICATION D'UN FICHIER CLIENT — regle commune a tous les
+     apercus de media de l'administration (voir aussi .gif-preview dans
+     GifManager). Une plaque sombre serait un pari sur le theme public : le
+     theme livre « Ivoire clair » a un fond #F6F1E6 et un texte #221C10, donc
+     un SVG a traits sombres est un televersement parfaitement legitime — et il
+     disparaissait (1.02 contre --shell-card, contre 16.91 sur la plaque claire
+     d'avant). Un damier clair montre a la fois les traits sombres et la
+     transparence, sans pretendre deviner le theme choisi. */
+  background-color: var(--field-bg);
+  background-image:
+    linear-gradient(45deg, rgba(26, 26, 34, 0.07) 25%, transparent 25%, transparent 75%, rgba(26, 26, 34, 0.07) 75%),
+    linear-gradient(45deg, rgba(26, 26, 34, 0.07) 25%, transparent 25%, transparent 75%, rgba(26, 26, 34, 0.07) 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 7px 7px;
   object-fit: contain;
 }
 
@@ -1691,22 +1756,25 @@ onUnmounted(stopAudio);
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  color: var(--gray-800);
+  color: var(--shell-text);
   font-size: 13px;
 }
 
 .remove-svg-btn {
   padding: 5px 9px;
-  border: 1px solid var(--error-100);
+  /* --error-100 (#fee2e2) etait un trait CLAIR ; un voile rouge a 0.32 ne
+     mesure que 1.69, sous le seuil de 3.0 pour un objet graphique.
+     Le trait plein passe : #F87171 = 6.02 sur la carte, 6.84 sur la page. */
+  border: 1px solid var(--shell-error);
   border-radius: 7px;
-  background: white;
-  color: var(--error-500);
+  background: var(--shell-card);
+  color: var(--shell-error);
   cursor: pointer;
 }
 
 .svg-help {
   margin: 8px 0 0;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   font-size: 12px;
 }
 
@@ -1719,9 +1787,9 @@ onUnmounted(stopAudio);
 .theme-card {
   min-width: 0;
   padding: 0;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--shell-border);
   border-radius: 14px;
-  background: white;
+  background: var(--shell-card);
   color: inherit;
   cursor: pointer;
   overflow: hidden;
@@ -1731,7 +1799,7 @@ onUnmounted(stopAudio);
 
 .theme-card:hover {
   transform: translateY(-2px);
-  border-color: var(--gray-300);
+  border-color: var(--shell-border-strong);
   box-shadow: var(--shadow-md);
 }
 
@@ -1820,7 +1888,7 @@ onUnmounted(stopAudio);
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--gray-900);
+  color: var(--shell-text-strong);
   font-size: 13px;
   font-weight: 700;
 }
@@ -1834,21 +1902,32 @@ onUnmounted(stopAudio);
   font-weight: 700;
 }
 
+/* BUG CORRIGE : la pastille « Actif » est aussi rendue sur les cartes
+   d'animation et de composition, ou --preview-primary n'existe pas — les
+   deux color-mix() y etaient invalides et la pastille se retrouvait sans
+   fond, avec une couleur heritee. Le fond par defaut est donc de la PEAU,
+   et la variante liee a la donnee est restreinte aux cartes de theme, les
+   seules a porter le style inline --preview-* (l.694). */
 .selected-badge {
+  background: rgba(228, 190, 99, 0.14);
+  color: var(--shell-accent-strong);
+}
+
+.theme-card .selected-badge {
   background: color-mix(in srgb, var(--preview-primary) 18%, white);
   color: color-mix(in srgb, var(--preview-primary) 72%, black);
 }
 
 .theme-card-description {
   min-height: 48px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   font-size: 11px;
   line-height: 1.45;
 }
 
 .theme-mood {
-  background: var(--gray-100);
-  color: var(--gray-600);
+  background: var(--shell-raised);
+  color: var(--shell-text);
 }
 
 .active-theme-bar {
@@ -1858,30 +1937,35 @@ onUnmounted(stopAudio);
   gap: 12px;
   margin-top: 14px;
   padding: 11px 13px;
+  /* Les quatre autres creux en --shell-page de ce panneau (.screen-tabs,
+     .copy-group, .custom-svg-panel, .audio-preview) portent tous une bordure ;
+     celui-ci l'avait oubliee et se dissolvait dans la carte a 1.14, son libelle
+     et son bouton « Restaurer » flottant sans conteneur. */
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius);
-  background: var(--gray-50);
-  color: var(--gray-600);
+  background: var(--shell-page);
+  color: var(--shell-text);
   font-size: 13px;
 }
 
 .active-theme-bar strong {
-  color: var(--gray-900);
+  color: var(--shell-text-strong);
 }
 
 .reset-theme-btn {
   padding: 7px 10px;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius);
-  background: white;
-  color: var(--gray-600);
+  background: var(--shell-card);
+  color: var(--shell-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .reset-theme-btn:hover {
-  color: var(--primary-600);
-  border-color: var(--primary-300);
+  color: var(--shell-accent);
+  border-color: var(--shell-accent);
 }
 
 .color-row {
@@ -1896,14 +1980,20 @@ onUnmounted(stopAudio);
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: var(--gray-700);
+  color: var(--shell-text);
 }
 
+/* Le REMPLISSAGE vient de la config du client (style inline) : seule cette
+   bordure est de la peau. Un noir a 10 % etait invisible sur navy.
+   --field-border et non --shell-border-strong : ce trait est le SEUL delimiteur
+   d'une pastille dont le remplissage peut etre n'importe quelle couleur, y
+   compris une couleur sombre qui se confondrait avec la carte. Il doit donc
+   tenir tout seul : #C9C3B4 = 9.47 contre la carte, contre 2.34 avant. */
 .color-badge {
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid var(--field-border);
 }
 
 .color-badge.gold { background: #FFD700; }
@@ -1916,14 +2006,19 @@ onUnmounted(stopAudio);
   gap: 8px;
 }
 
+/* Le cadre est de la peau, le remplissage est la valeur du client.
+   background ET color sont declares : 'transparent' laissait le rendu au
+   defaut du navigateur, ce qui ne passait que par chance sur carte blanche
+   et devient illisible chez une partie des utilisateurs sur carte sombre. */
 .color-input-group input[type="color"] {
   width: 40px;
   height: 40px;
   padding: 0;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--shell-border);
   border-radius: var(--radius);
   cursor: pointer;
-  background: transparent;
+  background: var(--field-bg);
+  color: var(--field-text);
 }
 
 .color-input-group input[type="color"]::-webkit-color-swatch-wrapper {
@@ -1935,14 +2030,27 @@ onUnmounted(stopAudio);
   border: none;
 }
 
+/* La saisie hexadecimale doit rester lisible independamment du navigateur
+   et du theme de l'OS : elle ne se contente plus d'une bordure. */
 .hex-input {
   width: 90px;
   padding: 8px 12px;
-  border: 1px solid var(--gray-300);
+  border: 1px solid var(--field-border);
   border-radius: var(--radius);
+  background: var(--field-bg);
+  color: var(--field-text);
   font-family: monospace;
   font-size: 13px;
   text-transform: uppercase;
+}
+
+.hex-input::placeholder {
+  color: var(--field-placeholder);
+}
+
+.hex-input:focus {
+  border-color: var(--field-border-focus);
+  outline: 3px solid rgba(228, 190, 99, 0.55); /* trait rendu #827045, 3.92 sur la page */
 }
 
 /* Image Upload */
@@ -1953,7 +2061,7 @@ onUnmounted(stopAudio);
 .image-upload-row label:first-child {
   display: block;
   font-size: 14px;
-  color: var(--gray-700);
+  color: var(--shell-text);
   margin-bottom: 12px;
 }
 
@@ -1965,7 +2073,7 @@ onUnmounted(stopAudio);
   border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 12px;
-  border: 2px solid var(--gray-200);
+  border: 2px solid var(--shell-border);
 }
 
 .image-preview img {
@@ -1991,8 +2099,12 @@ onUnmounted(stopAudio);
   transition: background 0.2s;
 }
 
+/* L'etat de repos garde son voile noir et son glyphe blanc : il se pose sur
+   l'IMAGE du client, pas sur du navy. Au survol, l'aplat rouge devient
+   clair, donc le glyphe passe en sombre (#0B1020 sur #F87171 = 6.84). */
 .remove-image-btn:hover {
-  background: var(--error-500);
+  background: var(--shell-error);
+  color: var(--shell-on-accent);
 }
 
 .remove-image-btn svg {
@@ -2005,16 +2117,24 @@ onUnmounted(stopAudio);
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: var(--shell-raised);
+  color: var(--shell-text);
   border-radius: var(--radius);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
+/* Il n'existe que trois navys : le survol ne peut pas monter d'un cran de
+   plus, il se signale par un voile or (fond rendu #333340, texte 8.78).
+   Le voile SEUL ne suffit pas : sa valeur rendue depend du parent, et
+   .upload-btn existe a trois endroits. Dans .custom-svg-panel (parent
+   --shell-page) le voile compose #292829, soit 1.01 contre le repos — aucun
+   retour de survol du tout. Le changement de COULEUR DE TEXTE, lui, ne depend
+   d'aucun parent : #F2CC72 mesure 9.55 sur #292829 et 8.09 sur #333340. */
 .upload-btn:hover {
-  background: var(--gray-200);
+  background: rgba(228, 190, 99, 0.14);
+  color: var(--shell-accent-strong);
 }
 
 .upload-btn.uploading {
@@ -2032,7 +2152,7 @@ onUnmounted(stopAudio);
 }
 
 .upload-error {
-  color: var(--error-500);
+  color: var(--shell-error);
   font-size: 13px;
   margin-top: 8px;
 }
@@ -2043,7 +2163,7 @@ onUnmounted(stopAudio);
   gap: 12px;
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid var(--gray-200);
+  border-top: 1px solid var(--shell-border);
 }
 
 .reset-btn, .save-btn {
@@ -2060,25 +2180,35 @@ onUnmounted(stopAudio);
 }
 
 .reset-btn {
-  background: var(--gray-100);
-  color: var(--gray-700);
+  background: var(--shell-raised);
+  color: var(--shell-text);
 }
 
 .reset-btn:hover {
-  background: var(--gray-200);
+  /* Meme raison que .upload-btn:hover : le voile seul ne donnait que 1.17. */
+  background: rgba(228, 190, 99, 0.14);
+  color: var(--shell-accent-strong);
 }
 
+/* ARBITRAGE : deux boutons or pleins portaient la MEME action « Enregistrer »
+   a vingt pixels l'un de l'autre — celui de la barre collante et celui-ci — et
+   rien ne disait lequel etait le bouton canonique. La barre collante l'emporte :
+   elle est la seule atteignable a tout moment du defilement, et c'est le motif
+   deja retenu pour la sauvegarde par section. Celui-ci descend donc en contour.
+   Ses ombres or sont supprimees : du noir ou de l'or diffus ne se voit pas sur
+   navy, elles ne dessinaient rien. */
 .save-btn {
   flex: 1;
   justify-content: center;
-  background: linear-gradient(135deg, var(--gold-500), var(--gold-600));
-  color: white;
-  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+  background: transparent;
+  border: 1px solid var(--shell-accent);
+  color: var(--shell-accent); /* 9.39 sur la carte */
 }
 
 .save-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(212, 175, 55, 0.4);
+  background: rgba(228, 190, 99, 0.14); /* compose #333340 ; or a 8.78 */
+  color: var(--shell-accent-strong);
 }
 
 .save-btn:disabled {
@@ -2095,7 +2225,7 @@ onUnmounted(stopAudio);
 /* Audio Upload */
 .section-description {
   font-size: 13px;
-  color: var(--gray-500);
+  color: var(--shell-text-muted);
   margin: -8px 0 16px;
 }
 
@@ -2108,8 +2238,11 @@ onUnmounted(stopAudio);
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  background: var(--gray-50);
-  border: 2px solid var(--gold-300);
+  background: var(--shell-page);
+  /* Ce cadre or dit « un son est configure » : le signal doit survivre.
+     Un voile or a 0.32 ne mesure que 2.10, sous le seuil de 3.0 pour un
+     objet graphique ; le trait plein passe (#C8922A = 6.03 sur la carte). */
+  border: 2px solid var(--shell-accent-deep);
   border-radius: var(--radius-md);
   margin-bottom: 12px;
 }
@@ -2118,14 +2251,14 @@ onUnmounted(stopAudio);
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--gray-700);
+  color: var(--shell-text);
   font-weight: 500;
 }
 
 .audio-info svg {
   width: 24px;
   height: 24px;
-  color: var(--gold-500);
+  color: var(--shell-accent);
 }
 
 .audio-actions {
@@ -2145,29 +2278,34 @@ onUnmounted(stopAudio);
   transition: all 0.2s;
 }
 
+/* Pastille d'icone : voile or, glyphe or. */
 .play-btn {
-  background: var(--gold-100);
-  color: var(--gold-600);
+  background: rgba(228, 190, 99, 0.14);
+  color: var(--shell-accent);
 }
 
 .play-btn:hover {
-  background: var(--gold-200);
+  background: rgba(228, 190, 99, 0.22);
 }
 
-/* Etat "en lecture" : le bouton doit dire clairement qu'un second clic arrete. */
+/* Etat "en lecture" : le bouton doit dire clairement qu'un second clic
+   arrete. Le contraste repos/lecture etait voile-clair contre or-fonce ; il
+   devient voile contre APLAT or profond, ce qui garde deux etats distincts
+   sans concurrencer l'aplat or de l'action dominante. #fff sur de l'or est
+   l'echec que --shell-on-accent corrige (6.85 sur l'or profond). */
 .play-btn.playing {
-  background: var(--gold-600);
-  color: #fff;
+  background: var(--shell-accent-deep);
+  color: var(--shell-on-accent);
   animation: audio-playing-pulse 1.4s ease-in-out infinite;
 }
 
 .play-btn.playing:hover {
-  background: var(--gold-700);
+  background: var(--shell-accent);
 }
 
 @keyframes audio-playing-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 161, 6, 0.5); }
-  50% { box-shadow: 0 0 0 5px rgba(212, 161, 6, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(228, 190, 99, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(228, 190, 99, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2182,13 +2320,15 @@ onUnmounted(stopAudio);
 }
 
 .remove-audio-btn {
-  background: var(--gray-100);
-  color: var(--gray-600);
+  background: var(--shell-raised);
+  color: var(--shell-text);
 }
 
+/* --error-100 (#fee2e2) etait un aplat CLAIR : voile rouge calcule, fond
+   rendu #36212F, glyphe #F87171 dessus = 5.35. */
 .remove-audio-btn:hover {
-  background: var(--error-100);
-  color: var(--error-500);
+  background: rgba(248, 113, 113, 0.18);
+  color: var(--shell-error);
 }
 
 .remove-audio-btn svg {
