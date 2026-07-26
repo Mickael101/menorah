@@ -12,10 +12,17 @@ const svgContainer = ref<HTMLDivElement | null>(null);
 const svgContent = ref<string>('');
 const breathingAnimations = ref<gsap.core.Timeline[]>([]);
 const activePalette = computed(() => getActiveThemePalette(config.value.displaySettings));
+// Couleur des segments de menorah encore eteints : elle doit rester lisible
+// sur le fond du theme sans attirer l'oeil. « ivory » est le seul theme clair,
+// d'ou une valeur nettement plus sombre.
 const mutedColor = computed(() => ({
   premium: '#766F73',
   modern: '#416A73',
-  ceremonial: '#755C60'
+  ceremonial: '#755C60',
+  royal: '#6E5F7A',
+  emerald: '#4C6659',
+  ivory: '#B7AB92',
+  midnight: '#55555C'
 })[config.value.displaySettings.theme] ?? '#766F73');
 
 function prefersReducedMotion(): boolean {

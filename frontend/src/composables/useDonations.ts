@@ -38,7 +38,7 @@ export interface DonationStats {
   litSegments: string[];
 }
 
-export const DISPLAY_THEME_IDS = ['premium', 'modern', 'ceremonial'] as const;
+export const DISPLAY_THEME_IDS = ['premium', 'modern', 'ceremonial', 'royal', 'emerald', 'ivory', 'midnight'] as const;
 export type DisplayThemeId = typeof DISPLAY_THEME_IDS[number];
 
 export const DISPLAY_VISUAL_MODES = ['none', 'menorah', 'custom'] as const;
@@ -207,6 +207,54 @@ export const DEFAULT_THEME_PALETTES: Record<DisplayThemeId, DisplayThemePalette>
     statsTextColor: '#F6EAD8',
     chartPrimaryColor: '#D8B66A',
     chartSecondaryColor: '#7F2535'
+  },
+  royal: {
+    backgroundColor: '#150720',
+    backgroundImage: null,
+    plateColorGold: '#E8C766',
+    plateColorDiamond: '#D6C7E8',
+    plateColorBronze: '#A9749B',
+    plateTextColor: '#F6EFFA',
+    headerTextColor: '#EBC96F',
+    statsTextColor: '#F3EAF8',
+    chartPrimaryColor: '#C69AE0',
+    chartSecondaryColor: '#6B3E8F'
+  },
+  emerald: {
+    backgroundColor: '#04170F',
+    backgroundImage: null,
+    plateColorGold: '#E3C46A',
+    plateColorDiamond: '#BFE3D2',
+    plateColorBronze: '#8C7A46',
+    plateTextColor: '#EFF7F1',
+    headerTextColor: '#E9D08A',
+    statsTextColor: '#EAF6EE',
+    chartPrimaryColor: '#4FC08A',
+    chartSecondaryColor: '#1E6B49'
+  },
+  ivory: {
+    backgroundColor: '#F6F1E6',
+    backgroundImage: null,
+    plateColorGold: '#B08328',
+    plateColorDiamond: '#8A93A6',
+    plateColorBronze: '#9A6A3C',
+    plateTextColor: '#221C10',
+    headerTextColor: '#8A6116',
+    statsTextColor: '#2A2318',
+    chartPrimaryColor: '#B08328',
+    chartSecondaryColor: '#DCCFAE'
+  },
+  midnight: {
+    backgroundColor: '#020203',
+    backgroundImage: null,
+    plateColorGold: '#D8D8DE',
+    plateColorDiamond: '#F0F1F4',
+    plateColorBronze: '#8E8E96',
+    plateTextColor: '#F5F5F7',
+    headerTextColor: '#E8E8EC',
+    statsTextColor: '#FAFAFB',
+    chartPrimaryColor: '#C9CAD1',
+    chartSecondaryColor: '#4A4B52'
   }
 };
 
