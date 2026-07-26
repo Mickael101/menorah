@@ -106,7 +106,7 @@ réellement corrigible (ancrage du dégradé, marqueur, transitions, robustesse 
 **ne prétend pas** que la courbure est devenue lisible. Le remplacement par une barre reste
 nécessaire, et cette tranche ne le remplace pas.
 
-- [ ] 9. Lisibilité de la courbe d'objectif et grille de presets : `preserveAspectRatio="none"`
+- [x] 9. Lisibilité de la courbe d'objectif et grille de presets : `preserveAspectRatio="none"`
       écrase un viewBox 640×88 sur 1088×54 (2,8× d'écrasement vertical) ; l'aplat à
       `stop-opacity 0.28` est invisible. Et `.preset-grid` en `auto-fit minmax(90px, 1fr)` dans
       560 px produit mécaniquement un orphelin dès 6 montants.
@@ -145,6 +145,30 @@ nécessaire, et cette tranche ne le remplace pas.
   table écrite jusqu'à la bascule des écritures vers `event_configs`. C'est précisément ce qui
   justifie le rafraîchissement conditionnel introduit en `b786a87`.
 
+### PRIORITÉ HAUTE, découverte le 2026-07-27 — fuite de données donateurs par le socket
+
+Le LOT 0a a fermé la fuite d'email, de téléphone et de référence **côté HTTP**. Elle reste
+ouverte **côté temps réel** : `emitDonationNew` et `emitDonationUpdated` transportent l'objet
+`Donation` complet, et **cinq pages publiques** écoutent `donation:new`. N'importe qui ouvrant
+l'écran public reçoit donc en direct les coordonnées de chaque donateur.
+
+Pré-existant, non introduit par le chantier en cours, mais de la même nature exactement que ce
+que le LOT 0a existait pour corriger. La correction n'est pas triviale : l'administration
+consomme le même événement et a besoin du payload complet. Deux voies, à trancher :
+émettre la projection publique sur la room de la soirée et laisser l'administration recharger par
+HTTP (simple, dégrade légèrement l'admin), ou émettre deux payloads — public sur `event:<id>`,
+complet sur une room d'administration, ce qui suppose l'authentification de la tranche 13.
+
+### Bloquant identifié sur les tranches 11-12 — le direct serait coupé
+
+Les cinq émissions passent désormais par `io.to('event:<id>')`, mais **aucun code frontend
+n'appelle `join`** et la connexion ne fait aucun abonnement d'office. Les écrans déjà déployés
+resteraient muets : les dons cesseraient d'apparaître en direct, sans qu'aucun test ni aucune
+compilation ne bronche. Backend et frontend doivent donc entrer dans le même commit, ou la
+connexion doit abonner d'office à la soirée active — la règle que suivent déjà `/display` et
+`/don` sans slug. Dans ce second cas, une jonction explicite ultérieure doit QUITTER la room par
+défaut, sinon un client reçoit deux soirées et l'isolation tombe.
+
 ## Tranche 16 — Vérification navigateur, deux soirées simultanées
 
 - [ ] 16. Deux soirées, deux onglets `/e/:slug/display` ouverts en même temps : un don saisi sur
@@ -173,6 +197,17 @@ nécessaire, et cette tranche ne le remplace pas.
   jamais. Corrigé par les **piles de polices** (repli glyphe par glyphe), et le `letter-spacing`
   traité à la source avec `:dir(rtl)`. Mesuré en configuration par défaut : 2 faces Heebo
   réellement peintes, contre 0 avant.
+- `4628410` — tranche 9. Courbe d'objectif honnête : l'écrasement 2,8× est supprimé, mais le
+  commit **ne prétend pas** que la courbure est lisible — flèche mesurée sur toute la plage, la
+  cause est un rapport de boîte de 19:1. **Ma consigne d'ancrer le dégradé sur la boîte était
+  fausse** : mesurée au pixel avec témoin exact, elle pâlissait l'aplat (1,46:1 → 1,18:1),
+  revenue en arrière. Élastique au redimensionnement supprimé, mouvement réduit couvert,
+  robustesse de la mesure doublée. Grilles de montants : plus aucun orphelin, des deux côtés.
+- `4828ae3` — correction de `b786a87` : **les clés étrangères n'étaient actives que pendant la
+  migration**. `db.export()` remet `foreign_keys` à 0, et la première sauvegarde a lieu dès la fin
+  de l'initialisation. Reproduit, corrigé, vérifié.
+- `169aa61` — correction du plan lui-même : sa section « Contexte figé » déclarait satisfaite
+  l'exigence de dump pré-migration, ce qui est précisément pourquoi personne ne l'avait ajouté.
 - `b786a87` — tranche 10 bis, après revue adversariale de `8976f67`. **La sauvegarde
   « pré-déploiement » était prise APRÈS la migration** — le mécanisme existait, il était appelé du
   mauvais côté, et tant qu'il l'était chaque autre défaut devenait irréversible au premier
