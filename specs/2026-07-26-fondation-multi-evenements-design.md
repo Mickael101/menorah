@@ -66,7 +66,18 @@ Indépendant du reste, livrable immédiatement. Aucun changement de modèle de d
 
 ### 3.1 Sécurité
 
-- Protéger `GET /api/donations` et `GET /api/donations/export.csv` par `requireAdmin`.
+- Protéger `GET /api/donations/export.csv` par `requireAdmin`.
+- `GET /api/donations` : **corrigé après vérification du 2026-07-27.** La rédaction initiale
+  demandait `requireAdmin` sur la route entière en supposant que `/display` n'en dépendait pas.
+  C'est faux : **cinq écrans publics l'appellent** (`DisplayPage.vue:132`, `DisplayPage8.vue:83`,
+  `DisplayHiddenPage.vue:83`, `MenorahAscension.vue:155`, `MenorahDisplay.vue:79`). Fermer la
+  route aurait cassé l'écran de la salle.
+  La décision retenue est une **projection publique par défaut** : sans token, la route répond
+  `id, firstName, lastName, amount, premiumWordId, createdAt` — et rien d'autre. Le payload
+  complet (email, téléphone, référence) exige `?full=1` **et** un token admin.
+  Le modèle est cohérent avec le produit : **le nom d'un donateur s'affiche sur une plaque devant
+  toute la salle, il est public par nature** ; son email, son téléphone et sa référence de
+  paiement ne le sont pas, et sont fermés.
 - **`ADMIN_TOKEN` absent ne doit plus signifier « accès libre »** (`admin-auth.ts:8-11`). En
   production, l'absence de secret doit refuser l'accès et logger une erreur au démarrage ; le
   contournement reste autorisé uniquement quand `NODE_ENV !== 'production'`.
@@ -92,8 +103,9 @@ Ce qui ne fonctionne pas relève du design :
 
 1. `preserveAspectRatio="none"` (`StatsCompact.vue:100`) étire un `viewBox` de 640×88 sur toute la
    largeur du conteneur, aplatissant la courbe en un filet quasi rectiligne.
-2. L'aplat sous la courbe est en `color-mix(in srgb, var(--chart-primary-color) 20%, transparent)`
-   (`:235`) — quasi invisible sur fond sombre.
+2. L'aplat sous la courbe est un dégradé à `stop-opacity` 0,28 → 0 (`StatsCompact.vue:109-112`
+   et `:220-223`) — quasi invisible sur fond sombre. *(Correction du 2026-07-27 : la référence
+   `:235` de la rédaction initiale visait `.curve-point-glow`, pas l'aplat.)*
 3. **Une courbe promet un historique qui n'existe pas.** La donnée est une valeur unique
    (`percentComplete`), pas une série temporelle. Le spectateur ne peut pas lire « 60,1 % de
    l'objectif » dans une diagonale.
@@ -132,7 +144,9 @@ déclare avec les valeurs cibles pour que les retours redeviennent lisibles imm�
 
 ### 3.5 Critères d'acceptation du LOT 0
 
-- `GET /api/donations` et `/export.csv` renvoient 401 sans token valide.
+- `GET /api/donations/export.csv` renvoie 401 sans token valide.
+- `GET /api/donations` sans token n'expose **ni email, ni téléphone, ni référence** ; le payload
+  complet exige `?full=1` et un token valide. (Critère réécrit le 2026-07-27, voir §3.1.)
 - En `NODE_ENV=production` sans `ADMIN_TOKEN`, le serveur refuse les routes admin et logge l'erreur.
 - La courbe d'objectif est lisible : aplat visible sur fond sombre, courbure non écrasée.
 - Le donut admin affiche le pourcentage réel.
@@ -323,7 +337,7 @@ galerie — sans bloquer l'enregistrement.
 | Migration de données destructive | Élevée | Dump avant migration, migration idempotente, restauration testée avant déploiement |
 | `emit` global oublié → fuite entre soirées | Élevée | `eventId` en paramètre obligatoire (erreur de compilation), test deux-soirées |
 | QR codes `/don` déjà distribués cassés | Élevée | Anciennes routes conservées et redirigées ; testées explicitement |
-| Fermeture de `GET /api/donations` casse un usage légitime | Moyenne | Vérifier que `/don` et `/display` n'en dépendent pas ; `/api/stats` reste public |
+| ~~Fermeture de `GET /api/donations` casse un usage légitime~~ **Risque réalisé** | Moyenne | Vérifié le 2026-07-27 : `/display` en dépend bel et bien (5 appels). Mitigé par la projection publique décrite en §3.1, pas par une fermeture. `/api/stats` reste public |
 | `sql.js` réécrit le fichier entier à chaque écriture (`db/init.ts:88`) | Faible à ce volume | Documenté comme dette ; migration vers `better-sqlite3` hors périmètre |
 | Admin sombre moins lisible en saisie longue | Moyenne | Exigence AA explicite, vérification au navigateur |
 
