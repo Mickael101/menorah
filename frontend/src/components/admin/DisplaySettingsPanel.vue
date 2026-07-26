@@ -57,6 +57,34 @@ onMounted(async () => {
 
 const toast = useToast();
 
+// Sous-onglets. Les 10 sections tenaient dans un seul scroll de 38 champs,
+// avec l'unique bouton Enregistrer tout en bas : impossible de s'y retrouver.
+// L'ordre suit l'usage reel, et « Thème et couleurs » vient en premier parce
+// que le theme conditionne toutes les couleurs des sections suivantes.
+type ScreenTab = 'appearance' | 'texts' | 'composition' | 'donation' | 'pledge';
+
+const SCREEN_TABS: { id: ScreenTab; labelKey: string }[] = [
+  { id: 'appearance', labelKey: 'screenTabs.appearance' },
+  { id: 'texts', labelKey: 'screenTabs.texts' },
+  { id: 'composition', labelKey: 'screenTabs.composition' },
+  { id: 'donation', labelKey: 'screenTabs.donation' },
+  { id: 'pledge', labelKey: 'screenTabs.pledge' }
+];
+
+const SCREEN_TAB_KEY = 'menorah_admin_screen_tab';
+
+function readStoredTab(): ScreenTab {
+  const stored = localStorage.getItem(SCREEN_TAB_KEY) as ScreenTab | null;
+  return SCREEN_TABS.some(tab => tab.id === stored) ? (stored as ScreenTab) : 'appearance';
+}
+
+const screenTab = ref<ScreenTab>(readStoredTab());
+
+function selectScreenTab(next: ScreenTab): void {
+  screenTab.value = next;
+  localStorage.setItem(SCREEN_TAB_KEY, next);
+}
+
 // Empreinte du dernier etat enregistre, pour savoir si la saisie en cours
 // differe de ce qui est reellement en base.
 const savedSnapshot = ref('');
@@ -301,8 +329,24 @@ onUnmounted(stopAudio);
 
       <p v-if="error" class="error-msg">{{ error }}</p>
 
+      <!-- Sous-onglets : les 10 sections tenaient dans un seul scroll. -->
+      <nav class="screen-tabs" role="tablist" :aria-label="t('display.title')">
+        <button
+          v-for="tab in SCREEN_TABS"
+          :key="tab.id"
+          type="button"
+          role="tab"
+          class="screen-tab"
+          :class="{ active: screenTab === tab.id }"
+          :aria-selected="screenTab === tab.id"
+          @click="selectScreenTab(tab.id)"
+        >
+          {{ t(tab.labelKey) }}
+        </button>
+      </nav>
+
       <!-- Scene composition -->
-      <section class="settings-section visual-section">
+      <section v-show="screenTab === 'composition'" class="settings-section visual-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('display.visual.title') }}</h3>
@@ -402,7 +446,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Customizable copy and language direction -->
-      <section class="settings-section content-settings-section">
+      <section v-show="screenTab === 'texts'" class="settings-section content-settings-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('display.content.title') }}</h3>
@@ -503,7 +547,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Public pledge page (/don) texts -->
-      <section class="settings-section">
+      <section v-show="screenTab === 'pledge'" class="settings-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('pledge.sectionTitle') }}</h3>
@@ -585,7 +629,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Donation animation selection -->
-      <section class="settings-section animation-settings-section">
+      <section v-show="screenTab === 'donation'" class="settings-section animation-settings-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('display.animation.title') }}</h3>
@@ -619,7 +663,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Theme selection -->
-      <section class="settings-section theme-section">
+      <section v-show="screenTab === 'appearance'" class="settings-section theme-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('display.theme.title') }}</h3>
@@ -679,7 +723,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Background Section -->
-      <section class="settings-section">
+      <section v-show="screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.background.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
 
         <div class="color-row">
@@ -715,7 +759,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Plate Colors Section -->
-      <section class="settings-section">
+      <section v-show="screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.plates.title') }}</h3>
 
         <div class="color-row">
@@ -761,7 +805,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Text Colors Section -->
-      <section class="settings-section">
+      <section v-show="screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.textColors.title') }}</h3>
 
         <div class="color-row">
@@ -782,7 +826,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Chart Colors Section -->
-      <section class="settings-section">
+      <section v-show="screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.chart.title') }}</h3>
 
         <div class="color-row">
@@ -803,7 +847,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Audio Section -->
-      <section class="settings-section">
+      <section v-show="screenTab === 'donation'" class="settings-section">
         <h3>{{ t('display.sound.title') }}</h3>
         <p class="section-description">{{ t('display.sound.description') }}</p>
 
@@ -898,6 +942,53 @@ onUnmounted(stopAudio);
 </template>
 
 <style scoped>
+/* Sous-onglets de la personnalisation. */
+.screen-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 22px;
+  padding: 4px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  background: var(--gray-100);
+}
+
+.screen-tab {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--gray-600);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.screen-tab:hover {
+  color: var(--gray-900);
+  background: white;
+}
+
+.screen-tab.active {
+  color: var(--gray-900);
+  background: white;
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 700px) {
+  .screen-tab {
+    flex: 1 1 45%;
+    font-size: 12.5px;
+    padding-inline: 8px;
+  }
+}
+
 /* Barre de sauvegarde collante en bas de l'ecran. */
 .save-bar {
   position: sticky;
