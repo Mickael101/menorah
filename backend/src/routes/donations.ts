@@ -41,7 +41,7 @@ router.get('/premium-words', (_req: Request, res: Response) => {
 
 // GET /api/donations/export.csv - Download a read-only UTF-8 export.
 // This route must stay before /:id so "export.csv" is not parsed as an ID.
-router.get('/export.csv', (req: Request, res: Response) => {
+router.get('/export.csv', requireAdmin, (req: Request, res: Response) => {
   try {
     const requestedLocale = req.query.lang;
     const locale: CsvLocale = requestedLocale === 'en' || requestedLocale === 'he'
