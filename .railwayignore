@@ -1,0 +1,26 @@
+# Ce service est deploye par upload CLI (`railway up`), pas depuis GitHub :
+# `railway status --json` montre source: { image: null, repo: null }.
+# Un `git push` ne declenche donc AUCUN deploiement.
+#
+# Ce fichier limite le paquet uploade au strict necessaire. Tout ce qui est
+# listee ici est soit reinstalle, soit regenere par le buildCommand de
+# railway.json, soit specifique a la machine locale.
+
+# Reinstalles par le build
+node_modules/
+
+# Regeneres par le buildCommand :
+#   cd frontend && npm run build && mkdir -p ../backend/public && cp -R dist/* ../backend/public
+frontend/dist/
+backend/public/
+
+# Base locale de developpement et ses sauvegardes.
+# La production utilise le volume persistant monte sur DATA_DIR=/data :
+# ces fichiers ne seraient jamais lus, et les envoyer est inutile.
+backend/db/
+
+# Artefacts de la suite de tests (base isolee)
+backend/.tmp-test-data/
+
+# Historique git : inutile au build
+.git/
