@@ -118,4 +118,24 @@ describe('protection des donnees donateurs', () => {
       expect(donation).toHaveProperty('reference');
     });
   });
+
+  describe('GET /api/donations/:id', () => {
+    it('refuse sans token admin', async () => {
+      process.env.ADMIN_TOKEN = ADMIN_TOKEN;
+
+      const response = await request(app).get('/api/donations/1');
+
+      expect(response.status).toBe(401);
+    });
+
+    it('accepte avec le token admin', async () => {
+      process.env.ADMIN_TOKEN = ADMIN_TOKEN;
+
+      const response = await request(app)
+        .get('/api/donations/1')
+        .set('x-admin-token', ADMIN_TOKEN);
+
+      expect([200, 404]).toContain(response.status);
+    });
+  });
 });

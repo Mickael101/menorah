@@ -103,7 +103,7 @@ router.get('/', (req: Request, res: Response, next: NextFunction) => {
 });
 
 // GET /api/donations/:id - Get donation by ID
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', requireAdmin, (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
