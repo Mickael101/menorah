@@ -725,6 +725,9 @@ onUnmounted(stopAudio);
       <!-- Background Section -->
       <section v-show="screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.background.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
+        <p class="section-description theme-scope-hint">
+          {{ t('display.themeScopedHint', { theme: themeText(settings.theme, 'short') }) }}
+        </p>
 
         <div class="color-row">
           <label>{{ t('display.background.color') }}</label>
@@ -760,7 +763,10 @@ onUnmounted(stopAudio);
 
       <!-- Plate Colors Section -->
       <section v-show="screenTab === 'appearance'" class="settings-section">
-        <h3>{{ t('display.plates.title') }}</h3>
+        <h3>{{ t('display.plates.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
+        <p class="section-description theme-scope-hint">
+          {{ t('display.themeScopedHint', { theme: themeText(settings.theme, 'short') }) }}
+        </p>
 
         <div class="color-row">
           <label>
@@ -806,7 +812,10 @@ onUnmounted(stopAudio);
 
       <!-- Text Colors Section -->
       <section v-show="screenTab === 'appearance'" class="settings-section">
-        <h3>{{ t('display.textColors.title') }}</h3>
+        <h3>{{ t('display.textColors.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
+        <p class="section-description theme-scope-hint">
+          {{ t('display.themeScopedHint', { theme: themeText(settings.theme, 'short') }) }}
+        </p>
 
         <div class="color-row">
           <label>{{ t('display.textColors.header') }}</label>
@@ -827,7 +836,10 @@ onUnmounted(stopAudio);
 
       <!-- Chart Colors Section -->
       <section v-show="screenTab === 'appearance'" class="settings-section">
-        <h3>{{ t('display.chart.title') }}</h3>
+        <h3>{{ t('display.chart.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
+        <p class="section-description theme-scope-hint">
+          {{ t('display.themeScopedHint', { theme: themeText(settings.theme, 'short') }) }}
+        </p>
 
         <div class="color-row">
           <label>{{ t('display.chart.primary') }}</label>
@@ -942,6 +954,14 @@ onUnmounted(stopAudio);
 </template>
 
 <style scoped>
+/* Rappel de portee sous chaque bloc de couleurs. */
+.theme-scope-hint {
+  margin: -6px 0 14px;
+  color: var(--gray-500);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
 /* Sous-onglets de la personnalisation. */
 .screen-tabs {
   display: flex;
