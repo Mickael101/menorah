@@ -17,13 +17,25 @@
 - TypeScript strict, types de retour explicites, `const` par défaut (convention `CLAUDE.md`).
 - Commits fréquents, un par task.
 
-## Pré-requis de déploiement (à faire avant la Task 5)
+## Pré-requis de déploiement — VÉRIFIÉ, aucun blocage
 
-La Task 5 rend le middleware « fail-closed » : sans `ADMIN_TOKEN`, les routes admin renvoient 503 en production. **Si la variable n'est pas déjà positionnée sur Railway, l'admin devient inaccessible dès le déploiement.**
+La Task 5 rend le middleware « fail-closed » : sans `ADMIN_TOKEN`, les routes admin renvoient 503 en production. Si la variable n'était pas positionnée, l'admin deviendrait inaccessible dès le déploiement.
 
-- [ ] Vérifier sur Railway (projet `menorah`, service `web`) si `ADMIN_TOKEN` existe et a une valeur.
-- [ ] Si absente : générer un secret fort et le positionner **avant** de déployer la Task 5.
-- [ ] Noter le secret pour pouvoir se connecter à `/admin` après déploiement.
+**Vérifié le 2026-07-26 par sonde non destructive sur la production** :
+
+```
+PUT /api/donations/999999  (id inexistant, aucune mutation possible)  → 401
+GET /api/donations/export.csv                                        → 200
+```
+
+- [x] `ADMIN_TOKEN` **est** positionné sur Railway — le 401 sur `PUT` le prouve. La Task 5 ne verrouillera personne.
+- [x] La fuite est confirmée active : `export.csv` renvoie 200 sans aucun token.
+
+### Précision sur la cause réelle
+
+`/admin` affiche les donateurs en production **non pas** parce que l'authentification serait désactivée — elle fonctionne, comme le montre le 401 sur `PUT`. La cause est uniquement l'**absence de garde sur les routes `GET`** (`donations.ts:44`, `:78`, `:91`).
+
+Le fail-open de `admin-auth.ts:8-11` est donc un **défaut latent** (il s'activerait si la variable disparaissait d'un environnement), pas la cause de la fuite actuelle. La Task 5 reste nécessaire à ce titre, mais ce sont les Tasks 2 à 4 qui referment la fuite.
 
 > Rappel du dépôt : l'auto-deploy GitHub de ce service a déjà échoué à se déclencher sur un `git push`. Vérifier que le déploiement part réellement, ou le déclencher manuellement.
 
