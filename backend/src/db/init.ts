@@ -124,4 +124,12 @@ export function saveDatabase(): void {
   const tmpPath = `${DB_PATH}.tmp`;
   fs.writeFileSync(tmpPath, buffer);
   fs.renameSync(tmpPath, DB_PATH);
+
+  // db.export() REMET `foreign_keys` a 0 sur la connexion vivante. Mesure :
+  // ouverture 0 -> pragma ON 1 -> migrations 1 -> apres export 0. Comme la
+  // premiere sauvegarde a lieu des la fin d'initDatabase(), les cles etrangeres
+  // n'etaient appliquees que pendant la migration, et decoratives ensuite —
+  // c'est-a-dire exactement l'etat que l'activation devait supprimer. Le pragma
+  // est donc repose apres chaque export.
+  db.run('PRAGMA foreign_keys = ON');
 }
