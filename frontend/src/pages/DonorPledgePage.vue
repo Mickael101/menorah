@@ -9,8 +9,16 @@ import {
   type PledgeRequiredFields
 } from '../composables/useDonations';
 import { useEventContext } from '../composables/useEventContext';
+import { getPledgeThemeStyles } from '../theme/displayThemes';
 
 const { config, fetchConfig, createDonation, formatAmount, isLoading, error } = useDonations();
+
+// Variables du theme de la soiree — memes helpers que les ecrans de salle. La page
+// tire fond/texte/accents de ces variables (voir <style>), avec les valeurs
+// actuelles en repli : tant que la config n'est pas chargee, le rendu est
+// byte-identique a avant, jamais un flash illisible. Le thème se gère donc au meme
+// endroit que les displays : Personnalisation -> Theme et couleurs.
+const themeStyles = computed(() => getPledgeThemeStyles(config.value.displaySettings));
 
 // Contexte de soiree : /don => soiree active (herite) ; /e/:slug/don => soiree
 // nommee. Un slug inconnu affiche un etat 404 propre, jamais un repli silencieux
@@ -228,7 +236,7 @@ function reset(): void {
 </script>
 
 <template>
-  <div class="pledge-page" :dir="isRtl ? 'rtl' : 'ltr'">
+  <div class="pledge-page" :dir="isRtl ? 'rtl' : 'ltr'" :style="themeStyles">
     <div class="glow glow-top"></div>
     <div class="glow glow-bottom"></div>
 
@@ -368,9 +376,11 @@ function reset(): void {
 .pledge-page {
   min-height: 100vh;
   min-height: 100dvh;
-  background: radial-gradient(ellipse at top, #131731 0%, #070914 55%);
-  color: #f7f3ea;
-  font-family: 'Segoe UI', 'Heebo', Tahoma, sans-serif;
+  /* Fond du theme de la soiree. Repli = le degrade actuel : sans config chargee,
+     var(--bg-color) n'existe pas et la valeur de repli s'applique a l'identique. */
+  background: var(--bg-color, radial-gradient(ellipse at top, #131731 0%, #070914 55%));
+  color: var(--stats-text-color, #f7f3ea);
+  font-family: var(--theme-font-body, 'Segoe UI', 'Heebo', Tahoma, sans-serif);
   position: relative;
   overflow-x: hidden;
   padding: 24px 16px 48px;
@@ -390,7 +400,7 @@ function reset(): void {
   inset-inline-start: -80px;
   width: 340px;
   height: 340px;
-  background: #e4be63;
+  background: var(--chart-primary-color, #e4be63);
 }
 
 .glow-bottom {
@@ -398,7 +408,7 @@ function reset(): void {
   inset-inline-end: -100px;
   width: 380px;
   height: 380px;
-  background: #4a3a8a;
+  background: var(--chart-secondary-color, #4a3a8a);
 }
 
 .lang-switcher {
@@ -412,9 +422,11 @@ function reset(): void {
 }
 
 .lang-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(228, 190, 99, 0.25);
-  color: rgba(247, 243, 234, 0.7);
+  /* Texte du thème (jamais fige) : sur Ivoire clair, --stats-text-color est
+     sombre et reste lisible ; un blanc fige y disparaitrait. */
+  background: color-mix(in srgb, var(--stats-text-color, #ffffff) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #e4be63) 25%, transparent);
+  color: color-mix(in srgb, var(--stats-text-color, #f7f3ea) 70%, transparent);
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 13px;
@@ -424,9 +436,9 @@ function reset(): void {
 }
 
 .lang-btn.active {
-  background: rgba(228, 190, 99, 0.2);
-  border-color: #e4be63;
-  color: #f2cc72;
+  background: color-mix(in srgb, var(--chart-primary-color, #e4be63) 20%, transparent);
+  border-color: var(--chart-primary-color, #e4be63);
+  color: var(--header-text-color, #f2cc72);
 }
 
 .content {
@@ -445,8 +457,8 @@ function reset(): void {
 
 .notfound-card {
   text-align: center;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(228, 190, 99, 0.22);
+  background: var(--theme-surface, rgba(255, 255, 255, 0.045));
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #e4be63) 22%, transparent);
   border-radius: 18px;
   padding: 36px 26px;
   backdrop-filter: blur(12px);
@@ -456,12 +468,12 @@ function reset(): void {
 .notfound-card h1 {
   font-size: 22px;
   margin: 0 0 10px;
-  color: #f2cc72;
+  color: var(--header-text-color, #f2cc72);
 }
 
 .notfound-card p {
   font-size: 14px;
-  color: rgba(247, 243, 234, 0.65);
+  color: color-mix(in srgb, var(--stats-text-color, #f7f3ea) 65%, transparent);
   margin: 0;
 }
 
@@ -475,12 +487,12 @@ function reset(): void {
   height: 58px;
   margin: 0 auto 14px;
   border-radius: 50%;
-  background: linear-gradient(160deg, rgba(228, 190, 99, 0.25), rgba(228, 190, 99, 0.05));
-  border: 1px solid rgba(228, 190, 99, 0.4);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--chart-primary-color, #e4be63) 25%, transparent), color-mix(in srgb, var(--chart-primary-color, #e4be63) 5%, transparent));
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #e4be63) 40%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #f2cc72;
+  color: var(--header-text-color, #f2cc72);
   animation: flicker 2.4s ease-in-out infinite;
 }
 
@@ -490,14 +502,14 @@ function reset(): void {
 }
 
 @keyframes flicker {
-  0%, 100% { box-shadow: 0 0 22px rgba(228, 190, 99, 0.35); }
-  50% { box-shadow: 0 0 40px rgba(228, 190, 99, 0.65); }
+  0%, 100% { box-shadow: 0 0 22px color-mix(in srgb, var(--chart-primary-color, #e4be63) 35%, transparent); }
+  50% { box-shadow: 0 0 40px color-mix(in srgb, var(--chart-primary-color, #e4be63) 65%, transparent); }
 }
 
 .kicker {
   font-size: 11px;
   letter-spacing: 4px;
-  color: rgba(242, 204, 114, 0.8);
+  color: color-mix(in srgb, var(--header-text-color, #f2cc72) 80%, transparent);
   margin: 0 0 6px;
   font-weight: 700;
 }
@@ -505,7 +517,7 @@ function reset(): void {
 .org-name {
   font-size: 26px;
   margin: 0 0 4px;
-  color: #f2cc72;
+  color: var(--header-text-color, #f2cc72);
   letter-spacing: 1px;
 }
 
@@ -513,20 +525,20 @@ function reset(): void {
   font-size: 20px;
   font-weight: 500;
   margin: 0 0 10px;
-  color: #f7f3ea;
+  color: var(--stats-text-color, #f7f3ea);
 }
 
 .subtitle {
   font-size: 14px;
   line-height: 1.6;
-  color: rgba(247, 243, 234, 0.65);
+  color: color-mix(in srgb, var(--stats-text-color, #f7f3ea) 65%, transparent);
   margin: 0 auto;
   max-width: 440px;
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(228, 190, 99, 0.22);
+  background: var(--theme-surface, rgba(255, 255, 255, 0.045));
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #e4be63) 22%, transparent);
   border-radius: 18px;
   padding: 24px 20px;
   backdrop-filter: blur(12px);
@@ -548,11 +560,15 @@ label {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.6px;
-  color: rgba(242, 204, 114, 0.85);
+  color: color-mix(in srgb, var(--header-text-color, #f2cc72) 85%, transparent);
   margin-bottom: 7px;
   text-transform: uppercase;
 }
 
+/* Champs de saisie : surface FIGEE (fond + texte). On ne mele jamais un texte du
+   theme a un fond fige — ici les deux sont fixes, donc la paire reste lisible et
+   auto-coherente sur tout fond de theme (sombre ou Ivoire clair). Seul l'anneau
+   de focus (un accent, pas du texte) suit le theme. */
 input {
   width: 100%;
   box-sizing: border-box;
@@ -571,8 +587,8 @@ input::placeholder {
 
 input:focus {
   outline: none;
-  border-color: #e4be63;
-  box-shadow: 0 0 0 4px rgba(228, 190, 99, 0.12);
+  border-color: var(--chart-primary-color, #e4be63);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--chart-primary-color, #e4be63) 12%, transparent);
 }
 
 /* Le nombre de montants est editable par l'admin, donc inconnu ici. Avec
@@ -593,6 +609,11 @@ input:focus {
   grid-column: 1 / -1;
 }
 
+/* Montant au repos : meme puits fige que les champs (fond + texte figes) — lisible
+   sur tout fond. Selectionne, il prend l'accent PLEIN du theme (point 3) : fond
+   opaque = --chart-primary-color, texte = --accent-contrast-text (noir ou blanc
+   choisi par luminance, AA verifie sur les 7 themes). Le fond plein evite tout
+   melange texte-du-theme / fond-fige. */
 .preset {
   background: rgba(7, 9, 20, 0.6);
   border: 1.5px solid rgba(255, 255, 255, 0.12);
@@ -606,14 +627,14 @@ input:focus {
 }
 
 .preset:hover {
-  border-color: rgba(228, 190, 99, 0.6);
+  border-color: color-mix(in srgb, var(--chart-primary-color, #e4be63) 60%, transparent);
 }
 
 .preset.selected {
-  border-color: #e4be63;
-  background: rgba(228, 190, 99, 0.16);
-  color: #f2cc72;
-  box-shadow: 0 0 18px rgba(228, 190, 99, 0.25);
+  border-color: var(--chart-primary-color, #e4be63);
+  background: var(--chart-primary-color, #e4be63);
+  color: var(--accent-contrast-text, #131731);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--chart-primary-color, #e4be63) 25%, transparent);
 }
 
 .custom-wrapper {
@@ -643,10 +664,14 @@ input:focus {
   margin-bottom: 14px;
 }
 
+/* CTA = accent PLEIN du theme (point 3). Degrade primaire-eclairci -> primaire :
+   les DEUX bornes restent claires, donc --accent-contrast-text (noir sur les 7
+   themes livres) passe AA partout — un degrade vers la couleur secondaire, souvent
+   foncee, aurait casse le contraste sur la moitie du bouton. */
 .submit-btn {
   width: 100%;
-  background: linear-gradient(135deg, #e4be63 0%, #c8922a 100%);
-  color: #131731;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--chart-primary-color, #e4be63) 86%, white) 0%, var(--chart-primary-color, #c8922a) 100%);
+  color: var(--accent-contrast-text, #131731);
   border: none;
   border-radius: 12px;
   padding: 16px;
@@ -655,12 +680,12 @@ input:focus {
   letter-spacing: 0.5px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 8px 26px rgba(228, 190, 99, 0.35);
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--chart-primary-color, #e4be63) 35%, transparent);
 }
 
 .submit-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(228, 190, 99, 0.5);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--chart-primary-color, #e4be63) 50%, transparent);
 }
 
 .submit-btn:disabled {
@@ -673,7 +698,7 @@ input:focus {
   margin: 14px 0 0;
   font-size: 20px;
   font-weight: 800;
-  color: #f2cc72;
+  color: var(--header-text-color, #f2cc72);
 }
 
 /* ===== Celebration ===== */
@@ -684,7 +709,7 @@ input:focus {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, #1b2145 0%, #070914 70%);
+  background: var(--bg-color, radial-gradient(ellipse at center, #1b2145 0%, #070914 70%));
   padding: 20px;
 }
 
@@ -719,14 +744,14 @@ input:focus {
   position: relative;
   z-index: 11;
   text-align: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(228, 190, 99, 0.35);
+  background: var(--theme-surface, rgba(255, 255, 255, 0.05));
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #e4be63) 35%, transparent);
   border-radius: 22px;
   padding: 44px 32px;
   max-width: 420px;
   width: 100%;
   backdrop-filter: blur(14px);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), 0 0 60px rgba(228, 190, 99, 0.15);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), 0 0 60px color-mix(in srgb, var(--chart-primary-color, #e4be63) 15%, transparent);
   animation: card-pop 0.6s cubic-bezier(0.18, 1.4, 0.4, 1);
 }
 
@@ -740,12 +765,12 @@ input:focus {
   height: 84px;
   margin: 0 auto 18px;
   border-radius: 50%;
-  background: linear-gradient(160deg, rgba(228, 190, 99, 0.35), rgba(228, 190, 99, 0.08));
-  border: 1px solid rgba(228, 190, 99, 0.5);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--chart-primary-color, #e4be63) 35%, transparent), color-mix(in srgb, var(--chart-primary-color, #e4be63) 8%, transparent));
+  border: 1px solid color-mix(in srgb, var(--chart-primary-color, #e4be63) 50%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffd700;
+  color: var(--header-text-color, #ffd700);
   animation: flame-glow 1.8s ease-in-out infinite;
 }
 
@@ -755,28 +780,31 @@ input:focus {
 }
 
 @keyframes flame-glow {
-  0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.4); transform: scale(1); }
-  50% { box-shadow: 0 0 60px rgba(255, 215, 0, 0.75); transform: scale(1.05); }
+  0%, 100% { box-shadow: 0 0 30px color-mix(in srgb, var(--chart-primary-color, #ffd700) 40%, transparent); transform: scale(1); }
+  50% { box-shadow: 0 0 60px color-mix(in srgb, var(--chart-primary-color, #ffd700) 75%, transparent); transform: scale(1.05); }
 }
 
 .thank-title {
   font-size: 26px;
   margin: 0 0 10px;
-  color: #f2cc72;
+  color: var(--header-text-color, #f2cc72);
 }
 
+/* Montant de remerciement (signature animee) : recolore via --header-text-color
+   pour rester lisible quand le fond de la soiree est clair (Ivoire) ; le halo
+   suit l'accent. L'animation de comptage est inchangee. */
 .thank-amount {
   font-size: 42px;
   font-weight: 900;
   margin: 0 0 14px;
-  color: #ffd700;
-  text-shadow: 0 0 30px rgba(255, 215, 0, 0.45);
+  color: var(--header-text-color, #ffd700);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--chart-primary-color, #ffd700) 45%, transparent);
 }
 
 .thank-message {
   font-size: 14px;
   line-height: 1.6;
-  color: rgba(247, 243, 234, 0.7);
+  color: color-mix(in srgb, var(--stats-text-color, #f7f3ea) 70%, transparent);
   margin: 0 0 26px;
 }
 

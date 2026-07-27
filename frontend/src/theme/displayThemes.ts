@@ -266,6 +266,44 @@ export function getDisplayThemeStyles(settings: DisplaySettings): Record<string,
   };
 }
 
+// --- Ajout pur pour la page publique /don (DonorPledgePage) ---
+// Rien au-dessus n'est modifie : ces exports s'ajoutent au patron existant.
+
+// Luminance relative WCAG d'une couleur hex (#RGB ou #RRGGBB).
+function relativeLuminance(hex: string): number {
+  const clean = hex.replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map(ch => ch + ch).join('') : clean;
+  const channel = (v: number): number => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const r = channel(parseInt(full.slice(0, 2), 16));
+  const g = channel(parseInt(full.slice(2, 4), 16));
+  const b = channel(parseInt(full.slice(4, 6), 16));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+// Texte lisible (fonce ou clair) a poser SUR une surface d'accent PLEINE (CTA,
+// montant selectionne). Le choix suit la luminance de l'accent : le point de
+// bascule noir/blanc (avec ces deux extremes) est a ~0.19. Verifie AA (>= 4.5)
+// pour les 7 accents livres ; renvoie du blanc si l'admin definit un accent
+// reellement sombre via themePalettes. Voir la matrice dans le rapport de session.
+export function getReadableTextOn(backgroundHex: string): string {
+  return relativeLuminance(backgroundHex) > 0.18 ? '#0B0B12' : '#FFFFFF';
+}
+
+// Variables du theme de la soiree pour /don : identiques a celles des ecrans de
+// salle (getDisplayThemeStyles), plus la couleur de texte a contraste garanti sur
+// les surfaces d'accent pleines. La page tire ainsi fond/texte/accents du meme
+// endroit que les displays (Personnalisation -> Theme et couleurs).
+export function getPledgeThemeStyles(settings: DisplaySettings): Record<string, string> {
+  const palette = getActiveThemePalette(settings);
+  return {
+    ...getDisplayThemeStyles(settings),
+    '--accent-contrast-text': getReadableTextOn(palette.chartPrimaryColor)
+  };
+}
+
 export function resetThemePalette(
   settings: DisplaySettings,
   themeId: DisplayThemeId
