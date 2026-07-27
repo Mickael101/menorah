@@ -138,12 +138,12 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 
 ## Vague 3 — vérification (orchestrateur)
 
-- [ ] V1. B5 — deux soirées actives, deux CONTEXTES navigateur distincts (pas deux onglets) :
+- [x] V1. B5 — deux soirées actives, deux CONTEXTES navigateur distincts (pas deux onglets) :
       un don sur A n'anime jamais B ; les six URL héritées répondent ; dons existants intacts
       sur `orot-netanel`. Passe navigateur complète (admin, /don, displays, RTL, 390px+1440px),
       captures `docs/verif/sprint-2026-07-27/` (vérifier `git check-ignore` sur le nouveau
       sous-dossier — piège du `!docs/verif/*.png` à une étoile).
-- [ ] V2. Corrections issues de la passe, commit dédié.
+- [x] V2. AUCUNE correction nécessaire — V1 est passée intégralement (voir Journal).
 
 ## Livraison
 
@@ -211,6 +211,15 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 - `f1d69b7` — merge `sprint/front-events`. Conflit `docs/architecture.md` (tables de routes
   DD vs FE) résolu : table deux-familles de FE + encart fusion de DD. Gate rejoué :
   130/130, typecheck, build verts.
+- V1 (agent verif, banc jetable, 24 captures `docs/verif/sprint-2026-07-27/verif-finale/`) :
+  **TOUT PASS, zéro bug applicatif, zéro erreur console non triviale.** B5 prouvé chiffré en
+  deux contextes playwright disjoints (don sur A : ₪108→198 côté A, B strictement figé à
+  ₪97 ; contrôle inverse idem). Six URL héritées OK, 404 slug inconnu sans fuite (leak-check
+  vide), matrice auth 200/401/403 bidirectionnelle, galerie 7 thèmes + application par soirée
+  prouvée croisée (B émeraude, A intact), RTL/Heebo/390px OK. Deux notes sans bug : « ??? »
+  = artefact de seed curl (UTF-8 corrompu AVANT le POST, vérifié en base) ; bandeau display
+  identique A/B = textes par défaut partagés, à trancher par le commanditaire s'il doit
+  porter le nom de soirée. V2 : rien à corriger.
 - `8a1446c` / `5e4bb19` — T1 (front TH). Moteur de thèmes : CRUD en base (intégrés seedés
   depuis `DEFAULT_THEME_PALETTES`, 409 sur édition d'un intégré), application par soirée
   (`event_configs.theme_id`), galerie API avec aperçu annulable, export/import JSON, repli
