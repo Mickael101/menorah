@@ -12,14 +12,14 @@ Ce qui suit est ce qui reste — rien d'autre.
 
 ---
 
-## 🔵 D. Décisions de design — au commanditaire
+## 🔵 D. Décisions de design — TOUTES TRANCHÉES le 2026-07-27 (fin de journée)
 
-| # | À trancher | Contexte |
+| # | Décision du commanditaire | État |
 |---|---|---|
-| **D1** | Remplacer la courbe d'objectif par une **barre remplie** (§3.2 de la spec) | La courbe actuelle est honnête mais peu lisible (rapport de boîte 19:1, mesuré) — délibérément non truquée |
-| **D2** | Confirmer le comportement de `/don` hérité quand **plusieurs soirées sont actives** | Implémenté selon le contrat : la plus récente gagne + en-tête `X-Multiple-Active-Events` + warning. À confirmer que c'est le comportement voulu (§4.3) |
-| **D3** | Le **bandeau des écrans display** (« OHEL YEHOSHUA / SOIRÉE DE GÉNÉROSITÉ ») est un texte configuré, PARTAGÉ par défaut entre soirées | Doit-il refléter le nom de la soirée ? (constat de la passe navigateur, pas un bug) |
-| **D4** | Contraste des thèmes : la spec §5.4 (appliquée) dit **avertir sans bloquer** | Un 422 refusant est une bascule d'une ligne (`routes/themes.ts`) si l'avis change |
+| **D1** | **Barre remplie** à la place de la courbe (§3.2) | **LIVRÉ** — `StatsCompact.vue`, vérifié au navigateur sur les 3 variantes (captures `verif/sprint-2026-07-27/d1-barre-*.png`) |
+| **D2** | `/don` multi-actives : **statu quo** — la plus récente gagne + avertissement | Rien à faire (déjà le comportement du contrat) |
+| **D3** | Bandeau display : **statu quo** — texte configuré, personnalisable par soirée, rien d'automatique | Rien à faire |
+| **D4** | Contraste des thèmes : **avertir sans bloquer** (conforme spec §5.4) | Rien à faire (déjà appliqué) |
 
 ## 🟡 Dette mineure assumée (sans échéance)
 
