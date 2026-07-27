@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useAdminI18n } from '../composables/useAdminI18n';
+import { useAdminTheme } from '../composables/useAdminTheme';
 
 // Ecran de connexion qui remplace window.prompt (contrat § Routage frontend) :
 // champ de code, soiree nommee, message d'erreur explicite. La distinction
@@ -16,8 +17,12 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'submit', code: string): void }>();
 
 const { t, direction, locale, setLocale } = useAdminI18n();
+const { theme: adminTheme, init: initAdminTheme, toggle: toggleAdminTheme } = useAdminTheme();
 const availableLocales = ['fr', 'en', 'he'] as const;
 const code = ref('');
+
+// La preference clair/sombre doit s'appliquer AVANT l'authentification.
+onMounted(initAdminTheme);
 // Les codes de soiree sont longs et sensibles a la casse : sans bascule de
 // visibilite, une faute de frappe est indistinguable d'un code perime.
 const revealCode = ref(false);
@@ -40,6 +45,21 @@ function submit(): void {
   <div class="login-screen" :dir="direction" :lang="locale">
     <div class="login-card">
       <div class="login-langs">
+        <button
+          type="button"
+          class="lang-btn theme-btn"
+          :aria-label="adminTheme === 'light' ? t('uiTheme.toDark') : t('uiTheme.toLight')"
+          :aria-pressed="adminTheme === 'light'"
+          @click="toggleAdminTheme"
+        >
+          <svg v-if="adminTheme === 'light'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+          </svg>
+        </button>
         <button
           v-for="lang in availableLocales"
           :key="lang"
@@ -114,20 +134,19 @@ function submit(): void {
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: radial-gradient(ellipse at top, #131731 0%, #070914 60%);
-  color: #f7f3ea;
+  background: radial-gradient(ellipse at top, var(--shell-raised) 0%, var(--shell-page) 60%);
+  color: var(--shell-text-strong);
   box-sizing: border-box;
 }
 
 .login-card {
   width: 100%;
   max-width: 380px;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(228, 190, 99, 0.22);
+  background: var(--shell-card);
+  border: 1px solid var(--shell-border);
   border-radius: 18px;
   padding: 28px 24px 26px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
   text-align: center;
 }
 
@@ -139,9 +158,9 @@ function submit(): void {
 }
 
 .lang-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(228, 190, 99, 0.25);
-  color: rgba(247, 243, 234, 0.7);
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-border);
+  color: var(--shell-text);
   border-radius: 8px;
   padding: 5px 10px;
   font-size: 12px;
@@ -151,9 +170,20 @@ function submit(): void {
 }
 
 .lang-btn.active {
-  background: rgba(228, 190, 99, 0.2);
-  border-color: #e4be63;
-  color: #f2cc72;
+  background: var(--shell-card);
+  border-color: var(--shell-accent);
+  color: var(--shell-accent);
+}
+
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: auto; /* la bascule a gauche, les langues a droite */
+}
+
+.theme-btn svg {
+  width: 15px;
+  height: 15px;
 }
 
 .login-flame {
@@ -161,12 +191,12 @@ function submit(): void {
   height: 54px;
   margin: 4px auto 14px;
   border-radius: 50%;
-  background: linear-gradient(160deg, rgba(228, 190, 99, 0.25), rgba(228, 190, 99, 0.05));
-  border: 1px solid rgba(228, 190, 99, 0.4);
+  background: var(--shell-raised);
+  border: 1px solid var(--shell-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #f2cc72;
+  color: var(--shell-accent);
 }
 
 .login-flame svg {
@@ -177,7 +207,7 @@ function submit(): void {
 .login-title {
   font-size: 22px;
   margin: 0 0 6px;
-  color: #f2cc72;
+  color: var(--shell-accent);
 }
 
 .login-event {
@@ -191,13 +221,13 @@ function submit(): void {
   font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: rgba(242, 204, 114, 0.7);
+  color: var(--shell-text-muted);
 }
 
 .login-event-name {
   font-size: 16px;
   font-weight: 700;
-  color: #f7f3ea;
+  color: var(--shell-text-strong);
 }
 
 .login-form {
@@ -210,7 +240,7 @@ function submit(): void {
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: rgba(242, 204, 114, 0.85);
+  color: var(--shell-accent);
   margin-bottom: 7px;
 }
 
@@ -218,17 +248,23 @@ function submit(): void {
   position: relative;
 }
 
+/* Champ aligne sur la convention admin : clair dans les deux modes
+   (--field-*), comme tous les champs du panneau. */
 .login-form input {
   width: 100%;
   box-sizing: border-box;
-  background: rgba(7, 9, 20, 0.6);
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  background: var(--field-bg);
+  border: 1.5px solid var(--field-border);
   border-radius: 10px;
-  color: #f7f3ea;
+  color: var(--field-text);
   padding: 13px 14px;
   padding-inline-end: 46px; /* place pour la bascule de visibilite */
   font-size: 15px;
   transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.login-form input::placeholder {
+  color: var(--field-placeholder); /* 4.73 (sombre) / 5.46 (clair), calcules */
 }
 
 .reveal-btn {
@@ -242,15 +278,15 @@ function submit(): void {
   background: none;
   border: none;
   border-radius: 8px;
-  color: rgba(242, 204, 114, 0.75); /* 7.33:1 sur le fond composite du champ, calcule (node, couches composees) */
+  color: var(--field-placeholder); /* meme paire calculee que le placeholder */
   cursor: pointer;
 }
 
 .reveal-btn:hover,
 .reveal-btn:focus-visible {
-  color: #f2cc72;
+  color: var(--field-text);
   outline: none;
-  background: rgba(228, 190, 99, 0.12);
+  background: none;
 }
 
 .reveal-btn svg {
@@ -260,14 +296,14 @@ function submit(): void {
 
 .login-form input:focus {
   outline: none;
-  border-color: #e4be63;
-  box-shadow: 0 0 0 4px rgba(228, 190, 99, 0.12);
+  border-color: var(--field-border-focus);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--field-border-focus) 18%, transparent);
 }
 
 .login-error {
-  background: rgba(220, 60, 60, 0.15);
-  border: 1px solid rgba(220, 60, 60, 0.4);
-  color: #ff9d9d;
+  background: color-mix(in srgb, var(--shell-error) 12%, var(--shell-card));
+  border: 1px solid var(--shell-error);
+  color: var(--shell-error);
   border-radius: 10px;
   padding: 10px 12px;
   font-size: 13px;
@@ -277,8 +313,8 @@ function submit(): void {
 .login-submit {
   width: 100%;
   margin-top: 18px;
-  background: linear-gradient(135deg, #e4be63 0%, #c8922a 100%);
-  color: #131731;
+  background: linear-gradient(135deg, var(--shell-accent-flat) 0%, var(--shell-accent-flat-deep) 100%);
+  color: var(--shell-on-accent);
   border: none;
   border-radius: 12px;
   padding: 15px;
@@ -287,12 +323,12 @@ function submit(): void {
   letter-spacing: 0.5px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 8px 26px rgba(228, 190, 99, 0.35);
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--shell-accent-flat) 30%, transparent);
 }
 
 .login-submit:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(228, 190, 99, 0.5);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--shell-accent-flat) 45%, transparent);
 }
 
 .login-submit:disabled {

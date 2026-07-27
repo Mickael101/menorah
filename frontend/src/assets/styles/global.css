@@ -102,28 +102,38 @@
          (retenu pour fond sombre : #F87171 a 6.02)
      =========================================== */
 
-  /* Surfaces. Les surfaces seules ne separent pas (carte/page = 1.14) :
-     c'est la bordure claire qui dessine le bord des cartes. */
-  --shell-page: #0B1020;
-  --shell-card: #161C3A;
-  --shell-raised: #1E264F;
-  --shell-border: rgba(255, 255, 255, 0.16);      /* rendu #3B405A, 1.64 sur la carte */
-  --shell-border-strong: rgba(255, 255, 255, 0.26);
+  /* Surfaces. Les surfaces seules ne separent pas (carte/page = 1.17) :
+     c'est la bordure claire qui dessine le bord des cartes.
+     ADOUCI le 2026-07-27 (demande commanditaire « trop violent ») : fonds
+     remontes d'un cran, or desature d'un cran. Ratios RECALCULES ce jour. */
+  --shell-page: #111632;
+  --shell-card: #1C2347;
+  --shell-raised: #262E5C;
+  --shell-border: rgba(255, 255, 255, 0.14);      /* rendu #3C4261, 1.55 sur la carte — decoratif */
+  --shell-border-strong: rgba(255, 255, 255, 0.24);
 
   /* Textes sur surfaces sombres */
-  --shell-text-strong: #F7F3EA;                   /* 15.03 sur la carte, 17.10 sur la page */
-  --shell-text: #DDD8CC;                          /* 11.71 sur la carte */
-  --shell-text-muted: #968F82;                    /* 5.19 sur la carte, 4.93 au pire des 4 fonds */
+  --shell-text-strong: #EFEBDF;                   /* 12.76 sur la carte, 14.87 sur la page */
+  --shell-text: #D6D1C4;                          /* 9.98 sur la carte, 8.46 sur raised */
+  --shell-text-muted: #9C96A8;                    /* 5.32 sur la carte, 4.51 au pire (raised) */
 
   /* Accent or : teste comme TEXTE (libelles 13px gras), pas seulement en aplat */
-  --shell-accent: #E4BE63;                        /* 9.39 sur la carte, 8.92 au pire */
-  --shell-accent-strong: #F2CC72;                 /* 10.29 au pire */
-  --shell-accent-deep: #C8922A;
-  --shell-on-accent: #0B1020;                     /* 10.68 sur l'or, 6.85 sur l'or profond */
+  --shell-accent: #DDBC6F;                        /* 8.33 sur la carte, 7.06 au pire */
+  --shell-accent-strong: #EACB7F;                 /* 8.20 au pire */
+  --shell-accent-deep: #C08E33;                   /* 4.40 au pire — objet/degrade, pas du texte courant */
+  --shell-on-accent: #161C3A;                     /* 9.12 sur l'or, 5.68 sur l'or profond */
+
+  /* Aplats or (CTA, badges pleins) : ROLE distinct de l'accent-texte.
+     En sombre les deux coincident ; en clair l'or reste le fond des CTA
+     tandis que l'accent-texte devient bronze (l'or ne tient pas 4.5 en
+     texte sur fond clair : 2.98 mesure). Les balayages de panneaux doivent
+     referencer CES tokens pour tout fond de bouton/degrade or. */
+  --shell-accent-flat: #DDBC6F;
+  --shell-accent-flat-deep: #C08E33;
 
   /* Champs de saisie : volontairement CLAIRS.
      Taper longtemps dans un champ sombre fatigue, et un champ clair sur
-     carte sombre s'identifie par sa surface (15.28) — sa bordure n'a donc
+     carte sombre s'identifie par sa surface — sa bordure n'a donc
      pas besoin d'atteindre 3.0 au sens de WCAG 1.4.11. */
   --field-bg: #F7F5F0;
   --field-text: #1A1A22;                          /* 15.87 sur le champ */
@@ -132,9 +142,9 @@
   --field-border-focus: var(--shell-accent-deep);
 
   /* Semantiques eclaircies pour fond sombre (les versions claires echouent) */
-  --shell-success: #34D399;                       /* 8.66 sur la carte */
-  --shell-error: #F87171;                         /* 6.02 sur la carte */
-  --shell-warning: #FBBF24;                       /* 9.97 sur la carte */
+  --shell-success: #4FCB96;                       /* 7.47 sur la carte, 6.34 au pire */
+  --shell-error: #F08A8A;                         /* 6.31 sur la carte, 5.35 au pire */
+  --shell-warning: #E9BE55;                       /* 8.66 sur la carte, 7.35 au pire */
 
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -175,6 +185,46 @@
   /* Pile hebreu-d'abord, pour un bloc dont on sait qu'il est integralement en
      hebreu et ou l'on veut l'unite typographique plutot que le repli. */
   --font-he: 'Heebo', var(--font-sans);
+}
+
+/* ===========================================
+   MODE CLAIR de l'administration (2026-07-27, demande commanditaire).
+   Pose par useAdminTheme sur <html data-theme="light"> ; seuls les tokens
+   --shell-* / --field-* changent, les ecrans publics (/display, /don) ne
+   les consomment pas. TOUS les ratios sont CALCULES (node, formule WCAG),
+   testes sur les 3 fonds (page/carte/raised) — le pire est consigne.
+   L'or ne tient pas 4.5 en TEXTE sur fond clair (2.98 mesure) : l'accent
+   texte devient bronze, les aplats or (CTA) gardent l'or via
+   --shell-accent-flat, texte navy dessus (9.02 / 5.62 sur l'or profond). */
+:root[data-theme='light'] {
+  --shell-page: #F2EFE6;
+  --shell-card: #FCFAF4;
+  --shell-raised: #E9E4D5;
+  --shell-border: rgba(25, 30, 51, 0.18);         /* rendu ~#D3D2D1 — decoratif, comme en sombre */
+  --shell-border-strong: rgba(25, 30, 51, 0.32);
+
+  --shell-text-strong: #191E33;                   /* 15.78 sur la carte */
+  --shell-text: #333952;                          /* 10.89 sur la carte, 8.94 au pire */
+  --shell-text-muted: #5C6178;                    /* 5.86 sur la carte, 4.81 au pire (raised) */
+
+  --shell-accent: #7E5810;                        /* 6.11 sur la carte, 5.02 au pire */
+  --shell-accent-strong: #6E4D0F;                 /* 7.37 sur la carte, 6.05 au pire */
+  --shell-accent-deep: #5E420C;
+  --shell-on-accent: #191E33;                     /* 9.02 sur l'or flat, 5.62 sur l'or profond */
+
+  /* Les aplats or restent OR — c'est la signature du produit */
+  --shell-accent-flat: #DDBC6F;
+  --shell-accent-flat-deep: #C08E33;
+
+  --field-bg: #FFFFFF;
+  --field-text: #1A1A22;                          /* 17.29 sur le champ */
+  --field-placeholder: #6E695E;                   /* 5.46 sur le champ */
+  --field-border: #C4BEB0;
+  --field-border-focus: #8A6116;
+
+  --shell-success: #0D6C41;                       /* 6.21 sur la carte, 5.10 au pire */
+  --shell-error: #A93333;                         /* 6.27 sur la carte, 5.15 au pire */
+  --shell-warning: #7E5A00;                       /* 6.01 sur la carte, 4.93 au pire */
 }
 
 /* Reset & Base */
