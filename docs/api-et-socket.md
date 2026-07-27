@@ -62,6 +62,12 @@ que le schéma multi-événements est en base. Contrat figé prêt à implément
 
 Cloisonnement par room `event:<id>` (`socket.service.ts:9`), diffusion via `io.to(eventRoom(id))`.
 
+**CORS du socket** : une seule variable `CORS_ORIGIN` (liste d'origines séparées par des
+virgules), partagée avec le HTTP. Non définie, le comportement reste **exactement** celui
+d'avant — `http://localhost:5173` et `http://localhost:3000` — donc aucune régression d'écran
+en production (même origine). `CORS_ORIGIN=*` autorise toutes les origines
+(`socket.service.ts:socketCorsOrigin`).
+
 | Sens | Nom | Serveur | Consommé par |
 |---|---|---|---|
 | reçu | `connection` + **auto-join** de la soirée active | `socket.service.ts:58,70` | — |
@@ -97,9 +103,9 @@ Prouvé par `tests/security/socket-pii.test.ts` : un vrai serveur, un vrai clien
 
 | # | Constat | Source |
 |---|---|---|
-| C | `validateUpdateRequest(data, currentAmount?)` appelée **sans** `currentAmount` : modifier `premiumWordId` sans renvoyer `amount` fait retomber le montant à `0` → `getPremiumLevel(0) = null` → **le mot sacré est silencieusement effacé** | `models/donation.ts:105,155` vs `routes/donations.ts:158` |
+| C | `validateUpdateRequest` sans `currentAmount` : le mot sacré n'était **pas** effacé (mesuré — le service ignore une clé `undefined`, le mot stocké survit) ; le `\|\| 0` faisait seulement **taire** un changement de mot quand `amount` était absent. Garde-fou posé côté modèle (`??` + skip si montant inconnu) : un montant absent ne peut jamais valider un mot contre zéro. Test `services/premium-word-update.test.ts` | `models/donation.ts:154` |
 | D | Contrôle de traversée de chemin par **préfixe de chaîne**, pas par frontière : `path.join(dir,'../audio-evil/x')` passe le `startsWith`. Routes admin seulement → impact limité | `routes/gifs.ts:336,371` |
 | G | **Médias non cloisonnés par soirée** : GIF, audio et SVG à plat dans `uploads/`, associations dans un `gif-audio.json` global, alors que les routes passent par `resolveActiveEvent` | `routes/gifs.ts:22-24,130` |
-| H | CORS incohérent : HTTP `origin:'*'` (`app.ts:17-20`), socket restreint à `localhost:5173\|3000` (`socket.service.ts:52-55`). Fonctionne en production par même-origine, mais aucune des deux valeurs n'est configurable | — |
+| H | CORS du socket **désormais configurable** via `CORS_ORIGIN` (défaut = `localhost:5173\|3000`, inchangé). Le HTTP (`app.ts`) doit lire la **même** variable — porté par le front backend | `socket.service.ts:socketCorsOrigin` |
 | I | Rate-limit **en mémoire, mono-instance**, basé sur un `x-forwarded-for` non validé, posé sur `POST /api/donations` seulement. Aucun `trust proxy` Express | `middleware/rate-limit.ts:7,23` |
 | L | `GET /api/admin/backup.db` livre la base **entière, toutes soirées** — incompatible avec un futur multi-locataire | `routes/admin.ts:34` |

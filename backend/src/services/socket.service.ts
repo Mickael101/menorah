@@ -13,6 +13,25 @@ export function eventRoom(eventId: number): string {
 
 const ROOM_PATTERN = /^event:\d+$/;
 
+// CORS du socket. Une seule variable, CORS_ORIGIN, partagee avec le HTTP
+// (app.ts) : liste d origines separees par des virgules. Non definie, le
+// comportement reste EXACTEMENT celui d avant — les deux origines de
+// developpement — pour ne rien regresser sur les ecrans en production, qui
+// servent depuis la meme origine. `*` seul autorise toutes les origines.
+const DEFAULT_SOCKET_CORS_ORIGINS = ['http://localhost:5173', 'http://localhost:3000'];
+
+export function socketCorsOrigin(): string | string[] {
+  const raw = process.env.CORS_ORIGIN?.trim();
+  if (!raw) {
+    return DEFAULT_SOCKET_CORS_ORIGINS;
+  }
+  const list = raw.split(',').map((origin) => origin.trim()).filter((origin) => origin.length > 0);
+  if (list.length === 0) {
+    return DEFAULT_SOCKET_CORS_ORIGINS;
+  }
+  return list.length === 1 && list[0] === '*' ? '*' : list;
+}
+
 // Abonne d'office un nouveau client a la soiree active.
 //
 // L'import est STATIQUE, et ce n'est pas anodin : une premiere version l'avait
@@ -51,7 +70,7 @@ class SocketService {
   init(server: Server): void {
     this.io = new SocketServer(server, {
       cors: {
-        origin: ['http://localhost:5173', 'http://localhost:3000'],
+        origin: socketCorsOrigin(),
         methods: ['GET', 'POST']
       }
     });
