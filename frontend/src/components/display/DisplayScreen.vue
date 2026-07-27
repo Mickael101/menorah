@@ -3,7 +3,9 @@
 // Le comportement et le rendu divergents sont pilotes par le descripteur `variant`
 // (voir displayVariants.ts et l'inventaire des divergences dans docs/verif/...).
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { useSocket } from '../../composables/useSocket';
+import { useEventContext, currentEventScope } from '../../composables/useEventContext';
 import {
   useDonations,
   type Donation,
@@ -18,7 +20,12 @@ import type { DisplayVariant } from './displayVariants';
 
 const props = defineProps<{ variant: DisplayVariant }>();
 
-const { on, isConnected } = useSocket();
+const { on, isConnected, join } = useSocket();
+const route = useRoute();
+// Cablage slug->display (O2) : un ecran /e/:slug/display* montre SA soiree.
+// Sans slug, portee nulle => soiree active, byte-identique a avant.
+const eventContext = useEventContext();
+const eventNotFound = eventContext.notFound;
 const {
   config,
   stats,
@@ -128,6 +135,18 @@ function triggerGifExplosion(gifUrl: string, audioUrl?: string): void {
 }
 
 onMounted(async () => {
+  // Resout la soiree AVANT tout fetch : pose la portee ambiante que
+  // useDonations lit pour choisir entre routes heritees et prefixees.
+  const slugParam = route.params.slug;
+  await eventContext.resolve(typeof slugParam === 'string' ? slugParam : null);
+  if (eventContext.notFound.value) {
+    // Slug inconnu : etat 404, JAMAIS les donnees d'une autre soiree.
+    return;
+  }
+  // Rejoint la room de la soiree resolue (re-emise par useSocket a chaque
+  // reconnexion). Portee nulle => auto-abonnement backend a la soiree active.
+  join(currentEventScope());
+
   await Promise.all([fetchDonations(), fetchConfig()]);
 
   on('donation:new', (data: any) => {
@@ -162,6 +181,8 @@ onUnmounted(() => {
   if (nextDonationTimeoutId !== null) window.clearTimeout(nextDonationTimeoutId);
   if (gifTimeoutId !== null) window.clearTimeout(gifTimeoutId);
   donationQueue.value = [];
+  // Ne pas laisser fuiter la portee de soiree sur la page suivante.
+  eventContext.clear();
 });
 
 function toggleFullscreen(): void {
@@ -176,7 +197,12 @@ function toggleFullscreen(): void {
 </script>
 
 <template>
-  <div class="display-page" :class="rootClasses" :style="displayStyles" :dir="textDirection">
+  <!-- Slug inconnu : 404 sec, jamais les donnees d'une autre soiree (O2) -->
+  <div v-if="eventNotFound" class="display-page event-not-found" dir="auto">
+    <p class="event-not-found-message">404</p>
+  </div>
+
+  <div v-else class="display-page" :class="rootClasses" :style="displayStyles" :dir="textDirection">
     <!-- Fond etoile (main + hidden) -->
     <div v-if="variant.showStars" class="bg-effects">
       <div class="stars-layer stars-layer-1"></div>
@@ -300,6 +326,19 @@ function toggleFullscreen(): void {
 </template>
 
 <style scoped>
+/* Slug inconnu (O2) : etat neutre, aucune donnee d'une autre soiree */
+.event-not-found {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #070914;
+}
+.event-not-found-message {
+  font-size: 3rem;
+  color: #8b8fa3; /* 6.20:1 sur #070914, calcule (node, formule WCAG) */
+  letter-spacing: 0.25em;
+}
+
 /* ============================================================
    BASE — structure commune aux trois variantes
    ============================================================ */
