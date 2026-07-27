@@ -607,13 +607,16 @@ label svg {
 
 .optional-toggle:hover {
   border-color: rgba(228, 190, 99, 0.32);
-  /* FIGE EN OPAQUE, et ce n'est pas un detail. Un voile translucide ne s'AJOUTE
-     pas au fond du repos : il le REMPLACE et se compose sur le PARENT (la carte
-     #161C3A), pas sur --shell-page. Il rendait #2B2C3E, ou la mention
-     « (optionnel) » tombait a 4.27 — un echec cree par le survol lui-meme.
-     #212127 est le compose voulu (voile or 0.10 sur --shell-page) fige. */
-  background: #212127;
-  color: var(--shell-accent); /* 9.03 sur #212127 ; la mention secondaire y tient 4.99 */
+  /* color-mix plutot qu'un voile translucide OU un hex fige. Un voile
+     translucide ne s'AJOUTE pas au fond du repos : il le REMPLACE et se compose
+     sur le PARENT (la carte), pas sur --shell-page — il rendait #2B2C3E, ou la
+     mention « (optionnel) » tombait a 4.27. L'ancien correctif figeait #212127,
+     juste en sombre mais fixe : en mode clair, fond reste sombre sous un or
+     devenu sombre = illisible. color-mix compose le voile or 0.10 sur
+     --shell-page en OPAQUE et suit les deux themes (sombre ~#262639, l'or clair
+     y reste lisible ; clair : creme chaud, l'or fonce y contraste). */
+  background: color-mix(in srgb, var(--shell-accent) 10%, var(--shell-page));
+  color: var(--shell-accent); /* voile or 0.10 sur le creux : l'or contraste dans les deux modes */
 }
 
 .optional-toggle > span {
@@ -769,9 +772,12 @@ label svg {
   padding: 16px 12px;
   border: 2px solid rgba(228, 190, 99, 0.32);
   border-radius: var(--radius);
-  /* voile blanc conserve tel quel : le bouton reste plus clair que son bloc.
-     Compose #293158 sur --shell-raised. */
-  background: rgba(255, 255, 255, 0.05);
+  /* Etait un voile blanc 0.05 (« tuile plus claire que son bloc ») : invisible
+     en mode clair, ou le blanc sur beige clair ne souleve plus rien et compose
+     une couleur figee. Remplace par un voile or opaque sur --shell-raised, qui
+     suit les deux themes ; la bordure et le texte or (tokens qui basculent)
+     achevent de detacher la tuile. Reste 6 % < survol 10 % < selection 20 %. */
+  background: color-mix(in srgb, var(--shell-accent) 6%, var(--shell-raised));
   cursor: pointer;
   transition: all 0.3s ease;
   text-align: center;
@@ -864,11 +870,13 @@ label svg {
 
 .preset-btn:hover {
   border-color: rgba(228, 190, 99, 0.32);
-  /* Fige le compose du voile or 0.10 pose sur --shell-raised, le fond du repos.
-     Laisse translucide, il se composait sur la CARTE et non sur le repos :
-     l'ecart survol/repos tombait a 1.06, autrement dit invisible sur une grille
-     de six cellules cote a cote. Fige a #323551, l'ecart remonte a 1.22. */
-  background: #323551;
+  /* color-mix du voile or 0.10 sur --shell-raised (le fond du repos). Laisse
+     translucide, il se composait sur la CARTE et non sur le repos : l'ecart
+     survol/repos tombait a 1.06, invisible sur une grille de six cellules cote
+     a cote. Le hex fige #323551 corrigeait l'ecart en sombre mais restait
+     sombre en mode clair (le texte fort devenu sombre = illisible). color-mix
+     compose sur le BON fond ET suit les deux themes (sombre ~#383C5E). */
+  background: color-mix(in srgb, var(--shell-accent) 10%, var(--shell-raised));
 }
 
 .preset-btn.selected {
@@ -1022,8 +1030,9 @@ label svg {
   padding: 12px 8px;
   border: 2px solid rgba(228, 190, 99, 0.32);
   border-radius: var(--radius);
-  /* voile blanc conserve : compose #293158 sur --shell-raised */
-  background: rgba(255, 255, 255, 0.05);
+  /* voile or opaque sur --shell-raised : l'ancien voile blanc 0.05 disparaissait
+     en mode clair (blanc sur beige). Suit les deux themes ; cf. .premium-btn. */
+  background: color-mix(in srgb, var(--shell-accent) 6%, var(--shell-raised));
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
@@ -1053,8 +1062,10 @@ label svg {
 .word-option.unavailable:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  /* voile blanc 0.1 conserve tel quel (deja pose sur du navy) */
-  border-color: rgba(255, 255, 255, 0.1);
+  /* --shell-border, pas un blanc fige : le token bascule blanc-translucide en
+     sombre, sombre-translucide en clair. Un blanc 0.1 fige devenait invisible en
+     mode clair. Controle desactive (exempt WCAG), mais le bord doit rester lu. */
+  border-color: var(--shell-border);
 }
 
 /* rgba(255,255,255,0.4) = 3.78 sur #16213e : ECHEC. --shell-text-muted echoue

@@ -133,6 +133,9 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Ecrans-couverture (chargement, 404) tokenises, alignes sur l'ecran de
+   connexion frere (AdminLogin) : la coquille admin suit la bascule clair/sombre.
+   Les aplats or (CTA) gardent l'or via --shell-accent-flat dans les deux modes. */
 .entry-state {
   min-height: 100vh;
   min-height: 100dvh;
@@ -140,38 +143,37 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: radial-gradient(ellipse at top, #131731 0%, #070914 60%);
-  color: rgba(247, 243, 234, 0.75);
+  background: radial-gradient(ellipse at top, var(--shell-raised) 0%, var(--shell-page) 60%);
+  color: var(--shell-text);
   box-sizing: border-box;
 }
 
 .notfound-card {
   max-width: 420px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(228, 190, 99, 0.22);
+  background: var(--shell-card);
+  border: 1px solid var(--shell-border);
   border-radius: 18px;
   padding: 32px 26px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
 }
 
 .notfound-card h1 {
   font-size: 22px;
   margin: 0 0 10px;
-  color: #f2cc72;
+  color: var(--shell-accent);
 }
 
 .notfound-card p {
   font-size: 14px;
-  color: rgba(247, 243, 234, 0.65);
+  color: var(--shell-text-muted);
   margin: 0 0 22px;
 }
 
 .notfound-link {
   display: inline-block;
-  background: linear-gradient(135deg, #e4be63 0%, #c8922a 100%);
-  color: #131731;
+  background: linear-gradient(135deg, var(--shell-accent-flat) 0%, var(--shell-accent-flat-deep) 100%);
+  color: var(--shell-on-accent);
   border-radius: 12px;
   padding: 12px 22px;
   font-size: 14px;

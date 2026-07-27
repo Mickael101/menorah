@@ -431,7 +431,12 @@ function handleCancel(): void {
 
 /* Header */
 .header {
-  background: linear-gradient(135deg, #182042 0%, var(--shell-page) 100%);
+  /* Banniere de marque : un cran au-dessus de la page (carte -> page), qui
+     ADAPTE au mode. L'ancien depart navy fige (#182042) restait sombre en
+     clair et cassait le degrade (navy -> creme). --shell-card en depart reste
+     visuellement identique en sombre (#1C2347 ~ #182042) et devient une
+     banniere creme legere en clair. */
+  background: linear-gradient(135deg, var(--shell-card) 0%, var(--shell-page) 100%);
   padding: 24px 32px 80px;
   position: relative;
 }
@@ -464,18 +469,21 @@ function handleCancel(): void {
 .logo {
   width: 48px;
   height: 48px;
-  background: rgba(255, 255, 255, 0.15);
+  /* Verre blanc -> surface tokenisee : sur banniere creme (mode clair) un
+     blanc translucide etait invisible. */
+  background: var(--shell-raised);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(10px);
 }
 
 .logo svg {
   width: 28px;
   height: 28px;
-  color: var(--gold-400);
+  /* --gold-400 (#ffcc1a, fige) illisible sur surface claire ; l'accent adapte
+     (or en sombre, bronze en clair). */
+  color: var(--shell-accent);
 }
 
 h1 {
@@ -509,11 +517,12 @@ h1 {
   gap: 6px;
   min-height: 38px;
   padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* Puce d'en-tete : verres blancs -> surface + bordure tokenisees, sinon
+     invisibles sur banniere creme en mode clair. */
+  border: 1px solid var(--shell-border-strong);
   border-radius: var(--radius);
-  background: rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(10px);
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--shell-raised);
+  color: var(--shell-text);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -523,7 +532,8 @@ h1 {
 
 .language-trigger:hover,
 .language-trigger[aria-expanded='true'] {
-  background: rgba(255, 255, 255, 0.18);
+  /* Voile or au lieu d'un blanc plus opaque : adapte aux deux modes. */
+  background: color-mix(in srgb, var(--shell-accent) 14%, var(--shell-raised));
   color: var(--shell-text-strong);
 }
 
@@ -597,19 +607,19 @@ h1 {
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.1);
+  /* Verres blancs -> surface + bordure tokenisees (cf. .language-trigger). */
+  background: var(--shell-raised);
   border-radius: var(--radius);
   color: var(--shell-text-strong);
   text-decoration: none;
   font-weight: 500;
   font-size: 14px;
   transition: var(--transition);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--shell-border-strong);
 }
 
 .display-link:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--shell-accent) 14%, var(--shell-raised));
   transform: translateY(-2px);
 }
 
@@ -671,8 +681,12 @@ h1 {
 }
 
 .stat-total .stat-icon {
-  background: var(--gold-100);
-  color: var(--gold-600);
+  /* Les deux autres pastilles utilisent deja un voile or translucide (qui
+     compose sur la carte adaptative) ; celle-ci restait sur --gold-100/-600
+     figes (jaune pale opaque + moutarde), non adaptatifs. Voile un cran plus
+     appuye que les soeurs pour garder la stat « total » en tete. */
+  background: rgba(228, 190, 99, 0.20);
+  color: var(--shell-accent-strong);
 }
 
 .stat-count .stat-icon {
@@ -751,17 +765,17 @@ h1 {
   justify-content: space-between;
   gap: 20px;
   padding: 12px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  /* Verre blanc -> carte tokenisee : invisible sur banniere creme en clair. */
+  border: 1px solid var(--shell-border);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--shell-card);
   color: var(--shell-text-strong);
   cursor: pointer;
-  backdrop-filter: blur(10px);
   transition: var(--transition);
 }
 
 .premium-overview-toggle:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--shell-raised);
 }
 
 .premium-toggle-title,
@@ -772,7 +786,7 @@ h1 {
 }
 
 .premium-toggle-title {
-  color: var(--gold-400);
+  color: var(--shell-accent);
   font-size: 14px;
   font-weight: 700;
   text-transform: uppercase;
@@ -786,8 +800,11 @@ h1 {
 .premium-summary-chip {
   padding: 4px 9px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--shell-on-accent);
+  /* Puce d'info neutre. --shell-on-accent (navy) etait un texte SOMBRE pose sur
+     verre blanc ; sur --shell-raised sombre il aurait disparu. Surface + texte
+     tokenises, tous deux adaptatifs. */
+  background: var(--shell-raised);
+  color: var(--shell-text);
   font-size: 12px;
   font-weight: 600;
 }
@@ -822,7 +839,9 @@ h1 {
   justify-content: space-between;
   margin-bottom: 12px;
   padding-bottom: 10px;
-  border-bottom: 2px solid var(--gold-200);
+  /* Filet or de la section prestige. --gold-200 (jaune pale fige) -> voile
+     d'accent translucide qui garde la touche doree ET adapte (or/bronze). */
+  border-bottom: 2px solid color-mix(in srgb, var(--shell-accent) 35%, transparent);
 }
 
 .tier-level {
@@ -836,7 +855,7 @@ h1 {
 .tier-amount {
   font-size: 16px;
   font-weight: 700;
-  color: var(--gold-600);
+  color: var(--shell-accent);
 }
 
 .tier-count {
@@ -865,8 +884,11 @@ h1 {
 }
 
 .word-item.lit {
+  /* Mot sacre « allume » : le degrade or reste translucide (il compose sur la
+     carte adaptative, donc valide dans les deux modes). Seule la bordure etait
+     figee (--gold-300, jaune vif) : passee a l'or profond adaptatif. */
   background: linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(255, 215, 0, 0.1) 100%);
-  border: 1px solid var(--gold-300);
+  border: 1px solid var(--shell-accent-deep);
 }
 
 .word-icon {
@@ -876,7 +898,7 @@ h1 {
 }
 
 .word-item.lit .word-icon {
-  color: var(--gold-500);
+  color: var(--shell-accent);
   text-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
 }
 
@@ -895,7 +917,7 @@ h1 {
 
 .word-donor {
   font-size: 11px;
-  color: var(--gold-600);
+  color: var(--shell-accent);
   font-weight: 500;
 }
 

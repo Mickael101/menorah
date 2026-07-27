@@ -1763,123 +1763,14 @@ onUnmounted(stopAudio);
   font-size: 12px;
 }
 
-.theme-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
+/* Retirees : ancienne grille de themes inline (.theme-grid / .theme-card /
+   .theme-preview / .preview-* / .theme-card-copy / .theme-card-title /
+   .theme-card-description / .theme-mood, et la variante .theme-card
+   .selected-badge). Remplacee par le composant <ThemeGallery>, qui porte sa
+   propre grille (scope CSS distinct). Aucun element du template de ce panneau
+   ne les referencait plus. */
 
-.theme-card {
-  min-width: 0;
-  padding: 0;
-  border: 2px solid var(--shell-border);
-  border-radius: 14px;
-  background: var(--shell-card);
-  color: inherit;
-  cursor: pointer;
-  overflow: hidden;
-  text-align: start;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.theme-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--shell-border-strong);
-  box-shadow: var(--shadow-md);
-}
-
-.theme-card.selected {
-  border-color: var(--preview-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--preview-primary) 18%, transparent);
-}
-
-.theme-preview {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 92px;
-  padding: 12px;
-  background:
-    radial-gradient(circle at 18% 30%, color-mix(in srgb, var(--preview-primary) 18%, transparent), transparent 38%),
-    var(--preview-bg);
-  overflow: hidden;
-}
-
-.theme-preview::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.25;
-  background: linear-gradient(120deg, transparent, color-mix(in srgb, var(--preview-secondary) 20%, transparent), transparent);
-}
-
-.preview-orb {
-  width: 44px;
-  height: 60px;
-  border: 2px solid color-mix(in srgb, var(--preview-primary) 55%, transparent);
-  border-radius: 50% 50% 38% 38%;
-  box-shadow: 0 0 18px color-mix(in srgb, var(--preview-primary) 35%, transparent);
-}
-
-.preview-content {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.preview-title,
-.preview-progress,
-.preview-plate {
-  display: block;
-  border-radius: 999px;
-}
-
-.preview-title {
-  width: 68%;
-  height: 6px;
-  background: var(--preview-text);
-}
-
-.preview-progress {
-  width: 88%;
-  height: 4px;
-  background: linear-gradient(90deg, var(--preview-primary) 58%, rgba(255, 255, 255, 0.12) 58%);
-}
-
-.preview-plate {
-  width: 100%;
-  height: 14px;
-  border: 1px solid color-mix(in srgb, var(--preview-plate) 55%, transparent);
-  background: color-mix(in srgb, var(--preview-bg) 76%, white 8%);
-}
-
-.preview-plate.short {
-  width: 82%;
-}
-
-.theme-card-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 12px;
-}
-
-.theme-card-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--shell-text-strong);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.selected-badge,
-.theme-mood {
+.selected-badge {
   width: fit-content;
   padding: 3px 7px;
   border-radius: 999px;
@@ -1887,32 +1778,14 @@ onUnmounted(stopAudio);
   font-weight: 700;
 }
 
-/* BUG CORRIGE : la pastille « Actif » est aussi rendue sur les cartes
-   d'animation et de composition, ou --preview-primary n'existe pas — les
-   deux color-mix() y etaient invalides et la pastille se retrouvait sans
-   fond, avec une couleur heritee. Le fond par defaut est donc de la PEAU,
-   et la variante liee a la donnee est restreinte aux cartes de theme, les
-   seules a porter le style inline --preview-* (l.694). */
+/* La pastille « Actif » est rendue sur les cartes d'animation et de
+   composition : son fond est de la PEAU (voile or), jamais une couleur de
+   donnee. Une variante liee au theme (color-mix sur --preview-primary,
+   inexistant hors carte de theme) avait laisse la pastille sans fond ; cette
+   variante vivait sur .theme-card, desormais dans <ThemeGallery>. */
 .selected-badge {
   background: rgba(228, 190, 99, 0.14);
   color: var(--shell-accent-strong);
-}
-
-.theme-card .selected-badge {
-  background: color-mix(in srgb, var(--preview-primary) 18%, white);
-  color: color-mix(in srgb, var(--preview-primary) 72%, black);
-}
-
-.theme-card-description {
-  min-height: 48px;
-  color: var(--shell-text-muted);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.theme-mood {
-  background: var(--shell-raised);
-  color: var(--shell-text);
 }
 
 .active-theme-bar {
@@ -1980,10 +1853,9 @@ onUnmounted(stopAudio);
   border-radius: 4px;
   border: 1px solid var(--field-border);
 }
-
-.color-badge.gold { background: #FFD700; }
-.color-badge.diamond { background: #E8E8E8; }
-.color-badge.bronze { background: #CD7F32; }
+/* Modificateurs .gold/.diamond/.bronze retires : orphelins (le template pose
+   le remplissage par :style inline depuis la config du client, jamais par
+   ces classes) — ils portaient les seuls hex figes du bloc. */
 
 .color-input-group {
   display: flex;
@@ -2326,10 +2198,6 @@ onUnmounted(stopAudio);
     padding: 18px;
   }
 
-  .theme-grid {
-    grid-template-columns: 1fr;
-  }
-
   .visual-mode-grid {
     grid-template-columns: 1fr;
   }
@@ -2344,20 +2212,6 @@ onUnmounted(stopAudio);
   .visual-mode-card {
     min-height: 104px;
   }
-
-  .theme-card {
-    display: grid;
-    grid-template-columns: 150px 1fr;
-  }
-
-  .theme-preview {
-    height: 100%;
-    min-height: 112px;
-  }
-
-  .theme-card-description {
-    min-height: 0;
-  }
 }
 
 @media (max-width: 480px) {
@@ -2371,10 +2225,6 @@ onUnmounted(stopAudio);
 
   .preview-link {
     text-align: center;
-  }
-
-  .theme-card {
-    grid-template-columns: 118px minmax(0, 1fr);
   }
 
   .visual-mode-card {
@@ -2395,21 +2245,6 @@ onUnmounted(stopAudio);
   .visual-mode-preview {
     width: 76px;
     height: 68px;
-  }
-
-  .theme-preview {
-    min-height: 132px;
-    padding: 8px;
-    gap: 7px;
-  }
-
-  .preview-orb {
-    width: 32px;
-    height: 50px;
-  }
-
-  .theme-card-copy {
-    padding: 10px;
   }
 
   .color-input-group {

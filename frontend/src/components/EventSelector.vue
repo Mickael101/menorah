@@ -71,6 +71,9 @@ function open(slug: string): void {
 </template>
 
 <style scoped>
+/* Ecran-couverture tokenise, aligne sur l'ecran de connexion frere
+   (AdminLogin) : la coquille admin suit la bascule clair/sombre, seuls les
+   ecrans publics gardent le theme de la soiree. */
 .selector-screen {
   min-height: 100vh;
   min-height: 100dvh;
@@ -78,32 +81,31 @@ function open(slug: string): void {
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: radial-gradient(ellipse at top, #131731 0%, #070914 60%);
-  color: #f7f3ea;
+  background: radial-gradient(ellipse at top, var(--shell-raised) 0%, var(--shell-page) 60%);
+  color: var(--shell-text-strong);
   box-sizing: border-box;
 }
 
 .selector-card {
   width: 100%;
   max-width: 560px;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(228, 190, 99, 0.22);
+  background: var(--shell-card);
+  border: 1px solid var(--shell-border);
   border-radius: 18px;
   padding: 28px 24px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
 }
 
 .selector-title {
   font-size: 22px;
   margin: 0 0 6px;
-  color: #f2cc72;
+  color: var(--shell-accent);
   text-align: center;
 }
 
 .selector-desc {
   font-size: 14px;
-  color: rgba(247, 243, 234, 0.65);
+  color: var(--shell-text-muted);
   text-align: center;
   margin: 0 0 22px;
 }
@@ -111,7 +113,7 @@ function open(slug: string): void {
 .selector-loading,
 .selector-empty {
   text-align: center;
-  color: rgba(247, 243, 234, 0.6);
+  color: var(--shell-text-muted);
   padding: 20px 0;
 }
 
@@ -131,18 +133,19 @@ function open(slug: string): void {
   justify-content: space-between;
   gap: 14px;
   padding: 14px 16px;
-  background: rgba(7, 9, 20, 0.55);
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  /* Ligne en creux dans la carte (motif .word-item / .copy-group). */
+  background: var(--shell-page);
+  border: 1.5px solid var(--shell-border);
   border-radius: 12px;
-  color: #f7f3ea;
+  color: var(--shell-text);
   cursor: pointer;
   transition: all 0.2s;
   text-align: start;
 }
 
 .selector-item:hover {
-  border-color: rgba(228, 190, 99, 0.6);
-  background: rgba(228, 190, 99, 0.08);
+  border-color: var(--shell-accent);
+  background: color-mix(in srgb, var(--shell-accent) 12%, var(--shell-page));
 }
 
 .item-main {
@@ -159,7 +162,7 @@ function open(slug: string): void {
 
 .item-slug {
   font-size: 12px;
-  color: rgba(247, 243, 234, 0.5);
+  color: var(--shell-text-muted);
 }
 
 .item-meta {
@@ -178,25 +181,28 @@ function open(slug: string): void {
   border-radius: 999px;
 }
 
+/* Pastilles de statut : semantiques, tokenisees. « active » porte le vert de
+   succes ; « draft »/« archived » restent neutres et se distinguent par
+   l'intensite du texte (archived plus estompe). */
 .status-active {
-  background: rgba(79, 192, 138, 0.18);
-  color: #7fe0b0;
+  background: color-mix(in srgb, var(--shell-success) 18%, var(--shell-page));
+  color: var(--shell-success);
 }
 
 .status-draft {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(247, 243, 234, 0.7);
+  background: var(--shell-raised);
+  color: var(--shell-text);
 }
 
 .status-archived {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(247, 243, 234, 0.45);
+  background: var(--shell-raised);
+  color: var(--shell-text-muted);
 }
 
 .item-amount {
   font-size: 14px;
   font-weight: 700;
-  color: #f2cc72;
+  color: var(--shell-accent);
 }
 
 @media (max-width: 520px) {
