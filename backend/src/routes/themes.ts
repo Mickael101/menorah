@@ -43,18 +43,15 @@ themesRouter.get(
 );
 
 // POST /api/themes — creation d'un theme personnalise (organisateur). Le
-// contraste AA est REFUSANT : un jeu de couleurs qui laisse un texte sous 4,5 ou
-// la courbe sous 3,0 sur le fond declare renvoie 422 avec le detail des paires
-// fautives, jamais un theme illisible enregistre en silence.
+// contraste AA est AVERTISSANT, pas refusant (spec §5.4, decision commanditaire :
+// « avertissement dans la galerie — sans bloquer l'enregistrement »). Les paires
+// sous seuil sont calculees et renvoyees dans `warnings` ; la galerie les affiche.
 themesRouter.post('/', requireAdmin, (req: Request, res: Response) => {
   try {
     const input = validateCreateTheme(req.body);
-    const violations = checkThemeContrast(input.tokens);
-    if (violations.length > 0) {
-      return res.status(422).json({ error: 'Contraste AA insuffisant', violations });
-    }
+    const warnings = checkThemeContrast(input.tokens);
     const theme = themeService.create(input);
-    res.status(201).json({ theme });
+    res.status(201).json({ theme, warnings });
   } catch (error) {
     if (error instanceof UnknownEventError) {
       return res.status(404).json({ error: 'Event not found' });
@@ -67,8 +64,8 @@ themesRouter.post('/', requireAdmin, (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/themes/:id — edition (organisateur). Meme mur de contraste. Un theme
-// integre renvoie 409 : il se duplique, il ne se modifie pas.
+// PUT /api/themes/:id — edition (organisateur). Meme regle avertissante (spec
+// §5.4). Un theme integre renvoie 409 : il se duplique, il ne se modifie pas.
 themesRouter.put('/:id', requireAdmin, (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
@@ -76,17 +73,12 @@ themesRouter.put('/:id', requireAdmin, (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Theme not found' });
     }
     const patch = validateUpdateTheme(req.body);
-    if (patch.tokens) {
-      const violations = checkThemeContrast(patch.tokens);
-      if (violations.length > 0) {
-        return res.status(422).json({ error: 'Contraste AA insuffisant', violations });
-      }
-    }
+    const warnings = patch.tokens ? checkThemeContrast(patch.tokens) : [];
     const theme = themeService.update(id, patch);
     if (!theme) {
       return res.status(404).json({ error: 'Theme not found' });
     }
-    res.json({ theme });
+    res.json({ theme, warnings });
   } catch (error) {
     if (error instanceof BuiltinThemeError) {
       return res.status(409).json({ error: error.message });

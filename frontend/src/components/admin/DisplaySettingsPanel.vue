@@ -19,6 +19,7 @@ import { useAdminI18n } from '../../composables/useAdminI18n';
 import { adminFetch } from '../../composables/useAdminAuth';
 import ThemeGallery from './ThemeGallery.vue';
 import { resolveActiveEventId, applyTheme } from '../../theme/themesApi';
+import { currentEventScope } from '../../composables/useEventContext';
 
 const { t } = useAdminI18n();
 
@@ -62,9 +63,10 @@ function themeText(themeId: DisplayThemeId, field: 'name' | 'short' | 'descripti
 onMounted(async () => {
   await fetchConfig();
   syncSettings();
-  // Resolution best-effort : un echec laisse eventId a null, la galerie bascule
-  // en mode hors-ligne (lecture seule) plutot que de casser le panneau.
-  eventId.value = await resolveActiveEventId();
+  // Sur /e/:slug/admin la portee ambiante (F1) porte deja la soiree ; sinon
+  // resolution best-effort de la soiree active. Un echec laisse eventId a null,
+  // la galerie bascule en mode hors-ligne (lecture seule) sans casser le panneau.
+  eventId.value = currentEventScope() ?? await resolveActiveEventId();
 });
 
 const toast = useToast();

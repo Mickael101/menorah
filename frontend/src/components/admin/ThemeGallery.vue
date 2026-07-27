@@ -236,12 +236,12 @@ async function importTheme(event: Event): Promise<void> {
     return;
   }
 
-  // Contraste verifie AVANT tout envoi : un theme illisible ne s'importe pas
-  // (le backend le refuserait de toute facon en 422, on evite l'aller-retour).
+  // Contraste AVERTISSANT, pas bloquant (spec §5.4, decision commanditaire) :
+  // l'import aboutit, l'avertissement nomme les paires sous seuil et le badge
+  // de la galerie reste visible sur la vignette.
   const violations = checkThemeContrast(tokens);
   if (violations.length > 0) {
-    toast.error(gt('gallery.contrastRejected', { pairs: violations.map((v) => `${v.pair} ${v.ratio}`).join(', ') }));
-    return;
+    toast.info(gt('gallery.contrastRejected', { pairs: violations.map((v) => `${v.pair} ${v.ratio}`).join(', ') }));
   }
 
   busy.value = true;

@@ -89,11 +89,13 @@ palette**. `event_id NULL` = preset **intégré** (livré, partagé, non supprim
 | GET `/api/events/:eventId/theme` | **public** | `{ theme: ThemeRecord \| null }` — thème appliqué (lecture offline-safe pour l'écran) |
 | PUT `/api/events/:eventId/theme` | **admin de la soirée** | applique `{ themeId }` (pose `event_configs.theme_id`). Thème d'une autre soirée → **403** |
 
-**Contraste AA REFUSANT à la création et à l'édition** (`models/theme.ts`) : la luminance
-relative WCAG des paires déclarées est calculée ; texte (`headerTextColor`, `statsTextColor`,
-`plateTextColor` vs `backgroundColor`) sous **4,5** ou objet graphique
-(`chartPrimaryColor` vs `backgroundColor`) sous **3,0** → **422** avec le détail des paires
-fautives, jamais un thème illisible enregistré. Frontière inclusive : 4,5 accepté, 4,49 refusé.
+**Contraste AA AVERTISSANT à la création et à l'édition** (`models/theme.ts`, spec §5.4 —
+décision commanditaire : « avertissement dans la galerie, sans bloquer l'enregistrement ») :
+la luminance relative WCAG des paires déclarées est calculée ; texte (`headerTextColor`,
+`statsTextColor`, `plateTextColor` vs `backgroundColor`) sous **4,5** ou objet graphique
+(`chartPrimaryColor` vs `backgroundColor`) sous **3,0** → le thème est **enregistré** et la
+réponse porte `warnings[]` avec le détail des paires ; la galerie affiche le badge ⚠ sur la
+vignette. Frontière inclusive : 4,5 sans avertissement, 4,49 averti.
 `chartSecondaryColor` est **exclu** (compagnon de dégradé décoratif, non essentiel au sens
 WCAG 1.4.11 — cinq des sept presets le posent volontairement sous 3,0). Les sept intégrés
 passent le contrôle (min mesuré : ivoire header 4,90 / courbe 3,04).

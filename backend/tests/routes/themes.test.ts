@@ -97,20 +97,21 @@ describe('routes du moteur de themes', () => {
       expect(response.status).toBe(400);
     });
 
-    it('refuse un contraste AA insuffisant en 422 avec le detail des paires', async () => {
+    it('enregistre un contraste AA insuffisant AVEC avertissements detailles (spec §5.4)', async () => {
+      // Decision commanditaire : l'avertissement ne bloque pas l'enregistrement.
       const response = await createTheme({
         eventId: eventA,
         name: 'Illisible',
         tokens: goodTokens({ backgroundColor: '#000000', headerTextColor: '#747474' })
       });
-      expect(response.status).toBe(422);
-      expect(Array.isArray(response.body.violations)).toBe(true);
-      const pairs = response.body.violations.map((v: { pair: string }) => v.pair);
+      expect(response.status).toBe(201);
+      expect(Array.isArray(response.body.warnings)).toBe(true);
+      const pairs = response.body.warnings.map((v: { pair: string }) => v.pair);
       expect(pairs).toContain('headerTextColor');
     });
 
-    it('accepte un contraste exactement au seuil (4,5)', async () => {
-      // #757575 sur #000 = 4,56 : juste au-dessus, doit passer.
+    it('un contraste au-dessus du seuil ne produit AUCUN avertissement', async () => {
+      // #757575 sur #000 = 4,56 : juste au-dessus.
       const response = await createTheme({
         eventId: eventA,
         name: 'Limite haute',
@@ -123,6 +124,7 @@ describe('routes du moteur de themes', () => {
         })
       });
       expect(response.status).toBe(201);
+      expect(response.body.warnings).toEqual([]);
     });
   });
 
@@ -148,14 +150,16 @@ describe('routes du moteur de themes', () => {
       expect(response.status).toBe(409);
     });
 
-    it('refuse un contraste insuffisant a l edition en 422', async () => {
+    it('enregistre une edition sous seuil AVEC avertissements (spec §5.4)', async () => {
       const created = await createTheme({ eventId: eventA, name: 'Edit contraste', tokens: goodTokens() });
       const id = created.body.theme.id;
       const response = await request(app)
         .put(`/api/themes/${id}`)
         .set('x-admin-token', ORGANIZER_TOKEN)
         .send({ tokens: goodTokens({ backgroundColor: '#000000', headerTextColor: '#747474' }) });
-      expect(response.status).toBe(422);
+      expect(response.status).toBe(200);
+      const pairs = response.body.warnings.map((v: { pair: string }) => v.pair);
+      expect(pairs).toContain('headerTextColor');
     });
   });
 
