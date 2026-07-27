@@ -2,6 +2,7 @@ import { Database } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 import { uploadsRoot, gifAudioFilePath } from '../config/storage';
+import { BUILTIN_THEMES } from '../models/theme';
 
 // Migrations du schema, ordonnees et IDEMPOTENTES.
 //
@@ -101,6 +102,33 @@ export function runMigrations(db: Database): void {
   copyLegacyConfig(db);
   createEventIndexes(db);
   seedMediaFromDisk(db);
+  seedBuiltinThemes(db);
+}
+
+// Seed additif des themes integres (C1). event_id NULL = preset livre avec
+// l'application, partage par toutes les soirees et non supprimable. Idempotent
+// par NOM : on n'insere un integre que s'il n'existe pas deja. Le rejeu ne
+// touche donc jamais un builtin present, et un organisateur qui aurait cree un
+// theme personnalise de meme nom (event_id NON NULL) n'empeche pas le seed —
+// la sonde ne compte que les integres.
+function seedBuiltinThemes(db: Database): void {
+  if (!tableExists(db, 'themes')) {
+    return;
+  }
+  for (const theme of BUILTIN_THEMES) {
+    const alreadySeeded = scalar(
+      db,
+      'SELECT COUNT(*) FROM themes WHERE event_id IS NULL AND name = ?',
+      [theme.name]
+    );
+    if (alreadySeeded !== 0) {
+      continue;
+    }
+    db.run('INSERT INTO themes (event_id, name, tokens_json) VALUES (NULL, ?, ?)', [
+      theme.name,
+      JSON.stringify(theme.tokens)
+    ]);
+  }
 }
 
 function createEventsTable(db: Database): void {

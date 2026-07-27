@@ -7,6 +7,7 @@ import { createConfigRouter } from './routes/config';
 import { createGifsRouter } from './routes/gifs';
 import adminRouter from './routes/admin';
 import eventsRouter from './routes/events';
+import themesRouter, { eventThemeRouter } from './routes/themes';
 import { legacyEventContext, paramEventContext } from './routes/event-context';
 import { uploadsRoot } from './config/storage';
 
@@ -58,6 +59,11 @@ export function createApp(): express.Express {
   app.use('/api/events/:eventId/stats', createStatsRouter(paramEventContext));
   app.use('/api/events/:eventId/config', createConfigRouter(paramEventContext));
   app.use('/api/events/:eventId/gifs', createGifsRouter(paramEventContext));
+
+  // Moteur de themes (C1) : gestion au niveau organisateur sous /api/themes,
+  // application par soiree sous /api/events/:eventId/theme (lecture publique).
+  app.use('/api/themes', themesRouter);
+  app.use('/api/events/:eventId/theme', eventThemeRouter);
 
   app.use('/api/admin', adminRouter);
 
