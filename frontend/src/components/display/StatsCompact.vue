@@ -2,6 +2,7 @@
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useDonations, DEFAULT_DISPLAY_TEXTS } from '../../composables/useDonations';
 import { getActiveThemePalette } from '../../theme/displayThemes';
+import { animateValue, easeOutCubic } from './animations';
 
 const { stats, config, formatAmount } = useDonations();
 
@@ -23,26 +24,19 @@ const statsStyles = computed(() => {
 
 const displayValue = ref(0);
 const displayPercent = ref(0);
-let animationFrame: number | null = null;
+let cancelCounter: (() => void) | null = null;
 
-// Animate counter
+// Comptage anime du total. Tween centralise dans animations.ts (easeOutCubic,
+// 1000 ms) — meme courbe qu'avant, mais respecte desormais prefers-reduced-motion.
 function animateCounter(target: number): void {
-  const start = displayValue.value;
-  const diff = target - start;
-  const duration = 1000;
-  const startTime = performance.now();
-
-  function update(currentTime: number): void {
-    const elapsed = currentTime - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 3);
-    displayValue.value = Math.round(start + diff * ease);
-    if (progress < 1) {
-      animationFrame = requestAnimationFrame(update);
-    }
-  }
-  if (animationFrame) cancelAnimationFrame(animationFrame);
-  animationFrame = requestAnimationFrame(update);
+  cancelCounter?.();
+  cancelCounter = animateValue({
+    from: displayValue.value,
+    to: target,
+    duration: 1000,
+    easing: easeOutCubic,
+    onUpdate: (value) => { displayValue.value = value; }
+  });
 }
 
 watch(() => stats.value.totalAmount, animateCounter, { immediate: true });
@@ -110,7 +104,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (animationFrame) cancelAnimationFrame(animationFrame);
+  cancelCounter?.();
   if (resizeSettleFrame !== null) cancelAnimationFrame(resizeSettleFrame);
   resizeSettleFrame = null;
   chartResizeObserver?.disconnect();
