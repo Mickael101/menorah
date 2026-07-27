@@ -19,7 +19,10 @@ Si cette session est interrompue, reprendre ainsi :
 
 ## État courant
 
-**Prochaine action** : dispatcher la vague 1 (fronts S, EB, CC) dans leurs worktrees.
+**Prochaine action** : attendre les rapports des fronts S et EB (CC est fusionné) ; puis
+tranche orchestrateur O1 (C6 coordonné : `legacy-routes.test.ts:94-106` + `init.ts:73-93`,
+en conservant l'ALTER `display_settings` sous try/catch — voir recommandation CC au Journal),
+après le merge d'EB qui possède les fichiers de tests routes.
 
 ## Contexte figé
 
@@ -95,7 +98,7 @@ Périmètre : `frontend/src/pages/MenorahAscension.vue`, `frontend/src/component
 `frontend/src/router.ts` (retrait de routes mortes UNIQUEMENT — le préfixe `/e/` arrive en
 vague 2). INTERDITS : tout le reste.
 
-- [ ] N1. C5 — ~1 900 lignes mortes supprimées (MenorahAscension 1062, ProgressBar 286,
+- [x] N1. C5 — ~1 900 lignes mortes supprimées (MenorahAscension 1062, ProgressBar 286,
       TotalCounter 262, useSoundEffects 304 par transitivité, devDep `postcss`), chaque
       suppression re-prouvée par grep 0-importeur AVANT suppression.
 - [ ] N2. C6 — la table `config` n'est plus recréée à chaque démarrage (lecture de bascule
@@ -154,4 +157,17 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 
 ## Journal
 
-_(vide)_
+- `39a1c6b` — N1 (front CC). 1 914 lignes mortes supprimées (MenorahAscension 1062,
+  ProgressBar 286, TotalCounter 262, useSoundEffects 304 par transitivité), chaque retrait
+  re-prouvé par code de sortie de grep seul ; devDep `postcss` retirée. Aucune route morte
+  dans `router.ts` (MenorahAscension n'y figurait pas).
+- `db98e74` — N2 partiel (front CC) : C7 fait — `buildCommand` retiré de `railway.json`,
+  `nixpacks.toml [phases.build]` devient l'unique source de vérité ; `startCommand` reste
+  volontairement doublé (non divergent, à purger côté nixpacks après un `railway up` vérifié).
+  **C6 LAISSÉ sur preuve** : la migration tolère l'absence de `config` (3 lectures gardées par
+  `tableExists`), mais `legacy-routes.test.ts:104` fait un `SELECT ... FROM config` sur base
+  neuve — fichier hors périmètre CC (propriété EB). Devient la tranche orchestrateur O1
+  post-merge EB : retirer `init.ts:73-93` (CREATE+INSERT) en CONSERVANT l'ALTER
+  `display_settings` sous try/catch, et adapter le test.
+- `4c70aea` — merge `sprint/nettoyage` dans master. Gate rejoué sur master après merge :
+  63/63 backend, typecheck et build frontend verts.

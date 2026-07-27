@@ -29,7 +29,7 @@ backend/src/
   middleware/    admin-auth · rate-limit · resolve-event
   models/  routes/  services/  tests/
 frontend/src/
-  pages/         AdminPanel · DonorPledgePage · DisplayPage(+8, Hidden) · MenorahAscension (morte)
+  pages/         AdminPanel · DonorPledgePage · DisplayPage(+8, Hidden)
   components/    admin/ · display/ · ui/
   composables/   useDonations · useSocket · useAdminAuth · useAdminI18n
   theme/  router.ts  assets/styles/global.css
