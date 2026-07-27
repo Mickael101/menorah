@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { eventService } from '../services/event.service';
+import { eventAdminGrant } from './admin-auth';
 
 declare global {
   namespace Express {
@@ -43,6 +44,49 @@ export function resolveParamEvent(req: Request, res: Response, next: NextFunctio
   }
   req.eventId = id;
   next();
+}
+
+// Le POST de don ecrit sur la soiree resolue en amont (active pour le montage
+// herite, nommee par :eventId pour le montage prefixe). resolveParamEvent ne
+// verifie que l'EXISTENCE : sans ce garde-fou, /e/<slug>/don d'une soiree
+// ARCHIVEE ou en BROUILLON — dont plus personne ne surveille les QR — continue
+// d'accepter les dons du PUBLIC.
+//
+// Mais l'outil sert plusieurs soirees a la fois et un OPERATEUR admin doit
+// pouvoir saisir un don sur une soiree qui n'est pas (ou plus) active :
+// preparation en brouillon, rattrapage apres archivage. La garde n'est donc pas
+// « soiree active », elle est « soiree active OU autorite admin sur CETTE
+// soiree » — l'autorite etant celle de admin-auth.ts, jamais une seconde
+// implementation.
+//
+// Ce qui reste refuse, et c'est tout l'objet : le don PUBLIC, sans jeton, vers
+// une soiree non-active.
+//
+// A monter APRES resolveEvent (qui pose req.eventId). Sur le montage herite la
+// soiree resolue est active par construction : la garde y est un no-op.
+export function requireActiveOrAdmin(req: Request, res: Response, next: NextFunction): void {
+  const event = req.eventId !== undefined ? eventService.getById(req.eventId) : null;
+  if (event && event.status === 'active') {
+    next();
+    return;
+  }
+
+  const grant = eventAdminGrant(req, () => req.eventId ?? null);
+  if (grant === 'organizer' || grant === 'event-admin') {
+    next();
+    return;
+  }
+  // Aucun secret d'environnement : meme politique que le reste de la couche
+  // d'authentification (admin-auth.ts). En production c'est une erreur de
+  // configuration et on echoue ferme ; hors production le contournement de
+  // developpement reste ouvert, sinon la saisie admin d'une soiree en brouillon
+  // serait la SEULE chose cassee sur un poste de developpement sans secret.
+  if (grant === 'unconfigured' && process.env.NODE_ENV !== 'production') {
+    next();
+    return;
+  }
+
+  res.status(403).json({ error: 'This event is not accepting donations' });
 }
 
 export function requestEventId(req: Request): number {

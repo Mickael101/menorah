@@ -20,7 +20,12 @@ function corsOrigin(): string[] | '*' {
   if (!configured) {
     return '*';
   }
-  return configured.split(',').map((o) => o.trim()).filter(Boolean);
+  const list = configured.split(',').map((o) => o.trim()).filter(Boolean);
+  // Meme normalisation que socketCorsOrigin() : un `*` seul doit devenir la
+  // chaine allow-all, pas le tableau `['*']`. Dans un tableau, le litteral `'*'`
+  // ne matche jamais un vrai header Origin, et cors n'emet alors aucun
+  // Access-Control-Allow-Origin — toutes les requetes cross-origin echouent.
+  return list.length === 1 && list[0] === '*' ? '*' : list;
 }
 
 // Construit l'app Express sans effet de bord : ni base de donnees, ni listen.

@@ -81,6 +81,44 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
 // route heritee. null quand aucune cible ne peut etre determinee.
 export type TargetEventResolver = (req: Request) => number | null;
 
+// Verdict d'autorite d'une requete face a UNE soiree. Ecrit ICI et nulle part
+// ailleurs : toute garde qui a besoin de savoir « cette requete porte-t-elle une
+// autorite admin sur cette soiree ? » (requireEventAdmin, requireActiveOrAdmin)
+// passe par cette fonction. Une deuxieme implementation de la regle serait une
+// deuxieme chance de se tromper.
+//
+//   'unconfigured' : aucun secret d'environnement. L'appelant tranche (503 en
+//                    production, contournement de developpement sinon) — c'est
+//                    une decision de POLITIQUE, pas d'autorite.
+//   'organizer'    : ORGANIZER_TOKEN (ou son alias ADMIN_TOKEN) : toutes soirees.
+//   'event-admin'  : code propre a la soiree CIBLEE.
+//   'none'         : aucun jeton, ou jeton sans pouvoir sur cette soiree.
+//
+// `getTargetEventId` est paresseux : la cible n'est resolue que si le verdict en
+// depend vraiment (l'organisateur n'a pas besoin qu'on interroge la base).
+export type EventAdminGrant = 'unconfigured' | 'organizer' | 'event-admin' | 'none';
+
+export function eventAdminGrant(req: Request, getTargetEventId: () => number | null): EventAdminGrant {
+  const secrets = envSecrets();
+  if (!secrets.organizer && !secrets.admin) {
+    return 'unconfigured';
+  }
+
+  const provided = providedToken(req);
+  if (!provided) {
+    return 'none';
+  }
+  if (isOrganizer(provided, secrets)) {
+    return 'organizer';
+  }
+
+  const targetId = getTargetEventId();
+  if (targetId !== null && eventService.verifyAdminCode(targetId, provided)) {
+    return 'event-admin';
+  }
+  return 'none';
+}
+
 // Protege une route portant sur UNE soiree. Accepte l'organisateur (tout) ou
 // l'admin de la soiree CIBLEE (elle seule). Un code valide pour une AUTRE
 // soiree renvoie 403, pas 401 : le secret est bon, c'est la portee qui est
@@ -103,13 +141,8 @@ export function requireEventAdmin(getTargetEventId: TargetEventResolver) {
       return;
     }
 
-    if (isOrganizer(provided, secrets)) {
-      next();
-      return;
-    }
-
-    const targetId = getTargetEventId(req);
-    if (targetId !== null && eventService.verifyAdminCode(targetId, provided)) {
+    const grant = eventAdminGrant(req, () => getTargetEventId(req));
+    if (grant === 'organizer' || grant === 'event-admin') {
       next();
       return;
     }

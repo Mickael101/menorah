@@ -4,7 +4,7 @@ import { socketService } from '../services/socket.service';
 import { validateCreateRequest, validateUpdateRequest, toPublicDonation } from '../models/donation';
 import { PREMIUM_TIERS } from '../models/types';
 import { requireEventAdmin } from '../middleware/admin-auth';
-import { requestEventId } from '../middleware/resolve-event';
+import { requestEventId, requireActiveOrAdmin } from '../middleware/resolve-event';
 import { rateLimit } from '../middleware/rate-limit';
 import { UnknownEventError } from '../services/event.service';
 import { EventRouteContext } from './event-context';
@@ -141,8 +141,13 @@ export function createDonationsRouter(ctx: EventRouteContext): Router {
   });
 
   // POST /donations - creation publique, limitee. resolveEvent d'abord : la
-  // soiree doit exister pour recevoir le don, et sa cle sert au rate-limit.
-  router.post('/', ctx.resolveEvent, createLimiter, (req: Request, res: Response) => {
+  // soiree doit exister pour recevoir le don. Puis le limiteur, puis seulement
+  // la garde d'etat : requireActiveOrAdmin peut avoir a verifier un code de
+  // soiree, c'est-a-dire a derouler un scrypt ; le laisser derriere le limiteur
+  // evite qu'un jeton bidon envoye en boucle sur ce chemin PUBLIC ne devienne un
+  // amplificateur de charge. Un don public vers une soiree non-active est refuse
+  // (403), un don saisi par un admin authentifie passe.
+  router.post('/', ctx.resolveEvent, createLimiter, requireActiveOrAdmin, (req: Request, res: Response) => {
     try {
       const eventId = requestEventId(req);
       const data = validateCreateRequest(req.body);

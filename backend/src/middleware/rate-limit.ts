@@ -21,11 +21,14 @@ export function rateLimit(maxRequests: number, windowMs: number) {
 
   return (req: Request, res: Response, next: NextFunction): void => {
     const ip = (req.header('x-forwarded-for')?.split(',')[0].trim()) || req.socket.remoteAddress || 'unknown';
-    // B6 : cle IP + soiree. Une seule cle par IP faisait qu'un donateur legitime
-    // sur la soiree B etait bloque par le quota consomme sur la soiree A depuis
-    // la meme IP (salle partagee, meme reseau). eventId est pose par resolveEvent
-    // monte avant ce limiteur.
-    const key = `${ip}:${req.eventId ?? 'none'}`;
+    // Plafond GLOBAL par IP : une IP ne peut creer que `maxRequests` dons par
+    // fenetre, TOUTES soirees confondues. Une cle IP+soiree (essai B6, pour ne
+    // pas penaliser deux soirees derriere un meme reseau) multipliait le plafond
+    // par le nombre de soirees — dont brouillons et archives, atteignables
+    // publiquement via POST /api/events/:id/donations — et rendait le quota
+    // contournable a volonte. L'isolation par IP prime sur le confort du reseau
+    // partage.
+    const key = ip;
     const now = Date.now();
     const entry = hits.get(key) || { timestamps: [] };
 

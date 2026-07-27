@@ -254,6 +254,13 @@ export function createGifsRouter(ctx: EventRouteContext): Router {
       const audioFilename = typeof audioUrl === 'string' && audioUrl
         ? audioUrl.split('/').pop() || null
         : null;
+      // L'audio doit lui aussi appartenir a cette soiree : sans cette garde,
+      // l'admin de A associerait a son GIF un son de B (cloisonnement medias
+      // contournable sur l'axe audio). L'audio nul reste autorise : c'est la
+      // dissociation.
+      if (audioFilename && !mediaService.owns(eventId, 'audio', audioFilename)) {
+        return res.status(404).json({ error: 'Audio file not found' });
+      }
       mediaService.setGifAudio(eventId, gifFilename, audioFilename);
 
       res.json({ success: true, gifFilename, audioUrl: audioUrlOf(audioFilename) });

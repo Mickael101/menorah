@@ -17,6 +17,7 @@ const CODE_B = 'code-prefixe-b';
 let soireeP = 0;
 let soireeA = 0;
 let soireeB = 0;
+let soireeActive = 0;
 
 describe('routes de ressources prefixees par soiree', () => {
   let app: express.Express;
@@ -30,13 +31,23 @@ describe('routes de ressources prefixees par soiree', () => {
     soireeP = insertEvent({ slug: 'prefixe-p', name: 'Prefixe P' });
     soireeA = insertEvent({ slug: 'prefixe-a', name: 'Prefixe A', adminCodeHash: hashAdminCode(CODE_A) });
     soireeB = insertEvent({ slug: 'prefixe-b', name: 'Prefixe B', adminCodeHash: hashAdminCode(CODE_B) });
+    // Une soiree ACTIVE a nous, pour prouver que le don public passe toujours
+    // sur le montage prefixe. `created_at` volontairement ancien : la soiree
+    // active du seed reste la plus recente, donc resolveActive() — et avec elle
+    // tout le flux herite des autres fichiers — ne bouge pas.
+    soireeActive = insertEvent({
+      slug: 'prefixe-active',
+      name: 'Prefixe Active',
+      status: 'active',
+      createdAt: '2000-01-01 00:00:00'
+    });
   });
 
   afterAll(() => {
     // insertEvent n'a rien persiste, mais un POST de don a sauvegarde toute la
     // base : on efface donc dons ET soirees de test avant le dernier save.
     const db = getDb();
-    for (const id of [soireeP, soireeA, soireeB]) {
+    for (const id of [soireeP, soireeA, soireeB, soireeActive]) {
       db.run('DELETE FROM donations WHERE event_id = ?', [id]);
       db.run('DELETE FROM event_configs WHERE event_id = ?', [id]);
       db.run('DELETE FROM events WHERE id = ?', [id]);
@@ -95,8 +106,11 @@ describe('routes de ressources prefixees par soiree', () => {
 
   describe('rattachement a la bonne soiree', () => {
     it('POST /api/events/:id/donations rattache le don a la soiree nommee', async () => {
+      // Soiree en brouillon : c'est une SAISIE ADMIN, donc jeton organisateur.
+      // Le don public vers une soiree non-active est couvert plus bas.
       const creation = await request(app)
         .post(`/api/events/${soireeP}/donations`)
+        .set('x-admin-token', ORGANIZER_TOKEN)
         .send({ firstName: 'Prefixe', lastName: 'Don', amount: 4200 });
 
       expect(creation.status).toBe(201);
@@ -107,11 +121,60 @@ describe('routes de ressources prefixees par soiree', () => {
     it('ne laisse pas voir un don de A sur la route de B', async () => {
       const creation = await request(app)
         .post(`/api/events/${soireeA}/donations`)
+        .set('x-admin-token', CODE_A)
         .send({ firstName: 'IsoleA', lastName: 'X', amount: 999 });
 
+      expect(creation.status).toBe(201);
       const surB = await request(app).get(`/api/events/${soireeB}/donations`);
       const ids = surB.body.donations.map((d: { id: number }) => d.id);
       expect(ids).not.toContain(creation.body.donation.id);
+    });
+  });
+
+  // L'outil sert plusieurs soirees a la fois : plusieurs peuvent etre actives,
+  // et un operateur admin doit pouvoir saisir un don sur une soiree en brouillon
+  // ou archivee (preparation, rattrapage). Ce qui doit rester ferme, c'est le
+  // don PUBLIC — sans jeton — vers une soiree qui n'accueille personne.
+  describe('don vers une soiree non-active', () => {
+    it('refuse en 403 un don PUBLIC (sans jeton) vers une soiree en brouillon', async () => {
+      const refus = await request(app)
+        .post(`/api/events/${soireeP}/donations`)
+        .send({ firstName: 'Public', lastName: 'Brouillon', amount: 1000 });
+
+      expect(refus.status).toBe(403);
+      // Et rien n'a ete ecrit.
+      const rows = getDb().exec(
+        `SELECT id FROM donations WHERE event_id = ? AND last_name = 'Brouillon'`,
+        [soireeP]
+      );
+      expect(rows.length).toBe(0);
+    });
+
+    it('accepte le don saisi avec le code admin de CETTE soiree', async () => {
+      const creation = await request(app)
+        .post(`/api/events/${soireeA}/donations`)
+        .set('x-admin-token', CODE_A)
+        .send({ firstName: 'Saisie', lastName: 'Admin', amount: 2500 });
+
+      expect(creation.status).toBe(201);
+      expect(creation.body.donation.amount).toBe(2500);
+    });
+
+    it('refuse en 403 le code d une AUTRE soiree', async () => {
+      const refus = await request(app)
+        .post(`/api/events/${soireeA}/donations`)
+        .set('x-admin-token', CODE_B)
+        .send({ firstName: 'Voisin', lastName: 'Indiscret', amount: 700 });
+
+      expect(refus.status).toBe(403);
+    });
+
+    it('laisse passer le don PUBLIC vers une soiree ACTIVE', async () => {
+      const creation = await request(app)
+        .post(`/api/events/${soireeActive}/donations`)
+        .send({ firstName: 'Public', lastName: 'Bienvenu', amount: 1800 });
+
+      expect(creation.status).toBe(201);
     });
   });
 
