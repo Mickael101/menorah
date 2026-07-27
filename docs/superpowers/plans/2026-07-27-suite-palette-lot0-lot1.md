@@ -8,7 +8,8 @@ Si cette session est interrompue, reprendre ainsi :
 2. `git -C D:/Menora/menorah log --oneline -20` et `git status --short` : la vérité est dans git,
    pas dans ce fichier. Une case cochée sans SHA au Journal est une case à ne pas croire.
 3. Ne recocher aucune case. Ne jamais écrire un SHA qui ne sort pas de `git log`.
-4. Le gate de chaque commit : `cd backend && npm test` (16 tests) **et**
+4. Le gate de chaque commit : `cd backend && npm test` (63 tests, **lancé depuis `backend/`** —
+   le garde-fou d'isolation échoue volontairement si on le lance d'ailleurs) **et**
    `cd frontend && npx vue-tsc --noEmit` **et** `cd frontend && npm run build`.
    Le commit ne part que sur un gate vert, et **jamais dans le même appel shell que le gate**
    sauf chaîné par `&&`.
@@ -17,7 +18,9 @@ Si cette session est interrompue, reprendre ainsi :
 
 ## État courant
 
-**Prochaine action** : (à renseigner à chaque étape)
+**Prochaine action** : tuer les trois mutations survivantes (config comparée aux défauts,
+résolution de soirée active tautologique, contenu du CSV jamais vérifié), puis fermer la fuite
+PII par socket, puis la tranche 13 (authentification à deux niveaux).
 
 ## Contexte figé
 
@@ -116,8 +119,8 @@ nécessaire, et cette tranche ne le remplace pas.
 - [x] 10. Schéma et migration idempotente : `events`, `event_configs`, `media`, `themes`,
       `donations.event_id` + index `(event_id, created_at)`. Création de la soirée 1
       `orot-netanel`, rattachement des dons existants, recopie de `config(id=1)`. Dump avant.
-- [ ] 11. `config.service` et `donation.service` prennent `eventId` en paramètre partout.
-- [ ] 12. Isolation temps réel : chaque `emit` devient `io.to('event:' + eventId).emit(...)`,
+- [x] 11. `config.service` et `donation.service` prennent `eventId` en paramètre partout.
+- [x] 12. Isolation temps réel : chaque `emit` devient `io.to('event:' + eventId).emit(...)`,
       `eventId` en **premier paramètre obligatoire** pour que l'oubli soit une erreur de
       compilation et non une fuite silencieuse.
 - [ ] 13. Authentification à deux niveaux : `ORGANIZER_TOKEN` global + code de soirée **haché**
@@ -173,7 +176,42 @@ d'administration — est plus propre mais suppose l'authentification de la tranc
 elle reporte la fermeture de la fuite. Ce n'est pas le bon arbitrage pour une fuite de
 données personnelles déjà en production.
 
-### Bloquant identifié sur les tranches 11-12 — le direct serait coupé
+### Mutations survivantes à tuer — la revue les a mesurées, les correctifs sont vérifiés
+
+Sur 25 mutations réellement transpilées et rejouées, 17 ont été tuées. Trois survivantes comptent,
+et chacune a un test correctif déjà validé par la revue (il passe sur le code sain, il tue la
+mutation). À appliquer avant la vérification à deux soirées.
+
+- **La configuration de B n'est comparée qu'aux valeurs par défaut.** B n'a pas de ligne dans
+  `event_configs` au moment du test, donc `get()` retombe sur le défaut en dur : l'assertion reste
+  vraie même si un `UPDATE` sans `WHERE` balaie toute la table. Correctif : donner une ligne à B
+  d'abord (`update(B, { goalAmount: 1111 })`), puis régler A, puis vérifier que B vaut toujours 1111.
+- **La résolution de la soirée active pourrait être un identifiant en dur.** Le test compare à `1`,
+  qui est justement la valeur semée : tautologique. Correctif : créer une soirée plus récente,
+  archiver l'ancienne, poster un don sur la route héritée, et vérifier que son `event_id` est
+  celui de la nouvelle. Sans cela, archiver la soirée 1 laisserait les cinq écrans publics et les
+  QR codes alimenter une soirée **archivée**, sans erreur.
+- **L'export CSV n'est jamais vérifié sur son CONTENU** — seulement statut et type MIME. Or c'est
+  la seule route qui expose email, téléphone et référence en clair : un `getAll(1)` en dur ferait
+  télécharger à l'admin de B la liste nominative des donateurs de A, suite verte. Correctif : un
+  don sur chaque soirée, puis `expect(csv).not.toContain(<nom de l'autre soirée>)`.
+
+### Findings mineurs à traiter avec les routes préfixées
+
+- `multipleActive` est calculé puis jeté : aucun consommateur. Le contrat exige un avertissement
+  explicite — deux soirées actives font donner le donateur qui scanne un QR à la plus récente
+  sans que personne ne le sache. Un `console.warn` et un en-tête suffisent.
+- `UnknownEventError` sort en **400 avec un message interne** au lieu de 404. Et si le middleware
+  n'était pas monté, le message d'implémentation partirait au client.
+- Ordre des middlewares : sans soirée active, l'export CSV sans jeton renvoie 503 au lieu de 401 —
+  le 503 masque le 401.
+- `GET /api/gifs` renvoie encore les médias de **toutes** les soirées, sur une route publique. La
+  table `media` existe mais n'est pas utilisée : c'est le report assumé du rattachement des médias.
+- Pré-existant : retirer `requireAdmin` de `PUT /api/config` ou des mutations GIF laisse la suite
+  verte, parce qu'en environnement de test sans `ADMIN_TOKEN` le middleware laisse passer par
+  conception. Un test qui veut mordre doit poser le jeton explicitement.
+
+### Bloquant identifié sur les tranches 11-12 — CORRIGÉ en `e6c32f3`, conservé pour mémoire
 
 Les cinq émissions passent désormais par `io.to('event:<id>')`, mais **aucun code frontend
 n'appelle `join`** et la connexion ne fait aucun abonnement d'office. Les écrans déjà déployés
@@ -211,6 +249,12 @@ défaut, sinon un client reçoit deux soirées et l'isolation tombe.
   jamais. Corrigé par les **piles de polices** (repli glyphe par glyphe), et le `letter-spacing`
   traité à la source avec `:dir(rtl)`. Mesuré en configuration par défaut : 2 faces Heebo
   réellement peintes, contre 0 avant.
+- `e6c32f3` — tranches 11-12 fusionnees. Le backend porte `eventId` partout, les cinq emissions
+  passent par des rooms. Le commit a failli livrer un ecran de salle MUET : router les emissions
+  orpheline tous les clients existants, qui n'appellent jamais `join`. Filet de compatibilite
+  (abonnement d'office a la soiree active) plus sortie de room a la jonction explicite, sans quoi
+  le filet rouvrait la fuite qu'il devait eviter. Un test traverse desormais la chaine entiere, et
+  ses deux assertions sont validees par mutation.
 - `4628410` — tranche 9. Courbe d'objectif honnête : l'écrasement 2,8× est supprimé, mais le
   commit **ne prétend pas** que la courbure est lisible — flèche mesurée sur toute la plage, la
   cause est un rapport de boîte de 19:1. **Ma consigne d'ancrer le dégradé sur la boîte était
