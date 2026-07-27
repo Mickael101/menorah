@@ -150,9 +150,13 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 - [ ] L1. A2 — rotation `ADMIN_TOKEN` (nouvelle valeur via `railway variables --set`, mise à
       jour `~/.menorah-admin-token.txt`) ; `railway up` ; vérification prod (health, /admin,
       /don, socket).
-- [ ] L2. E1 (vider le kicker), E3 (preset 1008000 → 1080000 agorot), E4 (supprimer le don
-      de test id=88) via l'API de prod avec le NOUVEAU token. E2 exclu (contenu inconnu —
-      à demander au commanditaire).
+- [x] L2. FAIT PAR ANTICIPATION le 2026-07-27 (indépendant du code ; la migration reprendra
+      ces données au déploiement). Constat contre la prod RÉELLE : **E1, E2 et E3 étaient
+      déjà faits par l'admin lui-même** (kicker HE ≠ « קמפיין תרומות », sous-titre HE rempli,
+      presets = [2000, 3000, 4000, 5280, 7200, 10800] ₪ sans trace de 1008000) — les
+      souvenirs du 2026-07-26 étaient périmés. E4 exécuté : `DELETE /api/donations/88`
+      (« TEST », 1 ₪) avec le jeton actuel, vérifié absent après coup, 30 dons restants,
+      stats recalculées serveur.
 - [ ] L3. `docs/reste-a-faire.md` réécrit sur l'état réel, date `docs/README.md`, push
       `master`, récap final.
 
