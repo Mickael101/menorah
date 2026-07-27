@@ -14,8 +14,8 @@ partir du même corps (fabriques `createXxxRouter(ctx)`, `app.ts`) :
 
 La forme de réponse est **identique** des deux côtés (condition de migration du frontend).
 
-`/api/gifs` reste sur `resolveActiveEvent` seul (montage hérité) ; sa contrepartie préfixée
-et le cloisonnement des médias arrivent en **E3**.
+`/api/gifs` suit désormais le **même double montage** (E3) : les GIF, sons et associations
+sont cloisonnés par soirée via la table `media`, le listing à plat du répertoire a disparu.
 
 `/api/admin` est **volontairement exclu** de toute résolution de soirée : il sert le fichier
 de base entier (toutes soirées) et reste au niveau organisateur.
@@ -56,15 +56,15 @@ réponse. « admin » = organisateur **ou** admin de la soirée résolue.
 | GET `/api/stats` | public | total, nombre, pourcentage, segments allumés |
 | GET `/api/config` | public | config de la soirée résolue |
 | PUT `/api/config` | **admin** | mise à jour + diffusion socket |
-| GET `/api/gifs` | public (GET exempté `:13-19`) | liste des GIF + audio associé — **pas encore préfixé/cloisonné, voir E3** |
-| POST `/api/gifs/upload` | `routes/gifs.ts:191` | **admin** | image ≤ 50 Mo (gif/png/jpeg/webp) |
-| POST `/api/gifs/upload-svg` | `routes/gifs.ts:212` | **admin** | SVG ≤ 5 Mo + filtre `isSafeSvg` (`:119`) |
-| POST `/api/gifs/upload-audio` | `routes/gifs.ts:239` | **admin** | audio ≤ 50 Mo |
-| POST `/api/gifs/associate-audio` | `routes/gifs.ts:259` | **admin** | associe un son à un GIF (JSON sur disque) |
-| POST `/api/gifs/trigger` | `routes/gifs.ts:284` | **admin** | déclenche GIF + son sur les écrans de la soirée active |
-| GET `/api/gifs/audio` | `routes/gifs.ts:307` | public | liste des audios |
-| DELETE `/api/gifs/audio/:filename` | `routes/gifs.ts:331` | **admin** | supprime un audio + ses associations |
-| DELETE `/api/gifs/:filename` | `routes/gifs.ts:366` | **admin** | supprime un GIF |
+| GET `/api/gifs` | public | GIF **de la soirée** + son associé (table `media`, plus de listing à plat) |
+| POST `/api/gifs/upload` | **admin** | image ≤ 50 Mo (gif/png/jpeg/webp), rattachée à la soirée |
+| POST `/api/gifs/upload-svg` | **admin** | SVG ≤ 5 Mo + filtre `isSafeSvg` |
+| POST `/api/gifs/upload-audio` | **admin** | audio ≤ 50 Mo, rattaché à la soirée |
+| POST `/api/gifs/associate-audio` | **admin** | associe un son à un GIF **de la soirée** (média, plus de JSON global) |
+| POST `/api/gifs/trigger` | **admin** | déclenche GIF + son sur les écrans de la soirée |
+| GET `/api/gifs/audio` | public | audios **de la soirée** |
+| DELETE `/api/gifs/audio/:filename` | **admin** | supprime un audio de la soirée + ses associations (frontière `path.relative`, C10) |
+| DELETE `/api/gifs/:filename` | **admin** | supprime un GIF de la soirée (frontière `path.relative`, C10) |
 | GET `/api/admin/backups` | `routes/admin.ts:13` | **admin** (`router.use` `:10`) | liste des sauvegardes |
 | POST `/api/admin/backups` | `routes/admin.ts:23` | **admin** | snapshot immédiat |
 | GET `/api/admin/backup.db` | `routes/admin.ts:34` | **admin** | télécharge la base vivante — **toutes soirées confondues** |
@@ -144,9 +144,9 @@ C'est la priorité n°1 de `reste-a-faire.md`.
 
 | # | Constat | Source |
 |---|---|---|
-| C | **CORRIGÉ (E2)** — `PUT /api/donations/:id` passe désormais `currentAmount` (le montant du don existant) à `validateUpdateRequest` : modifier `premiumWordId` sans renvoyer `amount` n'efface plus le mot sacré | `routes/donations.ts` |
-| D | Contrôle de traversée de chemin par **préfixe de chaîne**, pas par frontière : `path.join(dir,'../audio-evil/x')` passe le `startsWith`. Routes admin seulement → impact limité. **À corriger en E3 (C10)** | `routes/gifs.ts:336,371` |
-| G | **Médias non cloisonnés par soirée** : GIF, audio et SVG à plat dans `uploads/`, associations dans un `gif-audio.json` global. **À corriger en E3 (B4)** | `routes/gifs.ts:22-24,130` |
-| H | CORS incohérent : HTTP `origin:'*'`, socket restreint à `localhost:5173\|3000`. **À corriger en E3 (C8) via `CORS_ORIGIN`** | `app.ts`, `socket.service.ts:52-55` |
-| I | Rate-limit **en mémoire, mono-instance**, basé sur un `x-forwarded-for` non validé, clé IP seule. **À corriger en E3 (B6) : clé IP+soirée** | `middleware/rate-limit.ts:7,23` |
+| C | **CORRIGÉ (E2)** — `PUT /api/donations/:id` passe `currentAmount` à `validateUpdateRequest` : modifier `premiumWordId` sans renvoyer `amount` n'efface plus le mot sacré | `routes/donations.ts` |
+| D | **CORRIGÉ (E3, C10)** — frontière de chemin réelle (`path.relative`, `middleware/path-boundary.ts`) sur les suppressions GIF/audio, plus de préfixe de chaîne | `routes/gifs.ts` |
+| G | **CORRIGÉ (E3, B4)** — GIF, audio, SVG et associations cloisonnés par soirée via la table `media` ; inventaire des fichiers existants par migration | `services/media.service.ts`, `db/migrations.ts` |
+| H | **CORRIGÉ HTTP (E3, C8)** — `app.ts` lit `CORS_ORIGIN` (liste séparée par virgules), défaut `'*'`. La MÊME variable côté socket est portée par le front S | `app.ts`, `socket.service.ts` |
+| I | **CORRIGÉ (E3, B6)** — clé de rate-limit IP **+ soirée**. Reste en mémoire mono-instance et `x-forwarded-for` non validé (hors périmètre) | `middleware/rate-limit.ts` |
 | L | `GET /api/admin/backup.db` livre la base **entière, toutes soirées** — incompatible avec un futur multi-locataire | `routes/admin.ts:34` |

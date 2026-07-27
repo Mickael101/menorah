@@ -4,12 +4,23 @@ import path from 'path';
 import { createDonationsRouter } from './routes/donations';
 import { createStatsRouter } from './routes/stats';
 import { createConfigRouter } from './routes/config';
-import gifsRouter from './routes/gifs';
+import { createGifsRouter } from './routes/gifs';
 import adminRouter from './routes/admin';
 import eventsRouter from './routes/events';
 import { legacyEventContext, paramEventContext } from './routes/event-context';
 import { uploadsRoot } from './config/storage';
-import { resolveActiveEvent } from './middleware/resolve-event';
+
+// C8 : origine(s) CORS configurables par CORS_ORIGIN (liste separee par
+// virgules), consommee AUSSI par le socket (front S) avec la MEME variable.
+// Defaut = comportement actuel (origin: '*'), pour ne pas casser un ecran en
+// production qui n'aurait pas encore la variable.
+function corsOrigin(): string[] | '*' {
+  const configured = process.env.CORS_ORIGIN?.trim();
+  if (!configured) {
+    return '*';
+  }
+  return configured.split(',').map((o) => o.trim()).filter(Boolean);
+}
 
 // Construit l'app Express sans effet de bord : ni base de donnees, ni listen.
 // Permet a Supertest de l'attaquer directement.
@@ -17,7 +28,7 @@ export function createApp(): express.Express {
   const app = express();
 
   app.use(cors({
-    origin: '*',
+    origin: corsOrigin(),
     methods: ['GET', 'POST', 'PUT', 'DELETE']
   }));
 
@@ -41,11 +52,12 @@ export function createApp(): express.Express {
   app.use('/api/donations', createDonationsRouter(legacyEventContext));
   app.use('/api/stats', createStatsRouter(legacyEventContext));
   app.use('/api/config', createConfigRouter(legacyEventContext));
-  app.use('/api/gifs', resolveActiveEvent, gifsRouter);
+  app.use('/api/gifs', createGifsRouter(legacyEventContext));
 
   app.use('/api/events/:eventId/donations', createDonationsRouter(paramEventContext));
   app.use('/api/events/:eventId/stats', createStatsRouter(paramEventContext));
   app.use('/api/events/:eventId/config', createConfigRouter(paramEventContext));
+  app.use('/api/events/:eventId/gifs', createGifsRouter(paramEventContext));
 
   app.use('/api/admin', adminRouter);
 

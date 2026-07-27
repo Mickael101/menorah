@@ -10,7 +10,7 @@ Vérifié le **2026-07-27** contre `099918c`.
 | `config` *(hérité, singleton)* | `id`, `goal_amount`, `preset_amounts`, `menorah_segments`, `display_settings`, `updated_at` | `CHECK(id = 1)` ; **plus rien ne l'écrit** depuis la migration, mais elle est **recréée à chaque démarrage** | `db/init.ts:74-93`, `config.service.ts:6-8` |
 | `events` | `id`, `slug`, `name`, `status`, `admin_code_hash`, `logo_url`, `default_locale`, `currency`, `created_at`, `archived_at` | `slug UNIQUE NOT NULL`, `status DEFAULT 'draft'`, `default_locale DEFAULT 'he'`, `currency DEFAULT 'ILS'` ; `admin_code_hash` nullable à dessein | `db/migrations.ts:108-121` |
 | `event_configs` | `event_id` (PK), `goal_amount`, `preset_amounts`, `premium_tiers`, `menorah_segments`, `display_settings`, `theme_id`, `updated_at` | `PK REFERENCES events(id)`, `theme_id REFERENCES themes(id)` — **source de vérité actuelle** | `db/migrations.ts:131-142` |
-| `media` | `id`, `event_id`, `kind`, `filename`, `audio_filename`, `created_at` | `event_id NOT NULL REFERENCES events(id)` — **créée, jamais lue ni écrite** | `db/migrations.ts:149-158` |
+| `media` | `id`, `event_id`, `kind` (`gif`\|`audio`\|`visual`), `filename`, `audio_filename`, `created_at` | `event_id NOT NULL REFERENCES events(id)` — **source de vérité du rattachement des médias par soirée** (E3). Lue/écrite par `services/media.service.ts` ; `audio_filename` porte l'association GIF→son | `db/migrations.ts:149-158` |
 | `themes` | `id`, `event_id` (NULL = preset livré), `name`, `tokens_json`, `created_at` | `event_id REFERENCES events(id)` — **créée, jamais lue ni écrite** | `db/migrations.ts:164-172` |
 
 **Index** : `idx_donations_created_at` (`init.ts:70`), `idx_donations_event_created (event_id, created_at)` (`migrations.ts:381`).
@@ -33,6 +33,7 @@ Aucun framework. Séquence en dur, **idempotente, rejouée à chaque démarrage*
 | 6 | `seedFirstEvent` | crée la soirée 1 (`orot-netanel` si données héritées, sinon `EVENT_DEFAULT_SLUG`/`soiree-1`) + `attachOrphanDonations` (NULL **et** FK pendante) | `:215`, `:241` |
 | 7 | `copyLegacyConfig` | recopie `config` → `event_configs(1)`, rafraîchie tant que l'ancienne table est plus récente (« la fenêtre », `:323-331`) | `:289` |
 | 8 | `createEventIndexes` | index composite | `:373` |
+| 9 | `seedMediaFromDisk` | **E3** : inventorie les fichiers de `uploads/{gifs,audio,visuals}` dans `media`, rattachés à la soirée fondatrice ; migre les associations de l'ancien `gif-audio.json` global vers `media.audio_filename`. Idempotent (ne s'exécute que si `media` est vide) | `db/migrations.ts` |
 
 **Pas de table de version de schéma.** L'idempotence repose sur des sondes : `hasColumn`
 (`:22`), `tableExists` (`:31`), `migrationAlreadyApplied` (`:72`). Le schéma vivant est donc
