@@ -24,7 +24,12 @@ const uploadingAudioFor = ref<string | null>(null);
 
 async function fetchGifs(): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE}/api/gifs`);
+    // Via adminFetch (comme upload/associate/trigger/delete) : sur une soiree en
+    // portee, scopedApiUrl reecrit /api/gifs en /api/events/:id/gifs, donc la
+    // liste montre les GIF de la soiree ADMINISTREE. Un simple fetch brut visait
+    // la soiree ACTIVE, si bien qu'un GIF televerse etait invisible et qu'une
+    // suppression frappait un fichier d'une autre soiree (404).
+    const response = await adminFetch(`${API_BASE}/api/gifs`);
     gifs.value = await response.json();
   } catch (error) {
     console.error('Error fetching GIFs:', error);

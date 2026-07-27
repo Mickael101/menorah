@@ -2,7 +2,7 @@
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useEventContext } from '../composables/useEventContext';
-import { adminFetch, setAdminToken } from '../composables/useAdminAuth';
+import { adminFetch, setAdminToken, authExpired } from '../composables/useAdminAuth';
 import { useAdminI18n } from '../composables/useAdminI18n';
 import AdminPanel from './AdminPanel.vue';
 import AdminLogin from '../components/AdminLogin.vue';
@@ -17,7 +17,7 @@ const route = useRoute();
 const { t, direction, locale } = useAdminI18n();
 const { event, eventId, notFound, resolve, clear } = useEventContext();
 
-type Phase = 'resolving' | 'notFound' | 'login' | 'selector' | 'ready';
+type Phase = 'resolving' | 'notFound' | 'noActiveEvent' | 'login' | 'selector' | 'ready';
 const phase = ref<Phase>('resolving');
 const loginError = ref<'401' | '403' | 'generic' | null>(null);
 const checking = ref(false);
@@ -41,9 +41,12 @@ async function probeAdmin(): Promise<ProbeResult> {
 }
 
 // Detecte l'organisateur : GET /api/events est reserve au niveau organisateur.
+// Le 401 d'un admin de soiree est la reponse ATTENDUE de cette sonde, pas une
+// expiration de session : `expectAuthFailure` empeche adminFetch de lever
+// `authExpired` (sans quoi le gate se renverrait lui-meme vers la connexion).
 async function probeOrganizer(): Promise<boolean> {
   try {
-    const res = await adminFetch('/api/events');
+    const res = await adminFetch('/api/events', {}, { expectAuthFailure: true });
     return res.ok;
   } catch {
     return false;
@@ -59,6 +62,18 @@ async function runGate(initial: boolean): Promise<void> {
     // active (comportement d'aujourd'hui).
     if (await probeOrganizer()) {
       phase.value = 'selector';
+      return;
+    }
+    // Aucune soiree active resolue et pas organisateur : les routes heritees
+    // repondront 503/403 quel que soit le code, si bien qu'un admin de soiree
+    // au code VALIDE resterait enferme dehors avec une erreur trompeuse. On
+    // l'oriente vers le lien de SA soiree (/e/:slug/admin) plutot que de boucler
+    // sur l'ecran de connexion. Uniquement APRES une tentative (!initial) : au
+    // premier affichage on laisse l'ecran de connexion, sans quoi l'organisateur
+    // — encore sans jeton, donc indistinguable ici — ne pourrait plus se
+    // connecter pour atteindre le selecteur.
+    if (!initial && event.value === null) {
+      phase.value = 'noActiveEvent';
       return;
     }
   }
@@ -101,6 +116,26 @@ async function onLogin(code: string): Promise<void> {
 
 watch(slugParam, () => { void init(); }, { immediate: true });
 
+// Expiration EN COURS de session : adminFetch leve `authExpired` quand un jeton
+// reellement envoye est rejete (401) — typiquement l'organisateur a regenere le
+// code alors que le panneau etait ouvert. Sans ce chemin de retour, chaque
+// action admin echouait en silence et l'ecran de connexion restait inatteignable
+// sans rechargement manuel.
+//
+// Le signal est BAISSE dans tous les cas (re-arme pour la prochaine expiration :
+// un drapeau laisse a true ne declencherait plus jamais ce watch). La bascule
+// vers la connexion, elle, n'a lieu que depuis un ecran deja ouvert : pendant
+// 'resolving' ou 'login', le gate a deja la main et ecraserait de toute facon la
+// phase — le gate initial reste donc intact.
+watch(authExpired, (expired) => {
+  if (!expired) return;
+  authExpired.value = false;
+  if (phase.value === 'ready' || phase.value === 'selector') {
+    phase.value = 'login';
+    loginError.value = '401';
+  }
+});
+
 onUnmounted(() => {
   clear();
 });
@@ -116,6 +151,13 @@ onUnmounted(() => {
       <h1>{{ t('event.notFoundTitle') }}</h1>
       <p>{{ t('event.notFoundMessage') }}</p>
       <a href="/admin" class="notfound-link">{{ t('event.backToAdmin') }}</a>
+    </div>
+  </div>
+
+  <div v-else-if="phase === 'noActiveEvent'" class="entry-state entry-notfound" :dir="direction" :lang="locale">
+    <div class="notfound-card">
+      <h1>{{ t('event.noActiveTitle') }}</h1>
+      <p>{{ t('event.noActiveMessage') }}</p>
     </div>
   </div>
 

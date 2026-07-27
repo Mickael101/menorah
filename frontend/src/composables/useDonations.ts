@@ -351,10 +351,13 @@ export function useDonations() {
     }
   }
 
-  // Fetch premium words with availability
+  // Fetch premium words with availability. Event-scope comme fetchDonations /
+  // fetchConfig : sur une route prefixee, frappe la soiree ADMINISTREE via
+  // scopedApiUrl (route /api/events/:id/donations/premium-words), pas la soiree
+  // active. Portee nulle (route heritee) => URL inchangee.
   async function fetchPremiumWords(): Promise<void> {
     try {
-      const response = await fetch('/api/donations/premium-words');
+      const response = await fetch(scopedApiUrl('/api/donations/premium-words', currentEventScope()));
       if (!response.ok) throw new Error('Failed to fetch premium words');
 
       const data = await response.json();
@@ -379,7 +382,15 @@ export function useDonations() {
     error.value = null;
 
     try {
-      const response = await fetch(scopedApiUrl('/api/donations', currentEventScope()), {
+      // Via adminFetch, et non un fetch brut : CE MEME appel sert la page
+      // publique (DonorPledgePage) et la saisie de l'operateur (DonationForm).
+      // Le backend n'accepte un don vers une soiree NON-ACTIVE que s'il porte
+      // une autorite admin (requireActiveOrAdmin) ; sans le jeton, la saisie
+      // admin d'une soiree en brouillon ou archivee reviendrait 403. adminFetch
+      // n'ajoute d'en-tete que s'il existe un jeton pour la portee : pour un
+      // donateur du public, la requete est byte-identique a avant (et
+      // scopedApiUrl y faisait deja la meme reecriture d'URL).
+      const response = await adminFetch('/api/donations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

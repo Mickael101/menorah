@@ -8,6 +8,7 @@ import {
 import { DISPLAY_THEMES, cloneDisplaySettings } from '../../theme/displayThemes';
 import { useAdminI18n } from '../../composables/useAdminI18n';
 import { useToast } from '../../composables/useToast';
+import { adminFetch } from '../../composables/useAdminAuth';
 import { galleryText } from '../../theme/themeGalleryI18n';
 import {
   fetchThemes,
@@ -49,9 +50,31 @@ const newThemeName = ref('');
 const busy = ref(false);
 const importInput = ref<HTMLInputElement | null>(null);
 
-// Gestion possible uniquement en ligne ET avec une soiree resolue : un theme
-// personnalise se rattache a une soiree.
-const canManage = computed(() => !offline.value && props.eventId !== null);
+// L'API des themes reserve creation / edition / suppression / import a
+// l'ORGANISATEUR (routes /api/themes en requireAdmin) ; un simple code de soiree
+// peut LISTER les themes mais recoit 401 sur toute mutation. On sonde l'autorite
+// avec la MEME voie d'auth que les mutations (adminFetch), pour ne pas afficher
+// des boutons voues au 401. Faux par defaut : on masque tant que la sonde n'a
+// pas confirme l'organisateur.
+const isOrganizer = ref(false);
+
+async function probeOrganizer(): Promise<void> {
+  try {
+    // GET /api/events est reserve a l'organisateur (meme detection que
+    // EventSelector et AdminEntry) : un jeton de soiree y recoit 401. Ce 401
+    // est le RESULTAT de la sonde, pas une expiration : `expectAuthFailure`
+    // empeche adminFetch de lever `authExpired`, qui ejecterait vers l'ecran de
+    // connexion un admin de soiree dont la session est parfaitement valide.
+    const res = await adminFetch('/api/events', {}, { expectAuthFailure: true });
+    isOrganizer.value = res.ok;
+  } catch {
+    isOrganizer.value = false;
+  }
+}
+
+// Gestion possible uniquement en ligne, avec une soiree resolue ET avec
+// l'autorite organisateur reellement acceptee par l'API des themes.
+const canManage = computed(() => !offline.value && props.eventId !== null && isOrganizer.value);
 
 const selectedTheme = computed(() => themes.value.find((th) => th.id === props.selectedThemeId) ?? null);
 
@@ -89,7 +112,7 @@ async function loadThemes(): Promise<void> {
 }
 
 onMounted(async () => {
-  await loadThemes();
+  await Promise.all([loadThemes(), probeOrganizer()]);
   if (props.eventId !== null) {
     try {
       const applied = await fetchAppliedTheme(props.eventId);
@@ -102,8 +125,13 @@ onMounted(async () => {
   }
 });
 
-// Recharger si la soiree change (routage /e/:slug a venir cote front FE).
-watch(() => props.eventId, loadThemes);
+// Recharger si la soiree change (routage /e/:slug a venir cote front FE) et
+// re-sonder l'autorite : la portee ambiante — donc le jeton employe par
+// adminFetch — peut changer avec la soiree.
+watch(() => props.eventId, () => {
+  void loadThemes();
+  void probeOrganizer();
+});
 
 // Les tokens en cours d'edition : la base du theme actif + la palette vive que
 // les sections de couleurs du panneau modifient. C'est ce qu'on duplique ou

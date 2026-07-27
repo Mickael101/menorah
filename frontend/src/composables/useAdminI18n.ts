@@ -304,6 +304,8 @@ const messages: Record<AdminLocale, Record<string, string>> = {
     'selector.confirmAction': 'Confirmer ?',
     'event.notFoundTitle': 'Soirée introuvable',
     'event.notFoundMessage': 'Aucune soirée ne correspond à cette adresse.',
+    'event.noActiveTitle': 'Aucune soirée active',
+    'event.noActiveMessage': 'Aucune soirée active, utilise le lien de ta soirée (par exemple /e/ta-soirée/admin).',
     'event.backToAdmin': 'Retour à l’administration',
     'event.loading': 'Chargement…'
   },
@@ -604,6 +606,8 @@ const messages: Record<AdminLocale, Record<string, string>> = {
     'selector.confirmAction': 'Confirm?',
     'event.notFoundTitle': 'Event not found',
     'event.notFoundMessage': 'No event matches this address.',
+    'event.noActiveTitle': 'No active event',
+    'event.noActiveMessage': 'No active event — use your own event link (for example /e/your-event/admin).',
     'event.backToAdmin': 'Back to administration',
     'event.loading': 'Loading…'
   },
@@ -904,6 +908,8 @@ const messages: Record<AdminLocale, Record<string, string>> = {
     'selector.confirmAction': 'לאשר?',
     'event.notFoundTitle': 'הערב לא נמצא',
     'event.notFoundMessage': 'אין ערב התואם לכתובת זו.',
+    'event.noActiveTitle': 'אין ערב פעיל',
+    'event.noActiveMessage': 'אין ערב פעיל, השתמשו בקישור של הערב שלכם (לדוגמה: /e/your-event/admin).',
     'event.backToAdmin': 'חזרה לניהול',
     'event.loading': 'טוען…'
   }

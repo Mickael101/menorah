@@ -2,7 +2,7 @@
 // Ecran de dons en direct — implementation UNIQUE des trois routes display (C3).
 // Le comportement et le rendu divergents sont pilotes par le descripteur `variant`
 // (voir displayVariants.ts et l'inventaire des divergences dans docs/verif/...).
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSocket } from '../../composables/useSocket';
 import { useEventContext, currentEventScope } from '../../composables/useEventContext';
@@ -134,9 +134,11 @@ function triggerGifExplosion(gifUrl: string, audioUrl?: string): void {
   }, 4000);
 }
 
-onMounted(async () => {
-  // Resout la soiree AVANT tout fetch : pose la portee ambiante que
-  // useDonations lit pour choisir entre routes heritees et prefixees.
+// Resout la soiree courante (slug de route) AVANT tout fetch : pose la portee
+// ambiante que useDonations lit pour choisir entre routes heritees et prefixees,
+// rejoint la room, puis charge dons + config. Re-executable : le watch ci-dessous
+// la rappelle quand le slug change sans que le composant soit remonte.
+async function resolveAndLoad(): Promise<void> {
   const slugParam = route.params.slug;
   await eventContext.resolve(typeof slugParam === 'string' ? slugParam : null);
   if (eventContext.notFound.value) {
@@ -148,7 +150,15 @@ onMounted(async () => {
   join(currentEventScope());
 
   await Promise.all([fetchDonations(), fetchConfig()]);
+}
 
+onMounted(async () => {
+  await resolveAndLoad();
+
+  // Handlers socket enregistres UNE SEULE fois : useSocket.on empile les
+  // callbacks, donc les re-enregistrer a chaque changement de slug doublerait
+  // les celebrations. Ils operent sur l'etat reactif partage, donc restent
+  // corrects apres une re-resolution (nouvelle room + nouveau fetch).
   on('donation:new', (data: any) => {
     handleDonationNew(data.donation, data.stats);
     triggerDonationCelebration(data.donation);
@@ -175,6 +185,12 @@ onMounted(async () => {
     await Promise.all([fetchDonations(), fetchConfig()]);
   });
 });
+
+// /display et /e/:slug/display partagent CE composant : une navigation SPA entre
+// les deux familles (ou d'un slug a un autre) reutilise l'instance sans repasser
+// par onMounted, si bien que l'ecran resterait sur la soiree precedente. On
+// re-resout (et re-joint la room, re-fetch) a chaque changement de slug.
+watch(() => route.params.slug, () => { void resolveAndLoad(); });
 
 onUnmounted(() => {
   if (flashTimeoutId !== null) window.clearTimeout(flashTimeoutId);

@@ -1,4 +1,15 @@
+import { ref } from 'vue';
 import { currentEventScope } from './useEventContext';
+
+// Signal de re-authentification en cours de session. `adminFetch` le leve quand
+// un jeton REELLEMENT envoye est rejete (401) : le code admin a ete invalide
+// alors que le panneau etait deja ouvert (typiquement l'organisateur l'a
+// regenere). Le gate d'entree (AdminEntry) surveille ce signal pour re-presenter
+// l'ecran de connexion AdminLogin, puis le baisse. `setAdminToken` le baisse
+// aussi des qu'un nouveau jeton est pose, ce qui re-arme le signal pour une
+// expiration ulterieure. Sans lui, chaque action admin echouait en silence une
+// fois le jeton perime, sans aucun chemin de retour vers la connexion.
+export const authExpired = ref(false);
 
 // Stockage du jeton PAR SOIREE. Une cle unique faisait qu'une connexion a la
 // soiree B ecrasait celle de la soiree A. On garde la cle historique comme
@@ -35,6 +46,9 @@ export function setAdminToken(token: string, eventId?: number | null): void {
   } else {
     localStorage.setItem(LEGACY_KEY, clean);
   }
+  // Un nouveau jeton pose : la session n'est plus « expiree ». Baisser le signal
+  // ici le re-arme pour une eventuelle expiration ulterieure.
+  authExpired.value = false;
 }
 
 export function clearAdminToken(eventId?: number | null): void {
@@ -57,8 +71,11 @@ export function adminHeaders(eventId?: number | null): Record<string, string> {
 // autre front). Sans portee (soiree active), l'URL est laissee telle quelle :
 // zero changement de comportement sur le flux herite.
 //
-// `premium-words` reste hors soiree (contrat) : il est appele par `fetch`, pas
-// par `adminFetch`, donc jamais reecrit ici.
+// Le prefixe `donations` couvre aussi ses sous-chemins : le lookahead accepte
+// `/`, donc `/api/donations/premium-words` est reecrit en
+// `/api/events/:id/donations/premium-words` (route scopee montee sous les deux
+// prefixes). fetchPremiumWords passe desormais par scopedApiUrl pour frapper la
+// soiree administree, comme la liste des dons et la config.
 const LEGACY_RESOURCE = /\/api\/(donations|config|gifs|stats)(?=$|[/?])/;
 
 export function scopedApiUrl(url: string, eventId: number | null): string {
@@ -72,18 +89,45 @@ export function scopedApiUrl(url: string, eventId: number | null): string {
 }
 
 // Wrapper fetch pour les endpoints admin : injecte le jeton de la soiree en
-// portee et cible la route prefixee correspondante. Le remplacement du
-// window.prompt par un vrai ecran de connexion se fait en amont (l'ecran pose
-// le jeton avant que la page admin ne s'affiche) : un 401/403 est donc
-// simplement remonte a l'appelant, qui laisse l'ecran de connexion le traiter.
-export async function adminFetch(url: string, options: RequestInit = {}): Promise<Response> {
+// portee et cible la route prefixee correspondante. La saisie du code passe par
+// l'ecran de connexion AdminLogin (plus de window.prompt). Recuperation EN COURS
+// de session : si un jeton qu'on a reellement envoye revient 401 (typiquement
+// l'organisateur a regenere le code alors que le panneau etait ouvert), on leve
+// `authExpired` pour que le gate (AdminEntry) re-presente l'ecran de connexion.
+// La reponse est tout de meme remontee a l'appelant, qui gere deja l'echec ; on
+// ne rejoue pas ici (le nouveau code repasse par AdminLogin, source unique de
+// verite).
+export interface AdminFetchIntent {
+  // Un 401 est une REPONSE ATTENDUE ici, pas une expiration. C'est le cas des
+  // sondes d'autorite : GET /api/events est reserve a l'organisateur, donc un
+  // admin de soiree au code parfaitement valide y recoit 401 par conception
+  // (AdminEntry.probeOrganizer, ThemeGallery.probeOrganizer). Sans ce drapeau,
+  // ces sondes leveraient `authExpired` et ejecteraient vers l'ecran de
+  // connexion un admin dont la session est saine.
+  expectAuthFailure?: boolean;
+}
+
+export async function adminFetch(
+  url: string,
+  options: RequestInit = {},
+  intent: AdminFetchIntent = {}
+): Promise<Response> {
   const scope = currentEventScope();
   const target = scopedApiUrl(url, scope);
-  return fetch(target, {
+  const hadToken = Boolean(getAdminToken(scope));
+  const response = await fetch(target, {
     ...options,
     headers: {
       ...(options.headers as Record<string, string> | undefined),
       ...adminHeaders(scope)
     }
   });
+  // Un 401 sur une requete SANS jeton (gate initial) est normal : ne pas lever
+  // le signal, sinon on brouille le premier ecran de connexion. On ne le leve
+  // que si le jeton envoye a ete rejete sur une route ou il aurait du valoir —
+  // la vraie expiration en cours de route.
+  if (hadToken && response.status === 401 && !intent.expectAuthFailure) {
+    authExpired.value = true;
+  }
+  return response;
 }
