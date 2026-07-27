@@ -72,11 +72,13 @@ sert l'admin, les écrans, l'API REST et le websocket.
 | Chemin | Rôle |
 |---|---|
 | `pages/` | 6 vues — **5 routées, 1 orpheline** |
-| `components/admin/` | `DisplaySettingsPanel` (2439 l.), `DonationForm` (1253), `GifManager` (665), `ConfigPanel` (600), `DonationList` (565) |
+| `components/admin/` | `DisplaySettingsPanel` (galerie déléguée à `ThemeGallery`), `ThemeGallery` (moteur de thèmes C1 : lit l'API, aperçu, duplique/édite/supprime, export/import JSON, repli hors-ligne), `DonationForm` (1253), `GifManager` (665), `ConfigPanel` (600), `DonationList` (565) |
 | `components/display/` | `MenorahDisplay`, `DonorPlate`/`DonorPlatesGrid`/`DonorPlateAnimation`, `CampaignVisual`, `StatsCompact` |
 | `components/ui/` | `UiToast` |
 | `composables/` | `useDonations` (543 l., état + client API), `useSocket`, `useAdminAuth`, `useAdminI18n` (823), `useToast`, `useAudioPreview` |
-| `theme/displayThemes.ts` | Variables CSS dérivées de `displaySettings` |
+| `theme/displayThemes.ts` | Variables CSS dérivées de `displaySettings` — reste la SOURCE du seed backend et le repli hors-ligne de la galerie |
+| `theme/themesApi.ts` | Client de l'API des thèmes + copie du contraste WCAG et de la validation de schéma (refus d'un import illisible avant l'aller-retour) |
+| `theme/themeGalleryI18n.ts` | Libellés fr/en/he propres à la galerie (composables/ hors périmètre C1) |
 | `assets/styles/global.css` | Base + doctrine RTL/typographie documentée (l. 210-241) |
 
 ### Pages et routes
