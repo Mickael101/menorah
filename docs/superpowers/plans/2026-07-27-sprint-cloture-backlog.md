@@ -66,10 +66,10 @@ Périmètre : `backend/src/services/socket.service.ts`, `backend/src/models/dona
 `frontend/src/composables/useDonations.ts`, `frontend/src/pages/AdminPanel.vue`.
 INTERDITS : `app.ts`, `routes/*`, `middleware/*` (front EB).
 
-- [ ] S1. A1 — la fuite PII socket est fermée (projection publique dans les émissions) ;
+- [x] S1. A1 — la fuite PII socket est fermée (projection publique dans les émissions) ;
       A5 — un test socket le prouve (aucun email/téléphone/référence dans le payload reçu).
-- [ ] S2. A3+A4 — les 3 tests tueurs de mutations, tels que spécifiés.
-- [ ] S3. C9 — `validateUpdateRequest` sans `currentAmount` ne remet plus le mot sacré/montant
+- [x] S2. A3+A4 — les 3 tests tueurs de mutations, tels que spécifiés.
+- [x] S3. C9 — `validateUpdateRequest` sans `currentAmount` ne remet plus le mot sacré/montant
       à zéro (côté modèle ; la ligne d'appel `routes/donations.ts:158` est pour EB) ;
       C8 partie socket — CORS du socket lit `CORS_ORIGIN`.
 
@@ -171,3 +171,13 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
   `display_settings` sous try/catch, et adapter le test.
 - `4c70aea` — merge `sprint/nettoyage` dans master. Gate rejoué sur master après merge :
   63/63 backend, typecheck et build frontend verts.
+- `650d1f8` — S1 (front S). Fuite PII socket fermée : `toPublicDonation` dans les émissions,
+  l'admin recharge par `?full=1`. Test `socket-pii.test.ts` écrit ROUGE d'abord, VERT après.
+- `937994e` — S2. Les 3 tests tueurs de mutations (`mutations-survivantes.test.ts`),
+  état partagé restauré en `finally`.
+- `dbc8905` — S3. **Finding C9 requalifié par la mesure** : le mot sacré n'était PAS effacé
+  (le service ignore une clé `undefined`) ; le défaut réel était un changement de mot
+  silencieusement IGNORÉ quand `amount` est absent. Garde-fou modèle appliqué (sans
+  régression) + test. CORS socket lit `CORS_ORIGIN` (défaut = comportement actuel), 5 cas testés.
+- `1949fb1` — merge `sprint/securite` dans master. Gate rejoué : 76/76 backend
+  (63 + 13 nouveaux), typecheck et build frontend verts.
