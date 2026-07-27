@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useSocket } from '../composables/useSocket';
+import { useEventContext, currentEventScope } from '../composables/useEventContext';
 import {
   useDonations,
   type Donation,
@@ -48,7 +49,11 @@ onUnmounted(() => {
   document.removeEventListener('keydown', closeLangMenuOnEscape);
 });
 
-const { on } = useSocket();
+const { on, join } = useSocket();
+// Slug de la soiree en portee (pose par AdminEntry via useEventContext) : sert
+// a pointer « Voir l'ecran » vers l'ecran de CETTE soiree. Vide en herite.
+const { slug } = useEventContext();
+const displayHref = computed(() => (slug.value ? `/e/${slug.value}/display` : '/display'));
 const {
   stats,
   config,
@@ -97,6 +102,10 @@ const activeAdminBranding = computed(() => ({
 
 // Load initial data
 onMounted(async () => {
+  // Rejoint la room temps reel de la soiree en portee. En herite (portee
+  // nulle), l'auto-abonnement backend a la soiree active suffit.
+  join(currentEventScope());
+
   await Promise.all([fetchDonations({ full: true }), fetchConfig(), fetchPremiumWords()]);
 
   // Listen for real-time events.
@@ -194,7 +203,7 @@ function handleCancel(): void {
             </div>
           </div>
 
-          <a href="/display" target="_blank" class="display-link">
+          <a :href="displayHref" target="_blank" class="display-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="3" width="20" height="14" rx="2"/>
               <path d="M8 21h8M12 17v4"/>

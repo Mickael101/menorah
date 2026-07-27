@@ -1,5 +1,6 @@
 import { ref } from 'vue';
-import { adminFetch } from './useAdminAuth';
+import { adminFetch, scopedApiUrl } from './useAdminAuth';
+import { currentEventScope } from './useEventContext';
 
 // Types matching backend
 export interface Donation {
@@ -325,7 +326,7 @@ export function useDonations() {
     try {
       const response = options.full
         ? await adminFetch('/api/donations?full=1')
-        : await fetch('/api/donations');
+        : await fetch(scopedApiUrl('/api/donations', currentEventScope()));
       if (!response.ok) throw new Error('Failed to fetch donations');
 
       const data = await response.json();
@@ -341,7 +342,7 @@ export function useDonations() {
   // Fetch config
   async function fetchConfig(): Promise<void> {
     try {
-      const response = await fetch('/api/config');
+      const response = await fetch(scopedApiUrl('/api/config', currentEventScope()));
       if (!response.ok) throw new Error('Failed to fetch config');
 
       config.value = await response.json();
@@ -378,7 +379,7 @@ export function useDonations() {
     error.value = null;
 
     try {
-      const response = await fetch('/api/donations', {
+      const response = await fetch(scopedApiUrl('/api/donations', currentEventScope()), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

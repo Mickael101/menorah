@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRoute } from 'vue-router';
 import {
   useDonations,
   DEFAULT_PLEDGE_TEXTS,
@@ -7,8 +8,15 @@ import {
   type PledgePageCopy,
   type PledgeRequiredFields
 } from '../composables/useDonations';
+import { useEventContext } from '../composables/useEventContext';
 
 const { config, fetchConfig, createDonation, formatAmount, isLoading, error } = useDonations();
+
+// Contexte de soiree : /don => soiree active (herite) ; /e/:slug/don => soiree
+// nommee. Un slug inconnu affiche un etat 404 propre, jamais un repli silencieux
+// sur une autre soiree (un don irait alors sur le mauvais mur).
+const route = useRoute();
+const { resolve, notFound: pageNotFound, clear } = useEventContext();
 
 type Locale = 'fr' | 'he' | 'en';
 const locale = ref<Locale>('he');
@@ -30,7 +38,9 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     newDonation: 'Enregistrer un autre don',
     required: 'Veuillez remplir tous les champs obligatoires (*) et un montant.',
     anonymous: 'Anonyme',
-    raised: 'déjà collectés'
+    raised: 'déjà collectés',
+    notFoundTitle: 'Soirée introuvable',
+    notFoundMessage: 'Aucune soirée ne correspond à cette adresse.'
   },
   he: {
     firstName: 'שם פרטי',
@@ -48,7 +58,9 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     newDonation: 'רישום תרומה נוספת',
     required: 'נא למלא את כל שדות החובה (*) וסכום.',
     anonymous: 'אנונימי',
-    raised: 'נאספו עד כה'
+    raised: 'נאספו עד כה',
+    notFoundTitle: 'הערב לא נמצא',
+    notFoundMessage: 'אין ערב התואם לכתובת זו.'
   },
   en: {
     firstName: 'First name',
@@ -66,7 +78,9 @@ const MESSAGES: Record<Locale, Record<string, string>> = {
     newDonation: 'Record another donation',
     required: 'Please fill in all required fields (*) and an amount.',
     anonymous: 'Anonymous',
-    raised: 'raised so far'
+    raised: 'raised so far',
+    notFoundTitle: 'Event not found',
+    notFoundMessage: 'No event matches this address.'
   }
 };
 
@@ -113,8 +127,18 @@ const requiredFields = computed<PledgeRequiredFields>(() =>
 
 const presets = computed(() => config.value.presetAmounts || []);
 
-onMounted(() => {
-  fetchConfig();
+onMounted(async () => {
+  // Resout le contexte AVANT de charger la config : la portee ambiante ainsi
+  // posee dirige fetchConfig et createDonation vers la bonne soiree.
+  await resolve(typeof route.params.slug === 'string' ? route.params.slug : null);
+  if (!pageNotFound.value) {
+    fetchConfig();
+  }
+});
+
+onUnmounted(() => {
+  // Ne pas laisser fuiter la portee de cette soiree sur la page suivante.
+  clear();
 });
 
 function selectPreset(preset: number): void {
@@ -220,7 +244,14 @@ function reset(): void {
       </button>
     </div>
 
-    <div class="content" v-if="!showCelebration">
+    <div v-if="pageNotFound" class="pledge-notfound">
+      <div class="notfound-card">
+        <h1>{{ t('notFoundTitle') }}</h1>
+        <p>{{ t('notFoundMessage') }}</p>
+      </div>
+    </div>
+
+    <div v-else-if="!showCelebration" class="content">
       <header class="header">
         <div class="flame-icon">
           <svg viewBox="0 0 24 24" fill="currentColor">
@@ -403,6 +434,35 @@ function reset(): void {
   margin: 0 auto;
   position: relative;
   z-index: 1;
+}
+
+.pledge-notfound {
+  max-width: 560px;
+  margin: 40px auto 0;
+  position: relative;
+  z-index: 1;
+}
+
+.notfound-card {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(228, 190, 99, 0.22);
+  border-radius: 18px;
+  padding: 36px 26px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+.notfound-card h1 {
+  font-size: 22px;
+  margin: 0 0 10px;
+  color: #f2cc72;
+}
+
+.notfound-card p {
+  font-size: 14px;
+  color: rgba(247, 243, 234, 0.65);
+  margin: 0;
 }
 
 .header {
