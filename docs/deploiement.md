@@ -30,19 +30,40 @@ railway up          # LE seul moyen de déployer
 | Builder | NIXPACKS, région `europe-west4-drams3a`, **1 replica** |
 | Healthcheck | `/api/health`, 120 s |
 
-Sources : `railway.json:3-24`, `.railwayignore:1-4`.
+Sources : `railway.json:3-20`, `.railwayignore:1-4`.
 
 ## Chaîne de build
 
-```bash
-cd frontend && npm install && npm run build
-mkdir -p ../backend/public && cp -R dist/* ../backend/public
-cd ../backend && npm install && npm run build && npm start
+La chaîne de build a **une seule source de vérité : `nixpacks.toml`** (`[phases.build]`).
+
+```toml
+# nixpacks.toml
+[phases.build]
+cmds = [
+  "cd frontend && npm install && npm run build",
+  "mkdir -p backend/public && cp -R frontend/dist/* backend/public",
+  "cd backend && npm install && npm run build"
+]
 ```
 
-> Cette séquence est **dupliquée à l'identique** dans `railway.json:5` et
-> `nixpacks.toml:8-16`. Une divergence future ne se verrait qu'au déploiement.
-> Voir `reste-a-faire.md`.
+> **C7 (dédupliqué le 2026-07-27)** : `railway.json` portait auparavant un
+> `buildCommand` qui surchargeait la phase build de Nixpacks — deux chaînes
+> équivalentes mais divergentes en puissance. Le `buildCommand` a été retiré de
+> `railway.json`, qui ne garde que `builder: "NIXPACKS"` et la configuration de
+> déploiement (`startCommand`, healthcheck, restart, replicas, région). Nixpacks
+> lance chaque `cmd` depuis la racine du dépôt (le cwd est réinitialisé entre
+> les commandes), d'où les chemins racine-relatifs `frontend/dist` et
+> `backend/public`.
+>
+> Duplication résiduelle **connue, non traitée dans cette passe** : le
+> `startCommand` (`cd backend && npm start`) figure à l'identique dans
+> `railway.json` (`deploy.startCommand`, autoritaire) et `nixpacks.toml`
+> (`[start]`, mort car surchargé). Ce n'est pas la cible de C7 (chaîne de
+> *build*) et les deux valeurs sont identiques ; à retirer côté `nixpacks.toml`
+> lors d'une passe où le déploiement peut être re-vérifié.
+>
+> ⚠ La vérification réelle de la chaîne de build n'aura lieu qu'au `railway up`
+> de fin de sprint : aucun build n'a été exécuté ici.
 
 En production, un **seul process Node** sert l'admin, les écrans, l'API et le websocket.
 
