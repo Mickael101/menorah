@@ -1,6 +1,7 @@
 import { getDb } from '../db/init';
 import { EventRecord } from '../models/types';
 import { EventRow, rowToEvent } from '../models/event';
+import { verifyAdminCode } from '../middleware/admin-code';
 
 export interface ActiveEventResolution {
   event: EventRecord | null;
@@ -55,6 +56,43 @@ class EventService {
       event: active.length === 0 ? null : active[0],
       multipleActive: active.length > 1
     };
+  }
+
+  // Le code admin en clair est confronte a l'empreinte d'UNE soiree precise.
+  // L'empreinte ne sort jamais de la couche donnees : seule la reponse booleenne
+  // remonte, jamais le hash. C'est ce qui garde EVENT_COLUMNS libre de
+  // admin_code_hash tout en autorisant l'authentification.
+  verifyAdminCode(eventId: number, code: string): boolean {
+    const hash = this.adminCodeHash(eventId);
+    return verifyAdminCode(code, hash);
+  }
+
+  // A quelle soiree, s'il en est une, ce code donne-t-il acces ? Sert a
+  // distinguer un secret INCONNU (401) d'un secret VALIDE mais hors perimetre
+  // (403) : sans cette question, l'admin de la soiree A recevrait un 401
+  // trompeur sur la soiree B, comme si son code etait mauvais.
+  findEventByAdminCode(code: string): number | null {
+    const rows = getDb().exec(
+      `SELECT id, admin_code_hash FROM events WHERE admin_code_hash IS NOT NULL`
+    );
+    if (rows.length === 0) {
+      return null;
+    }
+    for (const [id, hash] of rows[0].values) {
+      if (verifyAdminCode(code, hash as string)) {
+        return id as number;
+      }
+    }
+    return null;
+  }
+
+  private adminCodeHash(eventId: number): string | null {
+    const rows = getDb().exec('SELECT admin_code_hash FROM events WHERE id = ?', [eventId]);
+    if (rows.length === 0 || rows[0].values.length === 0) {
+      return null;
+    }
+    const value = rows[0].values[0][0];
+    return typeof value === 'string' ? value : null;
   }
 
   private queryOne(sql: string, params: (string | number)[]): EventRecord | null {

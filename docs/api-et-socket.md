@@ -49,14 +49,32 @@ que le schéma multi-événements est en base. Contrat figé prêt à implément
 
 ## Authentification
 
-`requireAdmin` (`middleware/admin-auth.ts`) accepte le jeton par header `x-admin-token`
-**ou** par `?token=` (`:22-23`).
+Deux niveaux d'accès, un seul en-tête (`middleware/admin-auth.ts`). Le jeton arrive
+par header `x-admin-token` **ou** par le repli `?token=`.
 
-| `ADMIN_TOKEN` | `NODE_ENV=production` | Comportement |
+| Rôle | Secret | Portée |
 |---|---|---|
-| absent | oui | **503 sur toutes les routes admin** (fail-closed, corrigé le 2026-07-26 par `d9aae2d`) |
-| absent | non | **routes ouvertes** — voir l'avertissement de `tests.md` |
-| présent | — | jeton exigé et comparé |
+| Organisateur | `ORGANIZER_TOKEN` (env) | toutes les soirées |
+| Organisateur (alias) | `ADMIN_TOKEN` (env) | toutes les soirées — **alias de compatibilité, la prod en dépend** |
+| Admin de soirée | code propre à la soirée, haché dans `events.admin_code_hash` | sa soirée uniquement |
+
+- **`requireAdmin`** — niveau organisateur uniquement (liste/création de soirées,
+  sauvegardes globales). Accepte `ORGANIZER_TOKEN` puis l'alias `ADMIN_TOKEN`.
+- **`requireEventAdmin(cible)`** — organisateur **ou** admin de la soirée ciblée. Un code
+  valide pour la soirée A sur une ressource de B renvoie **403** (secret bon, portée
+  refusée), un code inconnu **401**. À monter **avant** la résolution de soirée, pour que
+  l'absence de soirée active ne masque pas un 401 par un 503. *Câblé sur les routes en E2.*
+
+Hachage : `crypto.scryptSync` (bibliothèque standard, **aucune dépendance ajoutée**),
+format auto-descriptif `scrypt$N$r$p$sel_b64$empreinte_b64`, comparaison `timingSafeEqual`
+(`middleware/admin-code.ts`). Le code en clair n'est jamais stocké, ni logué, ni renvoyé
+par une route — sauf **une seule fois** par le POST de création (E2).
+
+| Secret d'environnement | `NODE_ENV=production` | Comportement |
+|---|---|---|
+| aucun (`ORGANIZER_TOKEN` et `ADMIN_TOKEN` absents) | oui | **503 sur toutes les routes admin** (fail-closed, hérité du LOT 0) |
+| aucun | non | **routes ouvertes** — contournement de dev, voir l'avertissement de `tests.md` |
+| au moins un présent | — | jeton exigé et comparé selon l'ordre du contrat |
 
 ## Événements Socket.IO
 
