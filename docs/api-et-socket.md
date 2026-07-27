@@ -72,9 +72,43 @@ réponse. « admin » = organisateur **ou** admin de la soirée résolue.
 | GET `/uploads/*` | `app.ts:26` | public | médias statiques |
 | GET `*` | `app.ts:42` | public | fallback SPA |
 
+### Thèmes (`routes/themes.ts`, C1)
+
+Un thème est une **donnée**, plus du code : l'admin choisit, duplique et modifie un thème
+d'affichage sans redéploiement. Un thème = une **famille structurelle** (`base`, l'une des sept
+livrées, dont le moteur de rendu tire surfaces/polices/arrondis) **+ les dix couleurs de
+palette**. `event_id NULL` = preset **intégré** (livré, partagé, non supprimable, duplicable) ;
+`event_id` renseigné = thème **personnalisé** d'une soirée.
+
+| Méthode + chemin | Accès | Rôle |
+|---|---|---|
+| GET `/api/themes?eventId=` | **admin de la soirée** (avec `eventId`) sinon **organisateur** | `{ themes: ThemeRecord[] }` — intégrés + personnalisés de la soirée |
+| POST `/api/themes` | **organisateur** | crée un thème personnalisé rattaché à `eventId`. `{ theme }` (201) |
+| PUT `/api/themes/:id` | **organisateur** | édite un personnalisé. Intégré → **409** (se duplique, ne se modifie pas) |
+| DELETE `/api/themes/:id` | **organisateur** | supprime un personnalisé (204). Intégré → **409** |
+| GET `/api/events/:eventId/theme` | **public** | `{ theme: ThemeRecord \| null }` — thème appliqué (lecture offline-safe pour l'écran) |
+| PUT `/api/events/:eventId/theme` | **admin de la soirée** | applique `{ themeId }` (pose `event_configs.theme_id`). Thème d'une autre soirée → **403** |
+
+**Contraste AA REFUSANT à la création et à l'édition** (`models/theme.ts`) : la luminance
+relative WCAG des paires déclarées est calculée ; texte (`headerTextColor`, `statsTextColor`,
+`plateTextColor` vs `backgroundColor`) sous **4,5** ou objet graphique
+(`chartPrimaryColor` vs `backgroundColor`) sous **3,0** → **422** avec le détail des paires
+fautives, jamais un thème illisible enregistré. Frontière inclusive : 4,5 accepté, 4,49 refusé.
+`chartSecondaryColor` est **exclu** (compagnon de dégradé décoratif, non essentiel au sens
+WCAG 1.4.11 — cinq des sept presets le posent volontairement sous 3,0). Les sept intégrés
+passent le contrôle (min mesuré : ivoire header 4,90 / courbe 3,04).
+
+Seed additif idempotent par la migration (`db/migrations.ts` `seedBuiltinThemes`), construit
+depuis `DEFAULT_THEME_PALETTES` (même source que le moteur de rendu — zéro couleur recopiée).
+
+```ts
+ThemeRecord = { id, eventId: number|null, name, builtin: boolean, tokens: ThemeTokens, createdAt }
+ThemeTokens = { base: DisplayThemeId } & DisplayThemePalette   // base + 10 couleurs
+```
+
 **`/api/events` existe** (E2, `routes/events.ts`) et les ressources sont montées en double
-(hérité + `/api/events/:eventId/...`). Le routage **frontend** `/e/:slug` reste à faire
-(vague 2, front FE). Contrat de référence :
+(hérité + `/api/events/:eventId/...`). Le routage **frontend** `/e/:slug` est livré (F1) et
+les écrans display consomment leur slug (O2). Contrat de référence :
 `superpowers/plans/2026-07-27-contrat-api-multi-evenements.md`.
 
 ## Authentification

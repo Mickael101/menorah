@@ -12,12 +12,13 @@ import {
   DEFAULT_DISPLAY_SETTINGS
 } from '../../composables/useDonations';
 import {
-  DISPLAY_THEMES,
   cloneDisplaySettings,
   resetThemePalette
 } from '../../theme/displayThemes';
 import { useAdminI18n } from '../../composables/useAdminI18n';
 import { adminFetch } from '../../composables/useAdminAuth';
+import ThemeGallery from './ThemeGallery.vue';
+import { resolveActiveEventId, applyTheme } from '../../theme/themesApi';
 
 const { t } = useAdminI18n();
 
@@ -31,6 +32,14 @@ const uploadError = ref('');
 const isUploadingVisual = ref(false);
 const visualUploadError = ref('');
 const activePalette = computed(() => settings.value.themePalettes[settings.value.theme]);
+
+// Soiree ciblee par la galerie de themes (soiree active tant que le routage
+// /e/:slug — front FE — n'est pas cable). null = non resolue : la galerie
+// retombe alors sur ses themes hors-ligne.
+const eventId = ref<number | null>(null);
+// Identifiant du theme (en base) actuellement selectionne dans la galerie, pour
+// l'enregistrer comme theme applique a la soiree lors de la sauvegarde.
+const selectedThemeId = ref<number | null>(null);
 
 const directionOptions = computed<{ id: DisplayTextDirection; label: string; description: string }[]>(() => [
   { id: 'auto', label: t('display.direction.auto.name'), description: t('display.direction.auto.description') },
@@ -53,6 +62,9 @@ function themeText(themeId: DisplayThemeId, field: 'name' | 'short' | 'descripti
 onMounted(async () => {
   await fetchConfig();
   syncSettings();
+  // Resolution best-effort : un echec laisse eventId a null, la galerie bascule
+  // en mode hors-ligne (lecture seule) plutot que de casser le panneau.
+  eventId.value = await resolveActiveEventId();
 });
 
 const toast = useToast();
@@ -130,6 +142,17 @@ async function saveSettings(): Promise<void> {
   if (saved) {
     savedSnapshot.value = JSON.stringify(settings.value);
     hasRemoteChange.value = false;
+    // Enregistre le theme applique a la soiree (pointeur theme_id). Les
+    // displaySettings, deja enregistres ci-dessus, pilotent le rendu : cet appel
+    // est un complement, et son echec ne doit pas faire croire a un echec de
+    // sauvegarde. Un identifiant negatif est un theme hors-ligne, non persistable.
+    if (selectedThemeId.value !== null && selectedThemeId.value > 0 && eventId.value !== null) {
+      try {
+        await applyTheme(eventId.value, selectedThemeId.value);
+      } catch {
+        // Complement non bloquant : voir ci-dessus.
+      }
+    }
     toast.success(t('toast.savedDisplay'));
   } else {
     toast.error(t('toast.saveFailed'));
@@ -143,10 +166,6 @@ function resetDefaults(): void {
   // etroite — d'ou la confirmation explicite.
   if (!confirm(t('display.resetConfirm'))) return;
   settings.value = cloneDisplaySettings(DEFAULT_DISPLAY_SETTINGS);
-}
-
-function selectTheme(themeId: DisplayThemeId): void {
-  settings.value.theme = themeId;
 }
 
 function resetActiveTheme(): void {
@@ -218,17 +237,6 @@ async function uploadCustomSvg(event: Event): Promise<void> {
 function removeCustomSvg(): void {
   settings.value.customSvgUrl = null;
   settings.value.visualMode = 'none';
-}
-
-function themePreviewStyle(themeId: DisplayThemeId): Record<string, string> {
-  const palette = settings.value.themePalettes[themeId];
-  return {
-    '--preview-bg': palette.backgroundColor,
-    '--preview-primary': palette.chartPrimaryColor,
-    '--preview-secondary': palette.chartSecondaryColor,
-    '--preview-text': palette.statsTextColor,
-    '--preview-plate': palette.plateColorBronze
-  };
 }
 
 // Upload background image
@@ -683,36 +691,11 @@ onUnmounted(stopAudio);
           </span>
         </div>
 
-        <div class="theme-grid" role="radiogroup" :aria-label="t('display.theme.aria')">
-          <button
-            v-for="theme in DISPLAY_THEMES"
-            :key="theme.id"
-            type="button"
-            class="theme-card"
-            :class="{ selected: settings.theme === theme.id }"
-            :aria-pressed="settings.theme === theme.id"
-            :style="themePreviewStyle(theme.id)"
-            @click="selectTheme(theme.id)"
-          >
-            <span class="theme-preview" aria-hidden="true">
-              <span class="preview-orb"></span>
-              <span class="preview-content">
-                <span class="preview-title"></span>
-                <span class="preview-progress"></span>
-                <span class="preview-plate"></span>
-                <span class="preview-plate short"></span>
-              </span>
-            </span>
-            <span class="theme-card-copy">
-              <span class="theme-card-title">
-                {{ themeText(theme.id, 'name') }}
-                <span v-if="settings.theme === theme.id" class="selected-badge">{{ t('common.active') }}</span>
-              </span>
-              <span class="theme-card-description">{{ themeText(theme.id, 'description') }}</span>
-              <span class="theme-mood">{{ themeText(theme.id, 'mood') }}</span>
-            </span>
-          </button>
-        </div>
+        <ThemeGallery
+          v-model="settings"
+          v-model:selectedThemeId="selectedThemeId"
+          :event-id="eventId"
+        />
 
         <div class="active-theme-bar">
           <span>{{ t('display.theme.customizing', { theme: themeText(settings.theme, 'name') }) }}</span>
