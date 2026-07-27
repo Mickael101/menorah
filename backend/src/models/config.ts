@@ -26,9 +26,10 @@ import {
   DISPLAY_TEXT_DIRECTIONS
 } from './types';
 
-// Database row format
+// Database row format. La clef est event_id : la configuration appartient a une
+// soiree, plus au singleton `config` verrouille par CHECK(id = 1).
 export interface ConfigRow {
-  id: number;
+  event_id: number;
   goal_amount: number;
   preset_amounts: string; // JSON string
   menorah_segments: string; // JSON string

@@ -39,14 +39,26 @@ function assertIsolatedDatabase(): void {
 }
 
 let cached: express.Express | null = null;
+let databaseReady = false;
+
+// Ouvre la base de test une seule fois par registre de modules, sans monter
+// Express. Les tests de service n'ont pas besoin de l'app, et la monter
+// masquerait quelle couche est reellement sous test.
+export async function initTestDatabase(): Promise<void> {
+  assertIsolatedDatabase();
+
+  if (!databaseReady) {
+    await initDatabase();
+    databaseReady = true;
+  }
+}
 
 // Initialise la base de test une seule fois puis reutilise l'app.
 // La base vit dans DATA_DIR (voir vitest.config.ts), jamais dans backend/db/.
 export async function createTestApp(): Promise<express.Express> {
-  assertIsolatedDatabase();
+  await initTestDatabase();
 
   if (!cached) {
-    await initDatabase();
     cached = createApp();
   }
   return cached;

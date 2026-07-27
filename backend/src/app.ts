@@ -7,6 +7,7 @@ import configRouter from './routes/config';
 import gifsRouter from './routes/gifs';
 import adminRouter from './routes/admin';
 import { uploadsRoot } from './config/storage';
+import { resolveActiveEvent } from './middleware/resolve-event';
 
 // Construit l'app Express sans effet de bord : ni base de donnees, ni listen.
 // Permet a Supertest de l'attaquer directement.
@@ -24,10 +25,13 @@ export function createApp(): express.Express {
   app.use('/uploads', express.static(uploadsRoot));
   app.use(express.static(publicPath));
 
-  app.use('/api/donations', donationsRouter);
-  app.use('/api/stats', statsRouter);
-  app.use('/api/config', configRouter);
-  app.use('/api/gifs', gifsRouter);
+  // Routes heritees : meme URL, meme forme de reponse, resolues sur la soiree
+  // active. /api/admin en est exclu a dessein : il sert le fichier de base
+  // entier, qui contient TOUTES les soirees, et reste au niveau organisateur.
+  app.use('/api/donations', resolveActiveEvent, donationsRouter);
+  app.use('/api/stats', resolveActiveEvent, statsRouter);
+  app.use('/api/config', resolveActiveEvent, configRouter);
+  app.use('/api/gifs', resolveActiveEvent, gifsRouter);
   app.use('/api/admin', adminRouter);
 
   app.get('/api/health', (_req, res) => {

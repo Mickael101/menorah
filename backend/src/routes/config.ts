@@ -4,13 +4,14 @@ import { donationService } from '../services/donation.service';
 import { socketService } from '../services/socket.service';
 import { validateConfigUpdate } from '../models/config';
 import { requireAdmin } from '../middleware/admin-auth';
+import { requestEventId } from '../middleware/resolve-event';
 
 const router = Router();
 
 // GET /api/config - Get current configuration
-router.get('/', (_req: Request, res: Response) => {
+router.get('/', (req: Request, res: Response) => {
   try {
-    const config = configService.get();
+    const config = configService.get(requestEventId(req));
     res.json(config);
   } catch (error) {
     console.error('Error fetching config:', error);
@@ -21,12 +22,13 @@ router.get('/', (_req: Request, res: Response) => {
 // PUT /api/config - Update configuration (admin only)
 router.put('/', requireAdmin, (req: Request, res: Response) => {
   try {
+    const eventId = requestEventId(req);
     const data = validateConfigUpdate(req.body);
-    const config = configService.update(data);
-    const stats = donationService.getStats();
+    const config = configService.update(eventId, data);
+    const stats = donationService.getStats(eventId);
 
     // Emit real-time event
-    socketService.emitConfigUpdated(config, stats);
+    socketService.emitConfigUpdated(eventId, config, stats);
 
     res.json(config);
   } catch (error) {

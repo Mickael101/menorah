@@ -328,7 +328,27 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   donationSound: null
 };
 
-// Global configuration
+// Une soiree de dons. Plusieurs peuvent se tenir en meme temps.
+export const EVENT_STATUSES = ['draft', 'active', 'archived'] as const;
+export type EventStatus = (typeof EVENT_STATUSES)[number];
+
+// Ce qu'une soiree expose. admin_code_hash n'y figure pas et ne doit jamais y
+// figurer : un champ absent du type ne peut pas fuir par un spread distrait.
+// Les agregats du contrat (donationCount, totalAmount) appartiennent a la route
+// qui liste les soirees, pas a cette lecture.
+export interface EventRecord {
+  id: number;
+  slug: string;
+  name: string;
+  status: EventStatus;
+  logoUrl: string | null;
+  defaultLocale: string;
+  currency: string;
+  createdAt: string | null;
+  archivedAt: string | null;
+}
+
+// Configuration d'une soiree
 export interface Config {
   goalAmount: number;
   presetAmounts: number[];

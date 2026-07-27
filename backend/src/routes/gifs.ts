@@ -5,6 +5,7 @@ import fs from 'fs';
 import { socketService } from '../services/socket.service';
 import { gifAudioFilePath, uploadsRoot } from '../config/storage';
 import { requireAdmin } from '../middleware/admin-auth';
+import { requestEventId } from '../middleware/resolve-event';
 
 const router = Router();
 
@@ -293,9 +294,9 @@ router.post('/trigger', (req: Request, res: Response) => {
     const finalAudioUrl = audioUrl || (filename ? gifAudioMap.get(filename) : null);
 
     // Emit to all connected display pages
-    socketService.emitGifTrigger(gifUrl, finalAudioUrl || undefined);
+    socketService.emitGifTrigger(requestEventId(req), gifUrl, finalAudioUrl || undefined);
 
-    res.json({ success: true, message: 'GIF triggered on all displays', audioUrl: finalAudioUrl });
+    res.json({ success: true, message: 'GIF triggered on the displays of the active event', audioUrl: finalAudioUrl });
   } catch (error) {
     console.error('Error triggering GIF:', error);
     res.status(500).json({ error: 'Failed to trigger GIF' });

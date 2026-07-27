@@ -5,6 +5,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Repart d'une base vide a chaque suite (voir le fichier pour le pourquoi).
+    globalSetup: ['./tests/helpers/global-setup.ts'],
     // Base de test isolee : ne doit JAMAIS pointer vers backend/db/.
     // storage.ts lit DATA_DIR au chargement du module, donc la variable
     // doit etre posee avant l'evaluation des imports — c'est ce que fait
@@ -18,6 +20,15 @@ export default defineConfig({
     hookTimeout: 20000,
     // Les tests de securite mutent process.env (ADMIN_TOKEN, NODE_ENV).
     // La parallelisation des fichiers rendrait la suite instable au hasard.
-    fileParallelism: false
+    fileParallelism: false,
+    // Processus plutot que threads. Observe une execution sur trois sur cette
+    // machine : « Worker exited unexpectedly » (tinypool), un fichier de tests
+    // ENTIER perdu, et un resume qui se lit comme vert — « 8 passed (9) »,
+    // « 53 passed (61) », sans une seule ligne FAIL. Le fichier perdu etait
+    // celui qui garde les cinq ecrans publics. Le code de sortie valait bien 1,
+    // mais le resume trompe l'oeil, et un gate qu'on lit de travers ne protege
+    // rien. Les processus isolent mieux les modules natifs, dont le wasm de
+    // sql.js. A relire si la suite ralentit : la cause reste a confirmer.
+    pool: 'forks'
   }
 });

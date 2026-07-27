@@ -1,18 +1,21 @@
 import { getDb, saveDatabase } from '../db/init';
 import { Config, DEFAULT_DISPLAY_SETTINGS } from '../models/types';
 import { ConfigRow, rowToConfig } from '../models/config';
+import { eventService, UnknownEventError } from './event.service';
 
+// La source de verite est `event_configs`. L'ancienne table `config` reste en
+// base, en lecture seule, jusqu'a sa suppression au LOT 6 : la migration l'a
+// recopiee une fois, plus rien ne l'ecrit.
 class ConfigService {
-  // Get current configuration
-  get(): Config {
+  get(eventId: number): Config {
     const db = getDb();
-    const result = db.exec('SELECT * FROM config WHERE id = 1');
+    const result = db.exec('SELECT * FROM event_configs WHERE event_id = ?', [eventId]);
 
     if (result.length > 0 && result[0].values.length > 0) {
       const columns = result[0].columns;
       const values = result[0].values[0];
       const row: ConfigRow = {
-        id: values[columns.indexOf('id')] as number,
+        event_id: values[columns.indexOf('event_id')] as number,
         goal_amount: values[columns.indexOf('goal_amount')] as number,
         preset_amounts: values[columns.indexOf('preset_amounts')] as string,
         menorah_segments: values[columns.indexOf('menorah_segments')] as string,
@@ -22,7 +25,12 @@ class ConfigService {
       return rowToConfig(row);
     }
 
-    // Return defaults if no config found
+    // Une soiree sans ligne de configuration est normale : elle n'a rien regle
+    // encore. Une soiree qui n'existe pas ne l'est pas — sans cette
+    // distinction, un identifiant errone rendrait une soiree vide parfaitement
+    // credible au lieu d'une erreur.
+    this.assertEventExists(eventId);
+
     return {
       goalAmount: 10000000,
       presetAmounts: [1800, 3600, 18000, 36000, 100000],
@@ -31,8 +39,9 @@ class ConfigService {
     };
   }
 
-  // Update configuration
-  update(data: Partial<Config>): Config {
+  update(eventId: number, data: Partial<Config>): Config {
+    this.assertEventExists(eventId);
+
     const updates: string[] = [];
     const values: (string | number)[] = [];
 
@@ -57,16 +66,26 @@ class ConfigService {
     }
 
     if (updates.length === 0) {
-      return this.get();
+      return this.get(eventId);
     }
 
     updates.push("updated_at = datetime('now')");
 
     const db = getDb();
-    db.run(`UPDATE config SET ${updates.join(', ')} WHERE id = 1`, values);
+    // Une soiree n'a de ligne de configuration qu'a partir de son premier
+    // reglage. Sans cette insertion, l'UPDATE toucherait zero ligne et la route
+    // repondrait 200 en n'ayant rien enregistre.
+    db.run('INSERT OR IGNORE INTO event_configs (event_id) VALUES (?)', [eventId]);
+    db.run(`UPDATE event_configs SET ${updates.join(', ')} WHERE event_id = ?`, [...values, eventId]);
     saveDatabase();
 
-    return this.get();
+    return this.get(eventId);
+  }
+
+  private assertEventExists(eventId: number): void {
+    if (eventService.getById(eventId) === null) {
+      throw new UnknownEventError(eventId);
+    }
   }
 }
 

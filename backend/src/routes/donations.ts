@@ -4,6 +4,7 @@ import { socketService } from '../services/socket.service';
 import { validateCreateRequest, validateUpdateRequest, toPublicDonation } from '../models/donation';
 import { PREMIUM_TIERS } from '../models/types';
 import { requireAdmin } from '../middleware/admin-auth';
+import { requestEventId } from '../middleware/resolve-event';
 import { rateLimit } from '../middleware/rate-limit';
 
 const router = Router();
@@ -29,9 +30,9 @@ function csvCell(value: unknown): string {
 }
 
 // GET /api/donations/premium-words - Get premium words with availability
-router.get('/premium-words', (_req: Request, res: Response) => {
+router.get('/premium-words', (req: Request, res: Response) => {
   try {
-    const words = donationService.getPremiumWords();
+    const words = donationService.getPremiumWords(requestEventId(req));
     res.json({ words, tiers: PREMIUM_TIERS });
   } catch (error) {
     console.error('Error fetching premium words:', error);
@@ -47,7 +48,7 @@ router.get('/export.csv', requireAdmin, (req: Request, res: Response) => {
     const locale: CsvLocale = requestedLocale === 'en' || requestedLocale === 'he'
       ? requestedLocale
       : 'fr';
-    const rows = donationService.getAll().map(donation => [
+    const rows = donationService.getAll(requestEventId(req)).map(donation => [
       donation.id,
       donation.firstName,
       donation.lastName,
@@ -89,8 +90,9 @@ router.get('/', (req: Request, res: Response, next: NextFunction) => {
   next();
 }, (req: Request, res: Response) => {
   try {
-    const donations = donationService.getAll();
-    const stats = donationService.getStats();
+    const eventId = requestEventId(req);
+    const donations = donationService.getAll(eventId);
+    const stats = donationService.getStats(eventId);
 
     res.json({
       donations: wantsFullPayload(req) ? donations : donations.map(toPublicDonation),
@@ -110,7 +112,7 @@ router.get('/:id', requireAdmin, (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid ID' });
     }
 
-    const donation = donationService.getById(id);
+    const donation = donationService.getById(requestEventId(req), id);
     if (!donation) {
       return res.status(404).json({ error: 'Donation not found' });
     }
@@ -125,12 +127,13 @@ router.get('/:id', requireAdmin, (req: Request, res: Response) => {
 // POST /api/donations - Create donation (public, rate-limited)
 router.post('/', createLimiter, (req: Request, res: Response) => {
   try {
+    const eventId = requestEventId(req);
     const data = validateCreateRequest(req.body);
-    const donation = donationService.create(data);
-    const stats = donationService.getStats();
+    const donation = donationService.create(eventId, data);
+    const stats = donationService.getStats(eventId);
 
     // Emit real-time event
-    socketService.emitDonationNew(donation, stats);
+    socketService.emitDonationNew(eventId, donation, stats);
 
     res.status(201).json({ donation, stats });
   } catch (error) {
@@ -151,17 +154,18 @@ router.put('/:id', requireAdmin, (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid ID' });
     }
 
+    const eventId = requestEventId(req);
     const data = validateUpdateRequest(req.body);
-    const donation = donationService.update(id, data);
+    const donation = donationService.update(eventId, id, data);
 
     if (!donation) {
       return res.status(404).json({ error: 'Donation not found' });
     }
 
-    const stats = donationService.getStats();
+    const stats = donationService.getStats(eventId);
 
     // Emit real-time event
-    socketService.emitDonationUpdated(donation, stats);
+    socketService.emitDonationUpdated(eventId, donation, stats);
 
     res.json({ donation, stats });
   } catch (error) {
@@ -182,15 +186,16 @@ router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid ID' });
     }
 
-    const donation = donationService.delete(id);
+    const eventId = requestEventId(req);
+    const donation = donationService.delete(eventId, id);
     if (!donation) {
       return res.status(404).json({ error: 'Donation not found' });
     }
 
-    const stats = donationService.getStats();
+    const stats = donationService.getStats(eventId);
 
     // Emit real-time event
-    socketService.emitDonationDeleted(id, stats);
+    socketService.emitDonationDeleted(eventId, id, stats);
 
     res.json({ donation, stats });
   } catch (error) {

@@ -4,11 +4,14 @@ import { DonationRow, rowToDonation } from '../models/donation';
 import { buildStats } from '../models/stats';
 import { configService } from './config.service';
 
+// eventId est le PREMIER parametre de chaque methode, sans exception : un
+// oubli devient une erreur de compilation au lieu d'une requete qui balaie
+// toutes les soirees.
 class DonationService {
   // Get all donations
-  getAll(): Donation[] {
+  getAll(eventId: number): Donation[] {
     const db = getDb();
-    const result = db.exec(`SELECT * FROM donations ORDER BY created_at DESC`);
+    const result = db.exec(`SELECT * FROM donations WHERE event_id = ? ORDER BY created_at DESC`, [eventId]);
 
     if (result.length === 0) {
       return [];
@@ -27,9 +30,9 @@ class DonationService {
   }
 
   // Get donation by ID
-  getById(id: number): Donation | null {
+  getById(eventId: number, id: number): Donation | null {
     const db = getDb();
-    const result = db.exec(`SELECT * FROM donations WHERE id = ?`, [id]);
+    const result = db.exec(`SELECT * FROM donations WHERE id = ? AND event_id = ?`, [id, eventId]);
 
     if (result.length === 0 || result[0].values.length === 0) {
       return null;
@@ -46,17 +49,17 @@ class DonationService {
   }
 
   // Create new donation
-  create(data: CreateDonationRequest): Donation {
+  create(eventId: number, data: CreateDonationRequest): Donation {
     const db = getDb();
     db.run(
-      `INSERT INTO donations (first_name, last_name, email, phone, amount, reference, premium_word_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [data.firstName, data.lastName ?? '', data.email || null, data.phone || null, data.amount, data.reference || null, data.premiumWordId || null]
+      `INSERT INTO donations (event_id, first_name, last_name, email, phone, amount, reference, premium_word_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [eventId, data.firstName, data.lastName ?? '', data.email || null, data.phone || null, data.amount, data.reference || null, data.premiumWordId || null]
     );
 
     const lastId = db.exec('SELECT last_insert_rowid() as id')[0].values[0][0] as number;
     saveDatabase();
 
-    const donation = this.getById(lastId);
+    const donation = this.getById(eventId, lastId);
     if (!donation) {
       throw new Error('Failed to create donation');
     }
@@ -65,8 +68,8 @@ class DonationService {
   }
 
   // Update existing donation
-  update(id: number, data: UpdateDonationRequest): Donation | null {
-    const existing = this.getById(id);
+  update(eventId: number, id: number, data: UpdateDonationRequest): Donation | null {
+    const existing = this.getById(eventId, id);
     if (!existing) {
       return null;
     }
@@ -108,33 +111,36 @@ class DonationService {
     }
 
     updates.push("updated_at = datetime('now')");
-    values.push(id);
+    values.push(id, eventId);
 
     const db = getDb();
-    db.run(`UPDATE donations SET ${updates.join(', ')} WHERE id = ?`, values);
+    db.run(`UPDATE donations SET ${updates.join(', ')} WHERE id = ? AND event_id = ?`, values);
     saveDatabase();
 
-    return this.getById(id);
+    return this.getById(eventId, id);
   }
 
   // Delete donation
-  delete(id: number): Donation | null {
-    const existing = this.getById(id);
+  delete(eventId: number, id: number): Donation | null {
+    const existing = this.getById(eventId, id);
     if (!existing) {
       return null;
     }
 
     const db = getDb();
-    db.run('DELETE FROM donations WHERE id = ?', [id]);
+    db.run('DELETE FROM donations WHERE id = ? AND event_id = ?', [id, eventId]);
     saveDatabase();
 
     return existing;
   }
 
   // Get total amount and count
-  getTotals(): { totalAmount: number; donationCount: number } {
+  getTotals(eventId: number): { totalAmount: number; donationCount: number } {
     const db = getDb();
-    const result = db.exec(`SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM donations`);
+    const result = db.exec(
+      `SELECT COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM donations WHERE event_id = ?`,
+      [eventId]
+    );
 
     if (result.length > 0 && result[0].values.length > 0) {
       return {
@@ -147,9 +153,12 @@ class DonationService {
   }
 
   // Get current statistics
-  getStats(): DonationStats {
-    const { totalAmount, donationCount } = this.getTotals();
-    const config = configService.get();
+  getStats(eventId: number): DonationStats {
+    const { totalAmount, donationCount } = this.getTotals(eventId);
+    // Le MEME eventId doit alimenter les deux lectures : mesurer les dons d'une
+    // soiree contre l'objectif d'une autre ne leve aucune erreur, ca donne un
+    // pourcentage faux et silencieux.
+    const config = configService.get(eventId);
 
     return buildStats(
       totalAmount,
@@ -160,9 +169,12 @@ class DonationService {
   }
 
   // Get used premium word IDs
-  getUsedPremiumWordIds(): string[] {
+  getUsedPremiumWordIds(eventId: number): string[] {
     const db = getDb();
-    const result = db.exec(`SELECT premium_word_id FROM donations WHERE premium_word_id IS NOT NULL`);
+    const result = db.exec(
+      `SELECT premium_word_id FROM donations WHERE premium_word_id IS NOT NULL AND event_id = ?`,
+      [eventId]
+    );
 
     if (result.length === 0) {
       return [];
@@ -172,9 +184,9 @@ class DonationService {
   }
 
   // Get premium words with availability status
-  getPremiumWords(): Array<PremiumWord & { available: boolean; donorName?: string }> {
-    const usedWordIds = this.getUsedPremiumWordIds();
-    const donations = this.getAll();
+  getPremiumWords(eventId: number): Array<PremiumWord & { available: boolean; donorName?: string }> {
+    const usedWordIds = this.getUsedPremiumWordIds(eventId);
+    const donations = this.getAll(eventId);
 
     return PREMIUM_WORDS.map(word => {
       const isUsed = usedWordIds.includes(word.id);

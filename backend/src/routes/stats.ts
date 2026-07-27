@@ -1,12 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { donationService } from '../services/donation.service';
+import { requestEventId } from '../middleware/resolve-event';
 
 const router = Router();
 
 // GET /api/stats - Get current donation statistics
-router.get('/', (_req: Request, res: Response) => {
+router.get('/', (req: Request, res: Response) => {
   try {
-    const stats = donationService.getStats();
+    const stats = donationService.getStats(requestEventId(req));
     res.json(stats);
   } catch (error) {
     console.error('Error fetching stats:', error);
