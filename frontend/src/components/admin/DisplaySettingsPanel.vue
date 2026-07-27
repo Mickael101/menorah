@@ -1086,7 +1086,7 @@ onUnmounted(stopAudio);
    texte sombre (10.68 sur l'or). 'Annuler' reste en contour. */
 .save-bar-save {
   border: 0;
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
   color: var(--shell-on-accent);
 }
 
@@ -2157,7 +2157,7 @@ onUnmounted(stopAudio);
 }
 
 .play-btn.playing:hover {
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
 }
 
 @keyframes audio-playing-pulse {

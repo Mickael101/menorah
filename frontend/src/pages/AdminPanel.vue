@@ -666,9 +666,9 @@ h1 {
   height: 100%;
 }
 
-.stat-total::before { background: var(--shell-accent-strong); }
-.stat-count::before { background: var(--shell-accent); }
-.stat-progress::before { background: var(--shell-accent-deep); }
+.stat-total::before { background: var(--shell-accent-flat-strong); }
+.stat-count::before { background: var(--shell-accent-flat); }
+.stat-progress::before { background: var(--shell-accent-flat-deep); }
 
 .stat-icon {
   width: 48px;
@@ -977,7 +977,7 @@ h1 {
 }
 
 .tab.active {
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
   color: var(--shell-on-accent);
   box-shadow: var(--shadow-md);
 }

@@ -549,13 +549,13 @@ async function importTheme(event: Event): Promise<void> {
 
 .ghost-btn.primary {
   border: 0;
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
   color: var(--shell-on-accent);
 }
 
 .ghost-btn.primary:hover:not(:disabled) {
   filter: brightness(1.06);
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
 }
 
 .ghost-btn.danger {

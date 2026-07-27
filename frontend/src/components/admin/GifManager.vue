@@ -461,7 +461,7 @@ onUnmounted(stopAudio);
   gap: 8px;
   padding: 10px 16px;
   /* L'aplat or plein du panneau : l'action dominante, la diffusion en direct. */
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
   color: var(--shell-on-accent);         /* 10.68 sur l'or */
   border: none;
   border-radius: var(--radius);
@@ -583,7 +583,7 @@ onUnmounted(stopAudio);
 
 /* Etat "en lecture" : le bouton doit dire clairement qu'un second clic arrete. */
 .play-mini-btn.playing {
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
   color: var(--shell-on-accent);         /* 10.68 sur l'or, la ou #fff echouait */
   animation: audio-playing-pulse 1.4s ease-in-out infinite;
 }

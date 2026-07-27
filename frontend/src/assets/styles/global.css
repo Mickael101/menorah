@@ -129,6 +129,7 @@
      texte sur fond clair : 2.98 mesure). Les balayages de panneaux doivent
      referencer CES tokens pour tout fond de bouton/degrade or. */
   --shell-accent-flat: #DDBC6F;
+  --shell-accent-flat-strong: #EACB7F;            /* survol des aplats or ; 10.58 avec on-accent */
   --shell-accent-flat-deep: #C08E33;
 
   /* Champs de saisie : volontairement CLAIRS.
@@ -207,20 +208,24 @@
   --shell-text: #333952;                          /* 10.89 sur la carte, 8.94 au pire */
   --shell-text-muted: #5C6178;                    /* 5.86 sur la carte, 4.81 au pire (raised) */
 
-  --shell-accent: #7E5810;                        /* 6.11 sur la carte, 5.02 au pire */
-  --shell-accent-strong: #6E4D0F;                 /* 7.37 sur la carte, 6.05 au pire */
-  --shell-accent-deep: #5E420C;
+  /* Accent texte NAVY, pas bronze : le bronze lisait « marron » (rejet
+     commanditaire 2026-07-27). Le navy est l'autre signature du produit ;
+     l'or ne vit qu'en aplat via -flat. */
+  --shell-accent: #3A4470;                        /* 8.98 sur la carte, 7.37 au pire */
+  --shell-accent-strong: #2C355C;                 /* 11.36 sur la carte, 9.33 au pire */
+  --shell-accent-deep: #232B4D;                   /* 13.20 sur la carte */
   --shell-on-accent: #191E33;                     /* 9.02 sur l'or flat, 5.62 sur l'or profond */
 
   /* Les aplats or restent OR — c'est la signature du produit */
   --shell-accent-flat: #DDBC6F;
+  --shell-accent-flat-strong: #EACB7F;
   --shell-accent-flat-deep: #C08E33;
 
   --field-bg: #FFFFFF;
   --field-text: #1A1A22;                          /* 17.29 sur le champ */
   --field-placeholder: #6E695E;                   /* 5.46 sur le champ */
   --field-border: #C4BEB0;
-  --field-border-focus: #8A6116;
+  --field-border-focus: #3A4470;                  /* navy, coherent avec l'accent clair */
 
   --shell-success: #0D6C41;                       /* 6.21 sur la carte, 5.10 au pire */
   --shell-error: #A93333;                         /* 6.27 sur la carte, 5.15 au pire */

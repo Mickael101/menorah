@@ -467,7 +467,7 @@ h3 svg {
   color: var(--shell-on-accent);
   white-space: nowrap;
   padding: 8px 16px;
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
   border-radius: var(--radius);
 }
 

@@ -347,7 +347,7 @@ h4 {
 .input-group button,
 .save-btn {
   padding: 8px 16px;
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
   color: var(--shell-on-accent); /* 10.68 sur l'or */
   border: none;
   border-radius: 4px;
@@ -357,7 +357,7 @@ h4 {
 
 .input-group button:hover:not(:disabled),
 .save-btn:hover:not(:disabled) {
-  background: var(--shell-accent-strong); /* 12.31 avec --shell-on-accent */
+  background: var(--shell-accent-flat-strong); /* or plus clair au survol, 10.58 avec on-accent */
 }
 
 .input-group button:disabled,

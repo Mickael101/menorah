@@ -1183,13 +1183,13 @@ label svg {
    pied de formulaire) portent cette meme classe : ils restent identiques. */
 .btn-primary {
   flex: 1;
-  background: var(--shell-accent);
+  background: var(--shell-accent-flat);
   color: var(--shell-on-accent); /* 10.68 sur l'or — jamais 'white' sur un aplat or */
   box-shadow: 0 4px 12px rgba(228, 190, 99, 0.28);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--shell-accent-strong);
+  background: var(--shell-accent-flat-strong);
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(228, 190, 99, 0.35);
 }
