@@ -3,20 +3,12 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { socketService } from '../services/socket.service';
-import { gifAudioFilePath, uploadsRoot } from '../config/storage';
-import { requireAdmin } from '../middleware/admin-auth';
+import { mediaService } from '../services/media.service';
+import { uploadsRoot } from '../config/storage';
+import { requireEventAdmin } from '../middleware/admin-auth';
 import { requestEventId } from '../middleware/resolve-event';
-
-const router = Router();
-
-// All mutating GIF/audio routes are admin-only; GET listing stays public for displays
-router.use((req, res, next) => {
-  if (req.method === 'GET') {
-    next();
-    return;
-  }
-  requireAdmin(req, res, next);
-});
+import { isInside } from '../middleware/path-boundary';
+import { EventRouteContext } from './event-context';
 
 // Configure upload directories
 const gifUploadDir = path.join(uploadsRoot, 'gifs');
@@ -24,14 +16,10 @@ const audioUploadDir = path.join(uploadsRoot, 'audio');
 const visualUploadDir = path.join(uploadsRoot, 'visuals');
 
 // Ensure upload directories exist
-if (!fs.existsSync(gifUploadDir)) {
-  fs.mkdirSync(gifUploadDir, { recursive: true });
-}
-if (!fs.existsSync(audioUploadDir)) {
-  fs.mkdirSync(audioUploadDir, { recursive: true });
-}
-if (!fs.existsSync(visualUploadDir)) {
-  fs.mkdirSync(visualUploadDir, { recursive: true });
+for (const dir of [gifUploadDir, audioUploadDir, visualUploadDir]) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 }
 
 // Configure multer for GIF uploads (50MB max)
@@ -126,267 +114,233 @@ function isSafeSvg(source: string): boolean {
     && !/<!doctype/i.test(source);
 }
 
-// GIF-audio associations persistence
-const gifAudioFile = gifAudioFilePath;
-
-// Ensure data directory exists
-const dataDir = path.dirname(gifAudioFile);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+function audioUrlOf(audioFilename: string | null): string | null {
+  return audioFilename ? `/uploads/audio/${audioFilename}` : null;
 }
 
-// Load GIF-audio associations from file
-function loadGifAudioMap(): Map<string, string> {
+function mtimeOf(dir: string, filename: string): Date {
   try {
-    if (fs.existsSync(gifAudioFile)) {
-      const data = JSON.parse(fs.readFileSync(gifAudioFile, 'utf-8'));
-      return new Map(Object.entries(data));
-    }
-  } catch (e) {
-    console.error('Error loading GIF-audio associations:', e);
-  }
-  return new Map();
-}
-
-// Save GIF-audio associations to file
-function saveGifAudioMap(): void {
-  try {
-    const data = Object.fromEntries(gifAudioMap);
-    fs.writeFileSync(gifAudioFile, JSON.stringify(data, null, 2));
-  } catch (e) {
-    console.error('Error saving GIF-audio associations:', e);
+    return fs.statSync(path.join(dir, filename)).mtime;
+  } catch {
+    return new Date(0);
   }
 }
 
-// Load associations on startup
-const gifAudioMap = loadGifAudioMap();
-const uploadDir = gifUploadDir; // Keep for backward compatibility
+// Fabrique : monte le meme corps sur la soiree active (herite) et sur la soiree
+// nommee (prefixe). Les GIF, sons et associations sont cloisonnes par soiree via
+// la table `media` — la lecture du repertoire a plat, qui melangeait toutes les
+// soirees, a disparu.
+export function createGifsRouter(ctx: EventRouteContext): Router {
+  const router = Router({ mergeParams: true });
+  const requireAdminOfEvent = requireEventAdmin(ctx.getTargetEventId);
 
-// GET /api/gifs - List all uploaded GIFs with their associated audio
-router.get('/', (_req: Request, res: Response) => {
-  try {
-    if (!fs.existsSync(gifUploadDir)) {
-      return res.json([]);
+  // GET /gifs - liste des GIF de la soiree, avec leur son associe (public)
+  router.get('/', ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const gifs = mediaService.listGifs(requestEventId(req))
+        .map((media) => ({
+          filename: media.filename,
+          url: `/uploads/gifs/${media.filename}`,
+          audioUrl: audioUrlOf(media.audioFilename),
+          uploadedAt: mtimeOf(gifUploadDir, media.filename)
+        }))
+        .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
+      res.json(gifs);
+    } catch (error) {
+      console.error('Error listing GIFs:', error);
+      res.status(500).json({ error: 'Failed to list GIFs' });
     }
+  });
 
-    const files = fs.readdirSync(gifUploadDir);
-    const gifs = files
-      .filter(file => /\.(gif|png|jpg|jpeg|webp)$/i.test(file))
-      .map(file => ({
-        filename: file,
-        url: `/uploads/gifs/${file}`,
-        audioUrl: gifAudioMap.get(file) || null,
-        uploadedAt: fs.statSync(path.join(gifUploadDir, file)).mtime
-      }))
-      .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
-
-    res.json(gifs);
-  } catch (error) {
-    console.error('Error listing GIFs:', error);
-    res.status(500).json({ error: 'Failed to list GIFs' });
-  }
-});
-
-// POST /api/gifs/upload - Upload a new GIF (50MB max)
-router.post('/upload', gifUpload.single('gif'), (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+  // GET /gifs/audio - liste des audios de la soiree (public)
+  router.get('/audio', ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const audioFiles = mediaService.listAudio(requestEventId(req))
+        .map((filename) => ({
+          filename,
+          url: `/uploads/audio/${filename}`,
+          uploadedAt: mtimeOf(audioUploadDir, filename)
+        }))
+        .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
+      res.json(audioFiles);
+    } catch (error) {
+      console.error('Error listing audio files:', error);
+      res.status(500).json({ error: 'Failed to list audio files' });
     }
+  });
 
-    const gif = {
-      filename: req.file.filename,
-      url: `/uploads/gifs/${req.file.filename}`,
-      audioUrl: null,
-      uploadedAt: new Date()
-    };
-
-    res.json(gif);
-  } catch (error) {
-    console.error('Error uploading GIF:', error);
-    res.status(500).json({ error: 'Failed to upload GIF' });
-  }
-});
-
-// POST /api/gifs/upload-svg - Upload a campaign visual (5MB max)
-router.post('/upload-svg', visualUpload.single('visual'), (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No SVG uploaded' });
-    }
-
-    const source = fs.readFileSync(req.file.path, 'utf-8');
-    if (!isSafeSvg(source)) {
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({ error: 'SVG non sécurisé ou invalide' });
-    }
-
-    res.json({
-      filename: req.file.filename,
-      url: `/uploads/visuals/${req.file.filename}`,
-      uploadedAt: new Date()
-    });
-  } catch (error) {
-    console.error('Error uploading SVG:', error);
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-    res.status(500).json({ error: 'Failed to upload SVG' });
-  }
-});
-
-// POST /api/gifs/upload-audio - Upload audio file
-router.post('/upload-audio', audioUpload.single('audio'), (req: Request, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No audio file uploaded' });
-    }
-
-    const audio = {
-      filename: req.file.filename,
-      url: `/uploads/audio/${req.file.filename}`,
-      uploadedAt: new Date()
-    };
-
-    res.json(audio);
-  } catch (error) {
-    console.error('Error uploading audio:', error);
-    res.status(500).json({ error: 'Failed to upload audio' });
-  }
-});
-
-// POST /api/gifs/associate-audio - Associate audio with a GIF
-router.post('/associate-audio', (req: Request, res: Response) => {
-  try {
-    const { gifFilename, audioUrl } = req.body;
-
-    if (!gifFilename) {
-      return res.status(400).json({ error: 'gifFilename is required' });
-    }
-
-    if (audioUrl) {
-      gifAudioMap.set(gifFilename, audioUrl);
-    } else {
-      gifAudioMap.delete(gifFilename);
-    }
-
-    // Persist to file
-    saveGifAudioMap();
-
-    res.json({ success: true, gifFilename, audioUrl });
-  } catch (error) {
-    console.error('Error associating audio:', error);
-    res.status(500).json({ error: 'Failed to associate audio' });
-  }
-});
-
-// POST /api/gifs/trigger - Trigger GIF (with optional audio) on all display pages
-router.post('/trigger', (req: Request, res: Response) => {
-  try {
-    const { gifUrl, audioUrl } = req.body;
-
-    if (!gifUrl) {
-      return res.status(400).json({ error: 'gifUrl is required' });
-    }
-
-    // Get associated audio if not provided
-    const filename = gifUrl.split('/').pop();
-    const finalAudioUrl = audioUrl || (filename ? gifAudioMap.get(filename) : null);
-
-    // Emit to all connected display pages
-    socketService.emitGifTrigger(requestEventId(req), gifUrl, finalAudioUrl || undefined);
-
-    res.json({ success: true, message: 'GIF triggered on the displays of the active event', audioUrl: finalAudioUrl });
-  } catch (error) {
-    console.error('Error triggering GIF:', error);
-    res.status(500).json({ error: 'Failed to trigger GIF' });
-  }
-});
-
-// GET /api/gifs/audio - List all uploaded audio files
-router.get('/audio', (_req: Request, res: Response) => {
-  try {
-    if (!fs.existsSync(audioUploadDir)) {
-      return res.json([]);
-    }
-
-    const files = fs.readdirSync(audioUploadDir);
-    const audioFiles = files
-      .filter(file => /\.(mp3|wav|ogg|webm|aac|m4a)$/i.test(file))
-      .map(file => ({
-        filename: file,
-        url: `/uploads/audio/${file}`,
-        uploadedAt: fs.statSync(path.join(audioUploadDir, file)).mtime
-      }))
-      .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
-
-    res.json(audioFiles);
-  } catch (error) {
-    console.error('Error listing audio files:', error);
-    res.status(500).json({ error: 'Failed to list audio files' });
-  }
-});
-
-// DELETE /api/gifs/audio/:filename - Delete an audio file
-router.delete('/audio/:filename', (req: Request, res: Response) => {
-  try {
-    const { filename } = req.params;
-    const filePath = path.join(audioUploadDir, filename);
-
-    if (!filePath.startsWith(audioUploadDir)) {
-      return res.status(400).json({ error: 'Invalid filename' });
-    }
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Audio file not found' });
-    }
-
-    fs.unlinkSync(filePath);
-
-    // Remove from any GIF associations
-    let associationsChanged = false;
-    for (const [gifFile, audioUrl] of gifAudioMap.entries()) {
-      if (audioUrl.includes(filename)) {
-        gifAudioMap.delete(gifFile);
-        associationsChanged = true;
+  // POST /gifs/upload - GIF (admin de la soiree). Auth et resolution AVANT
+  // multer : un fichier n'est ecrit sur disque que pour une requete autorisee.
+  router.post('/upload', requireAdminOfEvent, ctx.resolveEvent, gifUpload.single('gif'), (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
       }
+      mediaService.add(requestEventId(req), 'gif', req.file.filename);
+      res.json({
+        filename: req.file.filename,
+        url: `/uploads/gifs/${req.file.filename}`,
+        audioUrl: null,
+        uploadedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error uploading GIF:', error);
+      res.status(500).json({ error: 'Failed to upload GIF' });
     }
-    if (associationsChanged) {
-      saveGifAudioMap();
+  });
+
+  // POST /gifs/upload-svg - visuel de campagne (admin de la soiree)
+  router.post('/upload-svg', requireAdminOfEvent, ctx.resolveEvent, visualUpload.single('visual'), (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No SVG uploaded' });
+      }
+
+      const source = fs.readFileSync(req.file.path, 'utf-8');
+      if (!isSafeSvg(source)) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ error: 'SVG non sécurisé ou invalide' });
+      }
+
+      mediaService.add(requestEventId(req), 'visual', req.file.filename);
+      res.json({
+        filename: req.file.filename,
+        url: `/uploads/visuals/${req.file.filename}`,
+        uploadedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error uploading SVG:', error);
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ error: 'Failed to upload SVG' });
     }
+  });
 
-    res.json({ success: true, message: 'Audio file deleted' });
-  } catch (error) {
-    console.error('Error deleting audio:', error);
-    res.status(500).json({ error: 'Failed to delete audio file' });
-  }
-});
-
-// DELETE /api/gifs/:filename - Delete a GIF
-router.delete('/:filename', (req: Request, res: Response) => {
-  try {
-    const { filename } = req.params;
-    const filePath = path.join(gifUploadDir, filename);
-
-    if (!filePath.startsWith(gifUploadDir)) {
-      return res.status(400).json({ error: 'Invalid filename' });
+  // POST /gifs/upload-audio - audio (admin de la soiree)
+  router.post('/upload-audio', requireAdminOfEvent, ctx.resolveEvent, audioUpload.single('audio'), (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No audio file uploaded' });
+      }
+      mediaService.add(requestEventId(req), 'audio', req.file.filename);
+      res.json({
+        filename: req.file.filename,
+        url: `/uploads/audio/${req.file.filename}`,
+        uploadedAt: new Date()
+      });
+    } catch (error) {
+      console.error('Error uploading audio:', error);
+      res.status(500).json({ error: 'Failed to upload audio' });
     }
+  });
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'GIF not found' });
+  // POST /gifs/associate-audio - associe un son a un GIF (admin de la soiree)
+  router.post('/associate-audio', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const { gifFilename, audioUrl } = req.body;
+
+      if (!gifFilename) {
+        return res.status(400).json({ error: 'gifFilename is required' });
+      }
+
+      const eventId = requestEventId(req);
+      // Le GIF doit appartenir a cette soiree : sans cette garde, l'admin de A
+      // creerait une association sur un GIF de B.
+      if (!mediaService.owns(eventId, 'gif', gifFilename)) {
+        return res.status(404).json({ error: 'GIF not found' });
+      }
+
+      const audioFilename = typeof audioUrl === 'string' && audioUrl
+        ? audioUrl.split('/').pop() || null
+        : null;
+      mediaService.setGifAudio(eventId, gifFilename, audioFilename);
+
+      res.json({ success: true, gifFilename, audioUrl: audioUrlOf(audioFilename) });
+    } catch (error) {
+      console.error('Error associating audio:', error);
+      res.status(500).json({ error: 'Failed to associate audio' });
     }
+  });
 
-    fs.unlinkSync(filePath);
-    if (gifAudioMap.has(filename)) {
-      gifAudioMap.delete(filename);
-      saveGifAudioMap();
+  // POST /gifs/trigger - declenche GIF + son sur les ecrans de la soiree (admin)
+  router.post('/trigger', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const { gifUrl, audioUrl } = req.body;
+
+      if (!gifUrl) {
+        return res.status(400).json({ error: 'gifUrl is required' });
+      }
+
+      const eventId = requestEventId(req);
+      const filename = gifUrl.split('/').pop();
+      const finalAudioUrl = audioUrl
+        || (filename ? audioUrlOf(mediaService.getGifAudio(eventId, filename)) : null);
+
+      socketService.emitGifTrigger(eventId, gifUrl, finalAudioUrl || undefined);
+
+      res.json({ success: true, message: 'GIF triggered on the displays of the event', audioUrl: finalAudioUrl });
+    } catch (error) {
+      console.error('Error triggering GIF:', error);
+      res.status(500).json({ error: 'Failed to trigger GIF' });
     }
+  });
 
-    res.json({ success: true, message: 'GIF deleted' });
-  } catch (error) {
-    console.error('Error deleting GIF:', error);
-    res.status(500).json({ error: 'Failed to delete GIF' });
-  }
-});
+  // DELETE /gifs/audio/:filename - supprime un audio + ses associations (admin)
+  router.delete('/audio/:filename', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const { filename } = req.params;
+      const filePath = path.join(audioUploadDir, filename);
 
-export default router;
+      if (!isInside(audioUploadDir, filePath)) {
+        return res.status(400).json({ error: 'Invalid filename' });
+      }
+
+      const eventId = requestEventId(req);
+      if (!mediaService.owns(eventId, 'audio', filename)) {
+        return res.status(404).json({ error: 'Audio file not found' });
+      }
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      mediaService.clearAudioAssociations(eventId, filename);
+      mediaService.remove(eventId, 'audio', filename);
+
+      res.json({ success: true, message: 'Audio file deleted' });
+    } catch (error) {
+      console.error('Error deleting audio:', error);
+      res.status(500).json({ error: 'Failed to delete audio file' });
+    }
+  });
+
+  // DELETE /gifs/:filename - supprime un GIF (admin de la soiree)
+  router.delete('/:filename', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const { filename } = req.params;
+      const filePath = path.join(gifUploadDir, filename);
+
+      if (!isInside(gifUploadDir, filePath)) {
+        return res.status(400).json({ error: 'Invalid filename' });
+      }
+
+      const eventId = requestEventId(req);
+      if (!mediaService.owns(eventId, 'gif', filename)) {
+        return res.status(404).json({ error: 'GIF not found' });
+      }
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      mediaService.remove(eventId, 'gif', filename);
+
+      res.json({ success: true, message: 'GIF deleted' });
+    } catch (error) {
+      console.error('Error deleting GIF:', error);
+      res.status(500).json({ error: 'Failed to delete GIF' });
+    }
+  });
+
+  return router;
+}

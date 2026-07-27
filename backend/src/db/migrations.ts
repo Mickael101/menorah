@@ -1,4 +1,7 @@
 import { Database } from 'sql.js';
+import fs from 'fs';
+import path from 'path';
+import { uploadsRoot, gifAudioFilePath } from '../config/storage';
 
 // Migrations du schema, ordonnees et IDEMPOTENTES.
 //
@@ -97,6 +100,7 @@ export function runMigrations(db: Database): void {
   seedFirstEvent(db);
   copyLegacyConfig(db);
   createEventIndexes(db);
+  seedMediaFromDisk(db);
 }
 
 function createEventsTable(db: Database): void {
@@ -368,6 +372,96 @@ function copyLegacyConfig(db: Database): void {
       (legacyUpdatedAt as string) ?? ''
     ]
   );
+}
+
+// Inventaire des medias deja sur le disque vers la table `media`, rattaches a la
+// soiree fondatrice. Jusqu'ici les GIF, sons et SVG etaient listes a plat depuis
+// le repertoire uploads/, toutes soirees confondues ; la table existait mais
+// n'etait ni lue ni ecrite. Cette migration lui donne son contenu initial pour
+// que les fichiers deja livres n'aient pas l'air d'avoir disparu au passage au
+// cloisonnement par soiree.
+//
+// Idempotente par la meme sonde que le reste : elle ne s'execute que si `media`
+// est VIDE. Des qu'un upload y a insere une ligne, le rejeu ne touche plus rien
+// — sinon un fichier supprime par l'admin reapparaitrait au redemarrage suivant.
+function seedMediaFromDisk(db: Database): void {
+  if (!tableExists(db, 'media')) {
+    return;
+  }
+  if (scalar(db, 'SELECT COUNT(*) FROM media') !== 0) {
+    return;
+  }
+
+  const target = mostRecentActiveEventId(db) ?? FIRST_EVENT_ID;
+  if (scalar(db, 'SELECT COUNT(*) FROM events WHERE id = ?', [target]) === 0) {
+    return;
+  }
+
+  const associations = loadGifAudioAssociations();
+
+  seedMediaKind(db, target, 'gif', path.join(uploadsRoot, 'gifs'), /\.(gif|png|jpe?g|webp)$/i, associations);
+  seedMediaKind(db, target, 'audio', path.join(uploadsRoot, 'audio'), /\.(mp3|wav|ogg|webm|aac|m4a)$/i);
+  seedMediaKind(db, target, 'visual', path.join(uploadsRoot, 'visuals'), /\.svg$/i);
+}
+
+function seedMediaKind(
+  db: Database,
+  eventId: number,
+  kind: string,
+  dir: string,
+  pattern: RegExp,
+  associations?: Map<string, string>
+): void {
+  let files: string[];
+  try {
+    if (!fs.existsSync(dir)) {
+      return;
+    }
+    files = fs.readdirSync(dir);
+  } catch {
+    // Un repertoire d'uploads illisible ne doit pas empecher le demarrage.
+    return;
+  }
+
+  for (const filename of files) {
+    if (!pattern.test(filename)) {
+      continue;
+    }
+    const audioFilename = associations?.get(filename) ?? null;
+    db.run('INSERT INTO media (event_id, kind, filename, audio_filename) VALUES (?, ?, ?, ?)', [
+      eventId,
+      kind,
+      filename,
+      audioFilename
+    ]);
+  }
+}
+
+// Les associations GIF -> son vivaient dans un gif-audio.json GLOBAL (une seule
+// carte pour toutes les soirees). On les relit une derniere fois ici pour les
+// couler dans media.audio_filename, ou elles deviennent propres a une soiree. La
+// valeur stockee etait une URL (/uploads/audio/xxx) : on ne garde que le nom de
+// fichier, forme attendue par media.
+function loadGifAudioAssociations(): Map<string, string> {
+  const map = new Map<string, string>();
+  try {
+    if (!fs.existsSync(gifAudioFilePath)) {
+      return map;
+    }
+    const raw = JSON.parse(fs.readFileSync(gifAudioFilePath, 'utf-8')) as Record<string, string>;
+    for (const [gifFilename, audioUrl] of Object.entries(raw)) {
+      if (typeof audioUrl === 'string' && audioUrl) {
+        const audioFilename = audioUrl.split('/').pop();
+        if (audioFilename) {
+          map.set(gifFilename, audioFilename);
+        }
+      }
+    }
+  } catch {
+    // Un fichier d'associations illisible n'empeche pas le demarrage : les GIF
+    // seront simplement sans son associe, etat rattrapable a la main.
+  }
+  return map;
 }
 
 function createEventIndexes(db: Database): void {

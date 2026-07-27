@@ -4,38 +4,67 @@ Vérifié le **2026-07-27** contre `099918c`.
 
 ## Règle de montage
 
-`/api/donations`, `/api/stats`, `/api/config` et `/api/gifs` passent **tous** par
-`resolveActiveEvent` (`app.ts:32-36`) → **503 si aucune soirée n'est `active`**
-(`resolve-event.ts:26`).
+Les routes de **ressources** (`config`, `donations`, `stats`) sont montées **deux fois** à
+partir du même corps (fabriques `createXxxRouter(ctx)`, `app.ts`) :
 
-`/api/admin` en est **volontairement exclu** (`app.ts:30-31`) : les sauvegardes doivent
-rester accessibles même sans soirée active.
+- **hérité** — `/api/config`, `/api/donations`, `/api/stats` → résolus sur la soirée
+  **active** (`resolveActiveEvent`) → **503 si aucune soirée n'est `active`** ;
+- **préfixé** — `/api/events/:eventId/...` → résolus sur la soirée **nommée**
+  (`resolveParamEvent`) → **404 sec si l'`:eventId` est inconnu**, jamais de repli.
+
+La forme de réponse est **identique** des deux côtés (condition de migration du frontend).
+
+`/api/gifs` suit désormais le **même double montage** (E3) : les GIF, sons et associations
+sont cloisonnés par soirée via la table `media`, le listing à plat du répertoire a disparu.
+
+`/api/admin` est **volontairement exclu** de toute résolution de soirée : il sert le fichier
+de base entier (toutes soirées) et reste au niveau organisateur.
+
+**Ordre auth/résolution** : sur les routes de ressources protégées, `requireEventAdmin`
+passe **avant** `resolveEvent`. Sans cet ordre, l'absence de soirée active faisait répondre
+503 à une requête sans jeton qui mérite 401 (l'export CSV, notamment).
 
 ## Endpoints
 
-| Méthode + chemin | Fichier:ligne | Accès | Rôle |
-|---|---|---|---|
-| GET `/api/health` | `app.ts:38` | public | healthcheck Railway |
-| GET `/api/donations/premium-words` | `routes/donations.ts:33` | public | mots premium, disponibilité, paliers. Renvoie `donorName` — noms publics par nature (mur des plaques) |
-| GET `/api/donations/export.csv?lang=` | `routes/donations.ts:45` | **admin** | export CSV UTF-8 BOM, anti-injection de formule (`:25`) |
-| GET `/api/donations` | `routes/donations.ts:85` | public | liste **dépouillée** via `toPublicDonation` + stats |
-| GET `/api/donations?full=1` | `routes/donations.ts:85-90` | **admin** | payload complet : email, téléphone, référence |
-| GET `/api/donations/:id` | `routes/donations.ts:108` | **admin** | un don complet |
-| POST `/api/donations` | `routes/donations.ts:128` | public + **rate-limit 10 / 10 min / IP** (`:13`) | création publique (`/don`) + diffusion socket |
-| PUT `/api/donations/:id` | `routes/donations.ts:150` | **admin** | modification + diffusion socket |
-| DELETE `/api/donations/:id` | `routes/donations.ts:182` | **admin** | suppression + diffusion socket |
-| GET `/api/stats` | `routes/stats.ts:8` | public | total, nombre, pourcentage, segments allumés |
-| GET `/api/config` | `routes/config.ts:12` | public | config de la soirée active |
-| PUT `/api/config` | `routes/config.ts:23` | **admin** | mise à jour + diffusion socket |
-| GET `/api/gifs` | `routes/gifs.ts:166` | public (GET exempté `:13-19`) | liste des GIF + audio associé |
-| POST `/api/gifs/upload` | `routes/gifs.ts:191` | **admin** | image ≤ 50 Mo (gif/png/jpeg/webp) |
-| POST `/api/gifs/upload-svg` | `routes/gifs.ts:212` | **admin** | SVG ≤ 5 Mo + filtre `isSafeSvg` (`:119`) |
-| POST `/api/gifs/upload-audio` | `routes/gifs.ts:239` | **admin** | audio ≤ 50 Mo |
-| POST `/api/gifs/associate-audio` | `routes/gifs.ts:259` | **admin** | associe un son à un GIF (JSON sur disque) |
-| POST `/api/gifs/trigger` | `routes/gifs.ts:284` | **admin** | déclenche GIF + son sur les écrans de la soirée active |
-| GET `/api/gifs/audio` | `routes/gifs.ts:307` | public | liste des audios |
-| DELETE `/api/gifs/audio/:filename` | `routes/gifs.ts:331` | **admin** | supprime un audio + ses associations |
-| DELETE `/api/gifs/:filename` | `routes/gifs.ts:366` | **admin** | supprime un GIF |
+### Soirées (`routes/events.ts`)
+
+| Méthode + chemin | Accès | Rôle |
+|---|---|---|
+| GET `/api/events` | **organisateur** | `{ events: EventSummary[] }` (agrégats inclus, jamais `admin_code_hash`) |
+| POST `/api/events` | **organisateur** | crée une soirée, renvoie `{ event: EventSummary, adminCode }` — code en clair **une seule fois** |
+| GET `/api/events/active` | public | `{ event: EventPublic \| null, multipleActive }` ; en-tête `X-Multiple-Active-Events: true` + `console.warn` si ambiguïté |
+| GET `/api/events/by-slug/:slug` | public | `{ event: EventPublic }` ou 404 |
+| PUT `/api/events/:eventId` | **admin de la soirée** | met à jour, renvoie `{ event: EventSummary }` ; 404 si inconnue |
+| POST `/api/events/:eventId/admin-code` | **organisateur** | régénère le code, renvoie `{ adminCode }` une seule fois |
+
+### Ressources — hérité + préfixé
+
+Chaque route ci-dessous existe **aussi** sous `/api/events/:eventId/...`, même forme de
+réponse. « admin » = organisateur **ou** admin de la soirée résolue.
+
+| Méthode + chemin (hérité) | Accès | Rôle |
+|---|---|---|
+| GET `/api/health` | public | healthcheck Railway |
+| GET `/api/donations/premium-words` | public | mots premium, disponibilité, paliers. Renvoie `donorName` — noms publics par nature (mur des plaques) |
+| GET `/api/donations/export.csv?lang=` | **admin** | export CSV UTF-8 BOM, anti-injection de formule. **Auth avant résolution** (401 sans jeton, jamais 503) |
+| GET `/api/donations` | public | liste **dépouillée** via `toPublicDonation` + stats |
+| GET `/api/donations?full=1` | **admin** | payload complet : email, téléphone, référence |
+| GET `/api/donations/:id` | **admin** | un don complet |
+| POST `/api/donations` | public + **rate-limit 10 / 10 min / IP** | création publique (`/don`) + diffusion socket |
+| PUT `/api/donations/:id` | **admin** | modification (passe `currentAmount` à la validation, C9) + diffusion socket |
+| DELETE `/api/donations/:id` | **admin** | suppression + diffusion socket |
+| GET `/api/stats` | public | total, nombre, pourcentage, segments allumés |
+| GET `/api/config` | public | config de la soirée résolue |
+| PUT `/api/config` | **admin** | mise à jour + diffusion socket |
+| GET `/api/gifs` | public | GIF **de la soirée** + son associé (table `media`, plus de listing à plat) |
+| POST `/api/gifs/upload` | **admin** | image ≤ 50 Mo (gif/png/jpeg/webp), rattachée à la soirée |
+| POST `/api/gifs/upload-svg` | **admin** | SVG ≤ 5 Mo + filtre `isSafeSvg` |
+| POST `/api/gifs/upload-audio` | **admin** | audio ≤ 50 Mo, rattaché à la soirée |
+| POST `/api/gifs/associate-audio` | **admin** | associe un son à un GIF **de la soirée** (média, plus de JSON global) |
+| POST `/api/gifs/trigger` | **admin** | déclenche GIF + son sur les écrans de la soirée |
+| GET `/api/gifs/audio` | public | audios **de la soirée** |
+| DELETE `/api/gifs/audio/:filename` | **admin** | supprime un audio de la soirée + ses associations (frontière `path.relative`, C10) |
+| DELETE `/api/gifs/:filename` | **admin** | supprime un GIF de la soirée (frontière `path.relative`, C10) |
 | GET `/api/admin/backups` | `routes/admin.ts:13` | **admin** (`router.use` `:10`) | liste des sauvegardes |
 | POST `/api/admin/backups` | `routes/admin.ts:23` | **admin** | snapshot immédiat |
 | GET `/api/admin/backup.db` | `routes/admin.ts:34` | **admin** | télécharge la base vivante — **toutes soirées confondues** |
@@ -43,20 +72,39 @@ rester accessibles même sans soirée active.
 | GET `/uploads/*` | `app.ts:26` | public | médias statiques |
 | GET `*` | `app.ts:42` | public | fallback SPA |
 
-**`/api/events` et `/e/:slug` n'existent pas** (grep sur `backend/src` : 0 résultat), alors
-que le schéma multi-événements est en base. Contrat figé prêt à implémenter :
+**`/api/events` existe** (E2, `routes/events.ts`) et les ressources sont montées en double
+(hérité + `/api/events/:eventId/...`). Le routage **frontend** `/e/:slug` reste à faire
+(vague 2, front FE). Contrat de référence :
 `superpowers/plans/2026-07-27-contrat-api-multi-evenements.md`.
 
 ## Authentification
 
-`requireAdmin` (`middleware/admin-auth.ts`) accepte le jeton par header `x-admin-token`
-**ou** par `?token=` (`:22-23`).
+Deux niveaux d'accès, un seul en-tête (`middleware/admin-auth.ts`). Le jeton arrive
+par header `x-admin-token` **ou** par le repli `?token=`.
 
-| `ADMIN_TOKEN` | `NODE_ENV=production` | Comportement |
+| Rôle | Secret | Portée |
 |---|---|---|
-| absent | oui | **503 sur toutes les routes admin** (fail-closed, corrigé le 2026-07-26 par `d9aae2d`) |
-| absent | non | **routes ouvertes** — voir l'avertissement de `tests.md` |
-| présent | — | jeton exigé et comparé |
+| Organisateur | `ORGANIZER_TOKEN` (env) | toutes les soirées |
+| Organisateur (alias) | `ADMIN_TOKEN` (env) | toutes les soirées — **alias de compatibilité, la prod en dépend** |
+| Admin de soirée | code propre à la soirée, haché dans `events.admin_code_hash` | sa soirée uniquement |
+
+- **`requireAdmin`** — niveau organisateur uniquement (liste/création de soirées,
+  sauvegardes globales). Accepte `ORGANIZER_TOKEN` puis l'alias `ADMIN_TOKEN`.
+- **`requireEventAdmin(cible)`** — organisateur **ou** admin de la soirée ciblée. Un code
+  valide pour la soirée A sur une ressource de B renvoie **403** (secret bon, portée
+  refusée), un code inconnu **401**. Monté **avant** la résolution de soirée (E2), pour que
+  l'absence de soirée active ne masque pas un 401 par un 503.
+
+Hachage : `crypto.scryptSync` (bibliothèque standard, **aucune dépendance ajoutée**),
+format auto-descriptif `scrypt$N$r$p$sel_b64$empreinte_b64`, comparaison `timingSafeEqual`
+(`middleware/admin-code.ts`). Le code en clair n'est jamais stocké, ni logué, ni renvoyé
+par une route — sauf **une seule fois** par le POST de création (E2).
+
+| Secret d'environnement | `NODE_ENV=production` | Comportement |
+|---|---|---|
+| aucun (`ORGANIZER_TOKEN` et `ADMIN_TOKEN` absents) | oui | **503 sur toutes les routes admin** (fail-closed, hérité du LOT 0) |
+| aucun | non | **routes ouvertes** — contournement de dev, voir l'avertissement de `tests.md` |
+| au moins un présent | — | jeton exigé et comparé selon l'ordre du contrat |
 
 ## Événements Socket.IO
 
@@ -103,9 +151,9 @@ Prouvé par `tests/security/socket-pii.test.ts` : un vrai serveur, un vrai clien
 
 | # | Constat | Source |
 |---|---|---|
-| C | `validateUpdateRequest` sans `currentAmount` : le mot sacré n'était **pas** effacé (mesuré — le service ignore une clé `undefined`, le mot stocké survit) ; le `\|\| 0` faisait seulement **taire** un changement de mot quand `amount` était absent. Garde-fou posé côté modèle (`??` + skip si montant inconnu) : un montant absent ne peut jamais valider un mot contre zéro. Test `services/premium-word-update.test.ts` | `models/donation.ts:154` |
-| D | Contrôle de traversée de chemin par **préfixe de chaîne**, pas par frontière : `path.join(dir,'../audio-evil/x')` passe le `startsWith`. Routes admin seulement → impact limité | `routes/gifs.ts:336,371` |
-| G | **Médias non cloisonnés par soirée** : GIF, audio et SVG à plat dans `uploads/`, associations dans un `gif-audio.json` global, alors que les routes passent par `resolveActiveEvent` | `routes/gifs.ts:22-24,130` |
-| H | CORS du socket **désormais configurable** via `CORS_ORIGIN` (défaut = `localhost:5173\|3000`, inchangé). Le HTTP (`app.ts`) doit lire la **même** variable — porté par le front backend | `socket.service.ts:socketCorsOrigin` |
-| I | Rate-limit **en mémoire, mono-instance**, basé sur un `x-forwarded-for` non validé, posé sur `POST /api/donations` seulement. Aucun `trust proxy` Express | `middleware/rate-limit.ts:7,23` |
+| C | **REQUALIFIÉ puis CORRIGÉ des deux côtés** — le mot sacré n'était **pas** effacé (mesuré : le service ignore une clé `undefined`) ; le `\|\| 0` faisait **taire** un changement de mot quand `amount` était absent. Garde-fou côté modèle (`??` + skip si montant inconnu, test `services/premium-word-update.test.ts`) ET `PUT /api/donations/:id` passe désormais `currentAmount` (E2) | `models/donation.ts:154`, `routes/donations.ts` |
+| D | **CORRIGÉ (E3, C10)** — frontière de chemin réelle (`path.relative`, `middleware/path-boundary.ts`) sur les suppressions GIF/audio, plus de préfixe de chaîne | `routes/gifs.ts` |
+| G | **CORRIGÉ (E3, B4)** — GIF, audio, SVG et associations cloisonnés par soirée via la table `media` ; inventaire des fichiers existants par migration | `services/media.service.ts`, `db/migrations.ts` |
+| H | **CORRIGÉ des deux côtés (C8)** — HTTP (`app.ts`, défaut `'*'`) et socket (`socket.service.ts`, défaut localhost inchangé) lisent la MÊME variable `CORS_ORIGIN` (liste séparée par virgules) | `app.ts`, `socket.service.ts` |
+| I | **CORRIGÉ partiellement (E3, B6)** — clé de rate-limit IP **+ soirée**. Reste en mémoire mono-instance et `x-forwarded-for` non validé, aucun `trust proxy` Express (hors périmètre du sprint) | `middleware/rate-limit.ts` |
 | L | `GET /api/admin/backup.db` livre la base **entière, toutes soirées** — incompatible avec un futur multi-locataire | `routes/admin.ts:34` |
