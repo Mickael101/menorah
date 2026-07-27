@@ -8,10 +8,12 @@ import {
   type PledgePageCopy,
   type PledgeRequiredFields
 } from '../composables/useDonations';
-import { useEventContext } from '../composables/useEventContext';
+import { useEventContext, currentEventScope } from '../composables/useEventContext';
+import { useSocket } from '../composables/useSocket';
 import { getPledgeThemeStyles } from '../theme/displayThemes';
 
-const { config, fetchConfig, createDonation, formatAmount, isLoading, error } = useDonations();
+const { config, fetchConfig, createDonation, formatAmount, isLoading, error, handleConfigUpdated } = useDonations();
+const { on, join } = useSocket();
 
 // Variables du theme de la soiree — memes helpers que les ecrans de salle. La page
 // tire fond/texte/accents de ces variables (voir <style>), avec les valeurs
@@ -141,6 +143,15 @@ onMounted(async () => {
   await resolve(typeof route.params.slug === 'string' ? route.params.slug : null);
   if (!pageNotFound.value) {
     fetchConfig();
+    // Meme reactivite que l'ecran de salle : un changement de theme ou de
+    // texte fait par l'admin s'applique EN DIRECT, sans recharger la page.
+    join(currentEventScope());
+    on('config:updated', (data: any) => {
+      handleConfigUpdated(data.config, data.stats);
+    });
+    on('connect', () => {
+      fetchConfig();
+    });
   }
 });
 
