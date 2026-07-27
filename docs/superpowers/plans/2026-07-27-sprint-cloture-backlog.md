@@ -19,10 +19,11 @@ Si cette session est interrompue, reprendre ainsi :
 
 ## État courant
 
-**Prochaine action** : attendre les rapports des fronts S et EB (CC est fusionné) ; puis
-tranche orchestrateur O1 (C6 coordonné : `legacy-routes.test.ts:94-106` + `init.ts:73-93`,
-en conservant l'ALTER `display_settings` sous try/catch — voir recommandation CC au Journal),
-après le merge d'EB qui possède les fichiers de tests routes.
+**Prochaine action** : vague 2 — fronts FE (B3), TH (C1), DD (C3/C4) sur worktrees recyclés,
+base master `457d19c`. Couture FE/DD arbitrée : FE rend les composables event-aware en
+RÉTRO-COMPATIBLE (défaut = soirée active, paramètre optionnel) ; DD refactorise contre l'API
+ACTUELLE des composables ; le câblage slug→display unifié est une retouche post-merge
+(orchestrateur ou FE). `router.ts` appartient à FE seul ; DD passe par l'orchestrateur.
 
 ## Contexte figé
 
@@ -80,14 +81,14 @@ Périmètre : `backend/src/routes/**`, `backend/src/middleware/**`,
 (si nécessaire pour `media`). INTERDITS : `socket.service.ts`, `models/donation.ts`
 (front S), `db/init.ts` (front CC).
 
-- [ ] E1. B2 — auth deux niveaux selon le contrat : `ORGANIZER_TOKEN` + alias `ADMIN_TOKEN`
+- [x] E1. B2 — auth deux niveaux selon le contrat : `ORGANIZER_TOKEN` + alias `ADMIN_TOKEN`
       + code de soirée haché (`admin_code_hash`), 401 vs 403 testés (code de A sur ressource
       de B → 403).
-- [ ] E2. B1 — routes `/api/events` et `/api/events/:eventId/...` du contrat, formes de
+- [x] E2. B1 — routes `/api/events` et `/api/events/:eventId/...` du contrat, formes de
       réponse identiques aux héritées ; `:eventId` inconnu → 404 (fin du 400 interne) ;
       `multipleActive` consommé (avertissement explicite) ; ordre des middlewares corrigé
       (le 503 ne masque plus le 401 sur l'export CSV) ; ligne C9 côté route appliquée.
-- [ ] E3. B4 — médias cloisonnés par soirée (table `media` enfin lue/écrite, `GET gifs`
+- [x] E3. B4 — médias cloisonnés par soirée (table `media` enfin lue/écrite, `GET gifs`
       scopé) ; C10 — frontière de chemin réelle (`path.relative`, plus de préfixe de
       chaîne) ; B6 — rate-limit keyé IP+soirée ; C8 partie HTTP — `app.ts` lit `CORS_ORIGIN`.
 
@@ -101,7 +102,7 @@ vague 2). INTERDITS : tout le reste.
 - [x] N1. C5 — ~1 900 lignes mortes supprimées (MenorahAscension 1062, ProgressBar 286,
       TotalCounter 262, useSoundEffects 304 par transitivité, devDep `postcss`), chaque
       suppression re-prouvée par grep 0-importeur AVANT suppression.
-- [ ] N2. C6 — la table `config` n'est plus recréée à chaque démarrage (lecture de bascule
+- [x] N2. C6 — la table `config` n'est plus recréée à chaque démarrage (lecture de bascule
       conservée si la migration la lit encore — décision sur preuve) ; C7 — chaîne de build
       dédupliquée entre `railway.json` et `nixpacks.toml`.
 
@@ -181,3 +182,21 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
   régression) + test. CORS socket lit `CORS_ORIGIN` (défaut = comportement actuel), 5 cas testés.
 - `1949fb1` — merge `sprint/securite` dans master. Gate rejoué : 76/76 backend
   (63 + 13 nouveaux), typecheck et build frontend verts.
+- `59daa25` / `95c5d6f` / `d616ae9` — E1/E2/E3 (front EB). Auth deux niveaux (scrypt,
+  timingSafeEqual, alias ADMIN_TOKEN conservé), routes du contrat en fabriques montées deux
+  fois (hérité + préfixé, formes identiques), 404 sec, `multipleActive` consommé
+  (`X-Multiple-Active-Events`), 401 avant 503 sur l'export CSV, médias cloisonnés via table
+  `media` + migration d'inventaire, frontière de chemin réelle, rate-limit IP+soirée,
+  CORS HTTP sur `CORS_ORIGIN`. Trois arbitrages EB VALIDÉS : fail-closed prod sur les seuls
+  jetons d'env ; 401 avant 404 sur route admin à soirée inconnue sans jeton (ne pas révéler
+  l'existence) ; gifs préfixés séquencés en E3 avec l'isolation.
+  Restes assumés : rate-limit mémoire mono-instance + `x-forwarded-for` non validé (finding I),
+  `backup.db` toutes-soirées (finding L).
+- `f6f9572` — merge `sprint/events` dans master. Seul conflit : `docs/api-et-socket.md`
+  (S et EB), résolu en fusionnant réfutation mesurée de C + corrections E2/E3. Gate rejoué :
+  130/130 backend (23 fichiers), typecheck et build frontend verts — aucune couture cassée.
+- `457d19c` — O1 (orchestrateur). C6 : la table `config` n'est plus créée ni semée au
+  démarrage ; ALTER `display_settings` conservé sous try/catch ; `legacy-routes.test.ts`
+  prouve « ni créée ni écrite » sur base neuve comme ancienne ; `config-handover.test.ts`
+  fabrique désormais lui-même la base ancienne qu'il simule. Découverte de séquence : le
+  gate a rougi PARCE QUE la table manquait au test de couture — exactement le filet attendu.
