@@ -122,10 +122,10 @@ Périmètre : nouveaux fichiers backend thèmes (routes/service), table `themes`
 `frontend/src/theme/**`, `frontend/src/components/admin/DisplaySettingsPanel.vue`,
 `frontend/src/assets/styles/` (tokens). INTERDITS : `AdminPanel.vue` (FE), Display* (DD).
 
-- [ ] T1. C1 — thèmes en base (CRUD organisateur), application par soirée, aperçu avant
-      application, export/import JSON, **contraste AA calculé et refusé sous seuil**
-      (4,5 texte / 3,0 objet). C2 : constater l'existant (5 sous-onglets déjà livrés) et ne
-      combler que le manque réel.
+- [x] T1. C1 — thèmes en base (CRUD organisateur), application par soirée, aperçu avant
+      application, export/import JSON, contraste AA calculé — **AVERTISSANT, pas refusant**
+      (arbitrage O3 : la spec commanditaire §5.4 prime sur le brief). C2 : rien à faire,
+      preuve fournie (5 sous-onglets déjà livrés, galerie insérée dans l'existant).
 
 ### Front DD — display unifié (worktree `wt-display`, branche `sprint/display`)
 Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `DisplayHiddenPage.vue`,
@@ -211,6 +211,23 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 - `f1d69b7` — merge `sprint/front-events`. Conflit `docs/architecture.md` (tables de routes
   DD vs FE) résolu : table deux-familles de FE + encart fusion de DD. Gate rejoué :
   130/130, typecheck, build verts.
+- `8a1446c` / `5e4bb19` — T1 (front TH). Moteur de thèmes : CRUD en base (intégrés seedés
+  depuis `DEFAULT_THEME_PALETTES`, 409 sur édition d'un intégré), application par soirée
+  (`event_configs.theme_id`), galerie API avec aperçu annulable, export/import JSON, repli
+  hors-ligne lecture seule. Décision mesurée validée : `chartSecondary` exclu du contrôle
+  (5/7 presets dessous, compagnon décoratif). **Escalade exemplaire** : contradiction
+  brief (« 422 refusant ») vs spec §5.4 (« avertissement sans bloquer ») — l'agent a
+  implémenté l'instruction ET le badge, sans trancher le fond.
+- `8e571fe` — merge `sprint/themes`. Conflit `architecture.md` résolu (lignes DD/FE + TH
+  combinées). Gate : 161/161 (+31), typecheck, build verts.
+- `8c0f3a9` — O3 (orchestrateur). Arbitrage rendu : **la spec commanditaire prime** —
+  vérifiée mot pour mot (§5.4 l.318-322) avant d'agir. 422 → 201/200 + `warnings[]`,
+  import non bloquant (toast info + badge), tests retournés, doc corrigée. Au passage :
+  la galerie lit la portée ambiante de soirée (doute 3 de TH, une ligne).
+- `d4967a8` — O2 (orchestrateur). Câblage slug→display selon les 5 points de FE :
+  résolution avant fetch, room jointe, 404 sec, portée nettoyée au démontage. Ratio du
+  texte 404 CALCULÉ après m'être surpris à l'estimer (7.2 estimé → 6.20 calculé) — le
+  défaut classique de l'orchestrateur, attrapé par la règle du projet.
 - `725a118` — D1 (front DD). Les 3 forks display deviennent des enveloppes ~10 lignes sur
   `DisplayScreen.vue` + `displayVariants.ts` (20 drapeaux, UN par contrôle divergent — les
   axes couleur or-vs-thème scindés en 3 drapeaux indépendants). `animations.ts` centralise
