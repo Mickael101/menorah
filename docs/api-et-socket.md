@@ -126,10 +126,14 @@ par header `x-admin-token` **ou** par le repli `?token=`.
 
 - **`requireAdmin`** — niveau organisateur uniquement (liste/création de soirées,
   sauvegardes globales). Accepte `ORGANIZER_TOKEN` puis l'alias `ADMIN_TOKEN`.
-- **`requireEventAdmin(cible)`** — organisateur **ou** admin de la soirée ciblée. Un code
-  valide pour la soirée A sur une ressource de B renvoie **403** (secret bon, portée
-  refusée), un code inconnu **401**. Monté **avant** la résolution de soirée (E2), pour que
-  l'absence de soirée active ne masque pas un 401 par un 503.
+- **`requireEventAdmin(cible)`** — organisateur **ou** admin de la soirée ciblée. Tout jeton
+  sans autorité sur la soirée ciblée renvoie **401** — y compris un code valide pour une
+  autre soirée. La désambiguïsation 401-vs-403 a été **retirée le 2026-07-28** (revue
+  adversariale) : distinguer « secret inconnu » de « bon code, mauvaise portée » exigeait un
+  `scryptSync` **par soirée** (`findEventByAdminCode`), sur des routes ni limitées ni
+  authentifiées — un vecteur de déni de service sur le thread unique. `requireEventAdmin` ne
+  déroule plus qu'**un** scrypt (la soirée ciblée). Monté **avant** la résolution de soirée
+  (E2), pour que l'absence de soirée active ne masque pas un 401 par un 503.
 
 Hachage : `crypto.scryptSync` (bibliothèque standard, **aucune dépendance ajoutée**),
 format auto-descriptif `scrypt$N$r$p$sel_b64$empreinte_b64`, comparaison `timingSafeEqual`

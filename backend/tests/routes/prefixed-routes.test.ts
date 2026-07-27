@@ -88,6 +88,20 @@ describe('routes de ressources prefixees par soiree', () => {
       expect(Array.isArray(response.body.donations)).toBe(true);
       expect(response.body.stats).toBeDefined();
     });
+
+    it('GET /api/events/:id/donations/premium-words garde la forme', async () => {
+      // Route PUBLIQUE (la page de promesse de don l'appelle sans jeton) et
+      // consommee telle quelle par le frontend : il lit `words` ET `tiers`.
+      // Rien d'autre dans la suite ne montait cette route sur le prefixe — un
+      // /premium-words avale par /:id, ou une reponse amputee de `tiers`,
+      // seraient passes inapercus jusqu'au gala.
+      const response = await request(app).get(`/api/events/${soireeP}/donations/premium-words`);
+
+      expect(response.status).toBe(200);
+      expect(Object.keys(response.body).sort()).toEqual(['tiers', 'words']);
+      expect(Array.isArray(response.body.words)).toBe(true);
+      expect(response.body.tiers).toBeDefined();
+    });
   });
 
   describe('soiree inexistante', () => {
@@ -169,6 +183,29 @@ describe('routes de ressources prefixees par soiree', () => {
       expect(refus.status).toBe(403);
     });
 
+    it('en PRODUCTION sans aucun secret, echoue ferme en 503 et non en 403', async () => {
+      // La garde d'etat retombait sur le 403 generique quand aucun secret n'est
+      // configure. C'est un mensonge de diagnostic : rien ne refuse le don par
+      // POLITIQUE, c'est le serveur qui est mal deploye. Le reste de la couche
+      // d'authentification (admin-auth.ts handleMissingSecret) repond 503 avec
+      // un journal SECURITY dans exactement ce cas ; la garde d'etat doit dire
+      // la meme chose, sinon l'incident se deguise en refus normal.
+      const nodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      delete process.env.ORGANIZER_TOKEN;
+
+      try {
+        const response = await request(app)
+          .post(`/api/events/${soireeP}/donations`)
+          .send({ firstName: 'Public', lastName: 'SansSecret', amount: 1100 });
+
+        expect(response.status).toBe(503);
+      } finally {
+        process.env.NODE_ENV = nodeEnv;
+        process.env.ORGANIZER_TOKEN = ORGANIZER_TOKEN;
+      }
+    });
+
     it('laisse passer le don PUBLIC vers une soiree ACTIVE', async () => {
       const creation = await request(app)
         .post(`/api/events/${soireeActive}/donations`)
@@ -189,13 +226,22 @@ describe('routes de ressources prefixees par soiree', () => {
       expect(response.body.goalAmount).toBe(5000);
     });
 
-    it('refuse en 403 le code de A sur une ressource de B', async () => {
+    it('refuse en 401 le code de A sur une ressource de B', async () => {
+      // 401 et non 403 : requireEventAdmin ne cherche plus a savoir si le code
+      // refuse ouvre une AUTRE soiree. Produire ce diagnostic coutait un
+      // scryptSync par soiree existante, sur une route ni limitee ni
+      // authentifiee (voir tests/security/event-admin.test.ts). Ce qui compte
+      // ici reste vrai : le code de A n'ecrit rien sur B.
       const response = await request(app)
         .put(`/api/events/${soireeB}/config`)
         .set('x-admin-token', CODE_A)
         .send({ goalAmount: 6000 });
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(401);
+
+      // Et la configuration de B n'a pas bouge.
+      const config = await request(app).get(`/api/events/${soireeB}/config`);
+      expect(config.body.goalAmount).not.toBe(6000);
     });
 
     it('accepte l organisateur sur n importe quelle soiree', async () => {

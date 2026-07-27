@@ -197,14 +197,20 @@ describe('routes du moteur de themes', () => {
       expect(publicRead.body.theme.id).toBe(builtin.id);
     });
 
-    it('refuse un code de soiree sur une AUTRE soiree en 403', async () => {
+    it('refuse en 401 un code de soiree sur une AUTRE soiree (desambiguisation retiree, anti-DoS)', async () => {
+      // requireEventAdmin ne distingue plus « secret inconnu » (401) de « bon
+      // code, mauvaise soiree » (403) : la desambiguisation deroulait un
+      // scryptSync PAR soiree sur des routes ni limitees ni authentifiees
+      // (vecteur DoS sur le thread unique). Le refus est desormais un 401 sec.
+      // Un appelant sans autorite sur CETTE soiree n'a rien a apprendre de
+      // l'existence des autres.
       const list = await request(app).get('/api/themes').set('x-admin-token', ORGANIZER_TOKEN);
       const builtin = list.body.themes.find((t: { builtin: boolean }) => t.builtin);
       const response = await request(app)
         .put(`/api/events/${eventB}/theme`)
         .set('x-admin-token', CODE_A)
         .send({ themeId: builtin.id });
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(401);
     });
 
     it('refuse d appliquer un theme personnalise d une AUTRE soiree en 403', async () => {

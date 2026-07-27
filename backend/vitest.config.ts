@@ -28,7 +28,16 @@ export default defineConfig({
     // celui qui garde les cinq ecrans publics. Le code de sortie valait bien 1,
     // mais le resume trompe l'oeil, et un gate qu'on lit de travers ne protege
     // rien. Les processus isolent mieux les modules natifs, dont le wasm de
-    // sql.js. A relire si la suite ralentit : la cause reste a confirmer.
-    pool: 'forks'
+    // sql.js.
+    pool: 'forks',
+    // UN SEUL fork, reutilise pour toute la suite. Le 2026-07-28, sous la charge
+    // de plusieurs sessions d'agents concurrentes, `forks` seul crashait encore
+    // un worker par-ci par-la (meme symptome trompeur : « 186 passed (188) »,
+    // 1 error, zero FAIL). Comme fileParallelism est deja false, un fork par
+    // fichier n'apportait AUCUN parallelisme — seulement 25 spawns et 25
+    // rechargements du wasm sql.js, autant d'occasions de mourir sous contention.
+    // singleFork supprime les spawns mid-run (donc le faux-vert) ET divise la
+    // duree par ~3 (un seul chargement wasm : ~10 s au lieu de ~31 s).
+    poolOptions: { forks: { singleFork: true } }
   }
 });

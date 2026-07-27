@@ -73,11 +73,21 @@ describe('requireEventAdmin — auth deux niveaux', () => {
     expect(response.status).toBe(200);
   });
 
-  it('refuse en 403 le code de A sur une ressource de B (secret bon, portee refusee)', async () => {
+  it('refuse en 401 le code de A sur une ressource de B (desambiguisation retiree)', async () => {
+    // Ce cas rendait 403 (« secret bon, portee refusee ») jusqu'a ce que le prix
+    // de cette politesse soit mesure : pour la produire, la garde confrontait le
+    // code refuse a TOUTES les soirees ayant un code, soit UN scryptSync par
+    // soiree, sur une route ni limitee ni authentifiee. Quelques requetes
+    // suffisaient a figer l'event loop de l'instance unique.
+    //
+    // Le 403 n'etait qu'un confort de diagnostic ; il ne vaut pas un deni de
+    // service. Un code hors perimetre est desormais indistinguable d'un code
+    // inconnu — ce qui, du point de vue de l'appelant, est aussi la bonne
+    // reponse : il n'a rien a apprendre de l'existence des autres soirees.
     process.env.ORGANIZER_TOKEN = ORGANIZER_TOKEN;
 
     const response = await request(app).get(`/guard/${soireeB}`).set('x-admin-token', CODE_A);
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
   });
 
   it('refuse en 401 un code inconnu', async () => {

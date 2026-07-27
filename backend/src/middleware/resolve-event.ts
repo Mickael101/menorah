@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { eventService } from '../services/event.service';
-import { eventAdminGrant } from './admin-auth';
+import { eventAdminGrant, EventAdminGrant } from './admin-auth';
 
 declare global {
   namespace Express {
@@ -9,8 +9,27 @@ declare global {
       // sait pas qu'un middleware l'a garanti ; requestEventId() transforme
       // cette incertitude en erreur immediate plutot qu'en requete non filtree.
       eventId?: number;
+      // Memoisation du verdict d'autorite pour CETTE requete (voir
+      // eventGrantOf). Deux gardes du POST de don ont besoin du meme verdict :
+      // le limiteur (au-dela du plafond) puis requireActiveOrAdmin (toujours).
+      // Sans memoire, une requete deja evaluee payait un SECOND scrypt.
+      eventGrant?: EventAdminGrant;
     }
   }
+}
+
+// Verdict d'autorite de la requete face a la soiree resolue, calcule AU PLUS UNE
+// FOIS. La regle reste ecrite dans admin-auth.ts et nulle part ailleurs : ceci
+// n'est qu'un cache de requete.
+//
+// Sound par construction : req.eventId est pose par resolveEvent, monte devant
+// toutes les gardes, et ne change plus ensuite. Le verdict ne peut donc pas
+// changer non plus au cours de la requete.
+export function eventGrantOf(req: Request): EventAdminGrant {
+  if (req.eventGrant === undefined) {
+    req.eventGrant = eventAdminGrant(req, () => req.eventId ?? null);
+  }
+  return req.eventGrant;
 }
 
 // Les routes heritees (/api/donations, /api/config, /api/stats, /api/gifs) n'ont
@@ -71,21 +90,34 @@ export function requireActiveOrAdmin(req: Request, res: Response, next: NextFunc
     return;
   }
 
-  const grant = eventAdminGrant(req, () => req.eventId ?? null);
+  // eventGrantOf, pas eventAdminGrant : sur le POST de don, le limiteur a
+  // peut-etre deja pose la question (au-dela du plafond). Recalculer ici
+  // paierait un SECOND scrypt pour la meme requete.
+  const grant = eventGrantOf(req);
   if (grant === 'organizer' || grant === 'event-admin') {
     next();
     return;
   }
   // Aucun secret d'environnement : meme politique que le reste de la couche
-  // d'authentification (admin-auth.ts). En production c'est une erreur de
-  // configuration et on echoue ferme ; hors production le contournement de
+  // d'authentification (admin-auth.ts handleMissingSecret), et non le 403
+  // generique. En production c'est une erreur de CONFIGURATION : on echoue
+  // ferme, bruyamment, pour qu'elle se voie dans les journaux au lieu de se
+  // deguiser en refus de politique. Hors production le contournement de
   // developpement reste ouvert, sinon la saisie admin d'une soiree en brouillon
   // serait la SEULE chose cassee sur un poste de developpement sans secret.
-  if (grant === 'unconfigured' && process.env.NODE_ENV !== 'production') {
-    next();
+  if (grant === 'unconfigured') {
+    if (process.env.NODE_ENV !== 'production') {
+      next();
+      return;
+    }
+    console.error('SECURITY: aucun secret admin configure — saisie de don refusee');
+    res.status(503).json({ error: 'Admin authentication is not configured' });
     return;
   }
 
+  // 403 reserve au refus de POLITIQUE : secrets configures, et cette requete
+  // n'a pas d'autorite sur cette soiree — typiquement le don PUBLIC vers une
+  // soiree non active.
   res.status(403).json({ error: 'This event is not accepting donations' });
 }
 

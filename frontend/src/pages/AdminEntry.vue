@@ -57,30 +57,41 @@ async function probeOrganizer(): Promise<boolean> {
 // le jeton manque) ; sinon, on vient d'une soumission de code et on affiche
 // l'erreur.
 async function runGate(initial: boolean): Promise<void> {
-  if (!slugParam.value) {
-    // /admin herite : organisateur => selecteur ; sinon admin de la soiree
+  // Portee heritee (/admin) : la seule ou la question « organisateur ou admin de
+  // la soiree active ? » se pose.
+  const legacyScope = !slugParam.value;
+  if (legacyScope && await probeOrganizer()) {
+    // Organisateur => selecteur ; sinon on poursuit comme admin de la soiree
     // active (comportement d'aujourd'hui).
-    if (await probeOrganizer()) {
-      phase.value = 'selector';
-      return;
-    }
-    // Aucune soiree active resolue et pas organisateur : les routes heritees
-    // repondront 503/403 quel que soit le code, si bien qu'un admin de soiree
-    // au code VALIDE resterait enferme dehors avec une erreur trompeuse. On
-    // l'oriente vers le lien de SA soiree (/e/:slug/admin) plutot que de boucler
-    // sur l'ecran de connexion. Uniquement APRES une tentative (!initial) : au
-    // premier affichage on laisse l'ecran de connexion, sans quoi l'organisateur
-    // — encore sans jeton, donc indistinguable ici — ne pourrait plus se
-    // connecter pour atteindre le selecteur.
-    if (!initial && event.value === null) {
-      phase.value = 'noActiveEvent';
-      return;
-    }
+    phase.value = 'selector';
+    return;
   }
 
   const result = await probeAdmin();
   if (result === 'ok') {
     phase.value = 'ready';
+    return;
+  }
+
+  // Aucune soiree active resolue et pas organisateur : les routes heritees
+  // repondent 503 une fois l'AUTHENTIFICATION FRANCHIE (requireEventAdmin est
+  // monte avant resolveActiveEvent), si bien qu'un code par ailleurs valide ne
+  // mene nulle part. On oriente alors vers le lien de SA soiree
+  // (/e/:slug/admin) plutot que de boucler sur l'ecran de connexion.
+  //
+  // Le test est fait APRES probeAdmin() et EXCLUT les echecs d'auth (401/403) :
+  // avant, il suffisait qu'aucune soiree ne soit active pour tomber ici, donc
+  // une simple FAUTE DE FRAPPE dans le jeton organisateur envoyait sur un ecran
+  // sans champ de code, sans message et — a la difference de 'notFound' — sans
+  // lien de retour : back-office inatteignable jusqu'a un rechargement, mauvais
+  // jeton conserve en storage. Un echec d'authentification doit rester un echec
+  // d'authentification et repartir vers AdminLogin avec son message.
+  //
+  // `!initial` : au premier affichage on laisse l'ecran de connexion, sans quoi
+  // l'organisateur — encore sans jeton, donc indistinguable ici — ne pourrait
+  // plus se connecter pour atteindre le selecteur.
+  if (legacyScope && !initial && event.value === null && result === 'error') {
+    phase.value = 'noActiveEvent';
     return;
   }
 
@@ -158,6 +169,11 @@ onUnmounted(() => {
     <div class="notfound-card">
       <h1>{{ t('event.noActiveTitle') }}</h1>
       <p>{{ t('event.noActiveMessage') }}</p>
+      <!-- Sortie de secours, comme la carte 'notFound' voisine : sans elle,
+           cet ecran n'offre ni champ de code ni retour, et seul un rechargement
+           manuel en sort. Lien plein (pas router-link) : on veut le rechargement
+           qui rejoue le gate initial et ramene a l'ecran de connexion. -->
+      <a href="/admin" class="notfound-link">{{ t('event.backToAdmin') }}</a>
     </div>
   </div>
 

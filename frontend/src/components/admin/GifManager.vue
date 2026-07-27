@@ -30,9 +30,17 @@ async function fetchGifs(): Promise<void> {
     // la soiree ACTIVE, si bien qu'un GIF televerse etait invisible et qu'une
     // suppression frappait un fichier d'une autre soiree (404).
     const response = await adminFetch(`${API_BASE}/api/gifs`);
+    // Le code HTTP n'etait pas verifie, seul appel du fichier a s'en dispenser :
+    // sur 404/500 le backend renvoie { error }, donc gifs.value devenait un
+    // OBJET et le v-for rendait des vignettes fantomes (sans url, sans
+    // filename).
+    if (!response.ok) throw new Error(t('toast.actionFailed'));
     gifs.value = await response.json();
   } catch (error) {
     console.error('Error fetching GIFs:', error);
+    // Etat vide plutot qu'une liste perimee (ou un objet d'erreur) : l'ecran
+    // vide est honnete, l'ancien contenu ne l'est plus apres un echec.
+    gifs.value = [];
   }
 }
 

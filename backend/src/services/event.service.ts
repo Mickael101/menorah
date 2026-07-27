@@ -80,24 +80,11 @@ class EventService {
     return verifyAdminCode(code, hash);
   }
 
-  // A quelle soiree, s'il en est une, ce code donne-t-il acces ? Sert a
-  // distinguer un secret INCONNU (401) d'un secret VALIDE mais hors perimetre
-  // (403) : sans cette question, l'admin de la soiree A recevrait un 401
-  // trompeur sur la soiree B, comme si son code etait mauvais.
-  findEventByAdminCode(code: string): number | null {
-    const rows = getDb().exec(
-      `SELECT id, admin_code_hash FROM events WHERE admin_code_hash IS NOT NULL`
-    );
-    if (rows.length === 0) {
-      return null;
-    }
-    for (const [id, hash] of rows[0].values) {
-      if (verifyAdminCode(code, hash as string)) {
-        return id as number;
-      }
-    }
-    return null;
-  }
+  // NOTE : findEventByAdminCode (balayage de TOUTES les soirees, un scryptSync
+  // par ligne) a ete retire le 2026-07-28. Il ne servait qu'a distinguer un 401
+  // d'un 403 dans requireEventAdmin, au prix d'un scrypt par soiree sur des
+  // routes ni limitees ni authentifiees — un vecteur de deni de service sur le
+  // thread unique. Le refus est desormais un 401 sec. Ne pas le reintroduire.
 
   private adminCodeHash(eventId: number): string | null {
     const rows = getDb().exec('SELECT admin_code_hash FROM events WHERE id = ?', [eventId]);

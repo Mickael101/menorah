@@ -33,6 +33,15 @@ function corsOrigin(): string[] | '*' {
 export function createApp(): express.Express {
   const app = express();
 
+  // UN saut de proxy (Railway). Sans cette declaration, req.ip vaut l'adresse du
+  // proxy — identique pour tout le monde — et le limiteur de dons devait lire
+  // x-forwarded-for a la main. Il en lisait la PREMIERE entree, celle que le
+  // CLIENT ecrit : chacun pouvait se fabriquer une IP, donc un quota neuf a
+  // volonte. `trust proxy: 1` fait deriver a Express la derniere entree, la
+  // seule ecrite par notre proxy. Le chiffre compte : `true` re-ouvrirait
+  // exactement le meme trou.
+  app.set('trust proxy', 1);
+
   app.use(cors({
     origin: corsOrigin(),
     methods: ['GET', 'POST', 'PUT', 'DELETE']

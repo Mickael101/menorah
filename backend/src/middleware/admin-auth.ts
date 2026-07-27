@@ -40,6 +40,24 @@ export function hasProvidedAdminToken(req: Request): boolean {
   return providedToken(req) !== '';
 }
 
+// La requete porte-t-elle le jeton d'ORGANISATEUR ? Question elle aussi SANS
+// cout : une comparaison de chaine contre une variable d'environnement, ni base
+// ni scrypt. C'est le verdict GRATUIT du limiteur de dons : au-dela du plafond
+// il doit pouvoir reconnaitre l'operateur du gala AVANT de consulter le moindre
+// budget d'echecs, sinon un tiers epuise ce budget avec des jetons bidon depuis
+// l'IP de la salle et verrouille l'organisateur pour toute la fenetre.
+export function isOrganizerRequest(req: Request): boolean {
+  return isOrganizer(providedToken(req), envSecrets());
+}
+
+// Un secret d'environnement est-il configure ? Gratuit, meme raison : hors
+// production l'absence de secret est une politique de DEVELOPPEMENT, pas une
+// attaque, et le limiteur doit pouvoir la classer sans payer de scrypt.
+export function adminSecretsConfigured(): boolean {
+  const secrets = envSecrets();
+  return Boolean(secrets.organizer || secrets.admin);
+}
+
 function isOrganizer(provided: string, secrets: EnvSecrets): boolean {
   if (!provided) {
     return false;
@@ -130,9 +148,16 @@ export function eventAdminGrant(req: Request, getTargetEventId: () => number | n
 }
 
 // Protege une route portant sur UNE soiree. Accepte l'organisateur (tout) ou
-// l'admin de la soiree CIBLEE (elle seule). Un code valide pour une AUTRE
-// soiree renvoie 403, pas 401 : le secret est bon, c'est la portee qui est
-// refusee.
+// l'admin de la soiree CIBLEE (elle seule). Tout le reste renvoie 401.
+//
+// ANTI-DoS : le 401 est desormais RENDU SANS DESAMBIGUISATION. Le code refuse
+// n'est plus confronte a l'ensemble des soirees pour distinguer « secret bon,
+// mauvaise portee » (403) de « secret inconnu » (401) : cette question deroulait
+// UN scryptSync PAR soiree ayant un code, sur un chemin NON limite et
+// NON authentifie. Quelques requetes suffisaient a figer l'event loop d'une
+// instance unique. Le 403 etait un confort de diagnostic ; il ne vaut pas un
+// deni de service. eventAdminGrant, lui, fait au plus UN scrypt (la soiree
+// CIBLEE) : la depense reste bornee par requete.
 //
 // A monter AVANT la resolution de soiree : sans cet ordre, l'absence de soiree
 // active ferait repondre 503 a une requete sans jeton qui merite un 401. L'auth
@@ -154,13 +179,6 @@ export function requireEventAdmin(getTargetEventId: TargetEventResolver) {
     const grant = eventAdminGrant(req, () => getTargetEventId(req));
     if (grant === 'organizer' || grant === 'event-admin') {
       next();
-      return;
-    }
-
-    // Le code est-il valide pour une autre soiree ? Si oui, le secret est bon
-    // mais hors perimetre : 403. Sinon, secret inconnu : 401.
-    if (eventService.findEventByAdminCode(provided) !== null) {
-      res.status(403).json({ error: 'Forbidden: this code does not grant access to this event' });
       return;
     }
 

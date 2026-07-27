@@ -25,7 +25,7 @@ Ce qui suit est ce qui reste — rien d'autre.
 
 | Item | Détail |
 |---|---|
-| Rate-limit | En mémoire mono-instance ; `x-forwarded-for` non validé, pas de `trust proxy` (`middleware/rate-limit.ts`) |
+| Rate-limit | En mémoire mono-instance (résidu assumé — un redémarrage Railway remet quota et budget d'échecs à zéro). ✅ **`x-forwarded-for` validé le 2026-07-28** : `app.set('trust proxy', 1)` + clé `req.ip` — l'IP n'est plus falsifiable par en-tête client (`app.ts`, `middleware/rate-limit.ts`) |
 | `GET /api/admin/backup.db` | Livre la base entière, toutes soirées — incompatible avec un futur multi-locataire (`routes/admin.ts:34`) |
 | `nixpacks.toml [start]` | Doublon mort de `railway.json deploy.startCommand` — purgeable maintenant qu'un `railway up` a validé la chaîne dédupliquée |
 | CSS orphelin | `.theme-grid`/`.theme-preview` dans `DisplaySettingsPanel.vue` (ancienne grille remplacée par la galerie) |

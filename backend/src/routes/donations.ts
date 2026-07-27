@@ -3,9 +3,14 @@ import { donationService } from '../services/donation.service';
 import { socketService } from '../services/socket.service';
 import { validateCreateRequest, validateUpdateRequest, toPublicDonation } from '../models/donation';
 import { PREMIUM_TIERS } from '../models/types';
-import { eventAdminGrant, hasProvidedAdminToken, requireEventAdmin } from '../middleware/admin-auth';
-import { requestEventId, requireActiveOrAdmin } from '../middleware/resolve-event';
-import { rateLimit, OverLimitVerdict } from '../middleware/rate-limit';
+import {
+  adminSecretsConfigured,
+  hasProvidedAdminToken,
+  isOrganizerRequest,
+  requireEventAdmin
+} from '../middleware/admin-auth';
+import { eventGrantOf, requestEventId, requireActiveOrAdmin } from '../middleware/resolve-event';
+import { rateLimit, FreeVerdict, CostlyVerdict } from '../middleware/rate-limit';
 import { UnknownEventError } from '../services/event.service';
 import { EventRouteContext } from './event-context';
 
@@ -18,31 +23,44 @@ import { EventRouteContext } from './event-context';
 // ciblee) est donc exemptee du plafond.
 //
 // L'exemption est DIFFEREE : le contournement n'est consulte qu'une fois le
-// plafond atteint (voir rate-limit.ts). Verifier une autorite peut derouler un
+// plafond atteint (voir rate-limit.ts). Verifier un code de soiree deroule un
 // scrypt ; le faire d'emblee sur ce chemin public ferait de n'importe quel jeton
 // bidon un amplificateur de charge. Sous le plafond, personne ne paie rien.
 const createLimiter = rateLimit(10, 10 * 60 * 1000, {
-  overLimitBypass: (req: Request): OverLimitVerdict => {
+  // GRATUIT — aucune base, aucun scrypt. Toujours consulte au-dela du plafond,
+  // AVANT le budget d'echecs.
+  freeVerdict: (req: Request): FreeVerdict => {
     // Aucun jeton : c'est du trafic public, il n'y a rien a verifier et rien a
     // reprocher. 'no-claim' pour ne pas entamer le budget d'echecs — sinon une
-    // rafale de donateurs de la salle verrouillerait le contournement de
-    // l'operateur, qui partage leur IP.
+    // rafale de donateurs de la salle verrouillerait la branche d'autorite,
+    // dont ils partagent l'IP.
     if (!hasProvidedAdminToken(req)) {
       return 'no-claim';
     }
-    // req.eventId est pose par ctx.resolveEvent, monte AVANT le limiteur.
-    const grant = eventAdminGrant(req, () => req.eventId ?? null);
-    if (grant === 'organizer' || grant === 'event-admin') {
+    // L'ORGANISATEUR se reconnait a une comparaison de chaine. Le dire ICI, et
+    // pas dans la branche couteuse, est tout l'objet du decoupage : son passage
+    // ne depend d'aucun budget, donc aucun tiers ne peut le lui fermer en
+    // gaspillant ce budget depuis la meme IP.
+    if (isOrganizerRequest(req)) {
       return 'grant';
     }
     // Aucun secret d'environnement : c'est une politique de developpement, pas
     // une attaque. Le plafond continue de s'appliquer, sans rien compter.
-    if (grant === 'unconfigured') {
+    if (!adminSecretsConfigured()) {
       return 'no-claim';
     }
-    // Autorite pretendue et refusee : la seule voie qui a pu couter un scrypt,
-    // donc la seule que le budget d'echecs doit borner.
-    return 'deny';
+    // Un jeton inconnu du niveau organisateur : seul un code de soiree peut
+    // encore l'expliquer, et cela se paie.
+    return 'needs-check';
+  },
+  // COUTEUX — au plus un scrypt (la soiree CIBLEE), et seulement derriere un
+  // 'needs-check' dont le nombre est borne par fenetre et par IP.
+  costlyVerdict: (req: Request): CostlyVerdict => {
+    // eventGrantOf memoise le verdict sur la requete : requireActiveOrAdmin, qui
+    // s'execute juste apres, le relit au lieu de refaire le scrypt.
+    // req.eventId est pose par ctx.resolveEvent, monte AVANT le limiteur.
+    const grant = eventGrantOf(req);
+    return grant === 'organizer' || grant === 'event-admin' ? 'grant' : 'deny';
   }
 });
 
@@ -182,12 +200,17 @@ export function createDonationsRouter(ctx: EventRouteContext): Router {
   // amplificateur de charge. Un don public vers une soiree non-active est refuse
   // (403), un don saisi par un admin authentifie passe.
   //
-  // L'ordre limiteur-avant-garde tient toujours : l'autorite n'est verifiee
-  // qu'AU-DELA du plafond (createLimiter ci-dessus), et le nombre de
-  // verifications refusees y est lui-meme borne par fenetre et par IP.
-  // requireActiveOrAdmin reste APRES, inchange : il repond a une autre question
-  // (cette soiree accueille-t-elle ce don ?) et refait son propre controle. Deux
-  // gardes independantes, chacune lisible seule — on ne mutualise pas.
+  // Precision qui a deja induit en erreur : requireActiveOrAdmin s'execute pour
+  // CHAQUE requete — c'est la garde d'ETAT de la soiree, elle ne peut pas etre
+  // conditionnelle. Ce qui est DIFFERE au-dela du plafond, c'est l'exemption du
+  // plafond elle-meme (createLimiter ci-dessus), et le nombre de verifications
+  // couteuses refusees y est borne par fenetre et par IP.
+  //
+  // Les deux gardes repondent a deux questions distinctes (« cette IP a-t-elle
+  // encore droit au quota ? » / « cette soiree accueille-t-elle ce don ? ») et
+  // restent lisibles seules. Elles partagent seulement le RESULTAT du calcul
+  // d'autorite, memoise sur la requete par eventGrantOf : sans cela, une requete
+  // deja evaluee par le limiteur payait un second scrypt ici meme.
   router.post('/', ctx.resolveEvent, createLimiter, requireActiveOrAdmin, (req: Request, res: Response) => {
     try {
       const eventId = requestEventId(req);

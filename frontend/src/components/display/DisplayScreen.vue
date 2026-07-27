@@ -138,15 +138,30 @@ function triggerGifExplosion(gifUrl: string, audioUrl?: string): void {
 // ambiante que useDonations lit pour choisir entre routes heritees et prefixees,
 // rejoint la room, puis charge dons + config. Re-executable : le watch ci-dessous
 // la rappelle quand le slug change sans que le composant soit remonte.
+// Compteur de generation, meme motif que AdminEntry.init() : resolveAndLoad est
+// re-appelable (watch du slug plus bas), donc deux resolutions peuvent se
+// chevaucher. Sans garde, c'est la PLUS LENTE qui gagne — l'ecran rejoindrait la
+// room de la soiree quittee et afficherait ses dons. Une resolution perimee doit
+// se taire, jamais ecraser une plus recente.
+let sequence = 0;
 async function resolveAndLoad(): Promise<void> {
+  const current = ++sequence;
   const slugParam = route.params.slug;
   await eventContext.resolve(typeof slugParam === 'string' ? slugParam : null);
+  if (current !== sequence) return; // une resolution plus recente a pris la main
   if (eventContext.notFound.value) {
     // Slug inconnu : etat 404, JAMAIS les donnees d'une autre soiree.
     return;
   }
   // Rejoint la room de la soiree resolue (re-emise par useSocket a chaque
   // reconnexion). Portee nulle => auto-abonnement backend a la soiree active.
+  //
+  // TODO(pivot) : join(null) sans soiree active vaut desabonnement cote backend.
+  // Inoffensif tant qu'AUCUNE navigation SPA ne mene vers un ecran display —
+  // ils sont ouverts par URL directe (kiosque/TV), donc ce chemin passe par
+  // onMounted, jamais par le watch. A revoir le jour ou une nav SPA display est
+  // ajoutee : le comportement socket n'est volontairement PAS modifie ici.
+  if (current !== sequence) return; // idem juste avant d'agir sur la socket
   join(currentEventScope());
 
   await Promise.all([fetchDonations(), fetchConfig()]);

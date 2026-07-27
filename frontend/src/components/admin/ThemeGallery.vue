@@ -66,9 +66,24 @@ async function probeOrganizer(): Promise<void> {
     // empeche adminFetch de lever `authExpired`, qui ejecterait vers l'ecran de
     // connexion un admin de soiree dont la session est parfaitement valide.
     const res = await adminFetch('/api/events', {}, { expectAuthFailure: true });
-    isOrganizer.value = res.ok;
+    if (res.ok) {
+      isOrganizer.value = true;
+      return;
+    }
+    // Seule une reponse d'AUTORITE explicite retire les droits. Avant, tout
+    // `res.ok` faux — et toute exception — retombait a false sans distinguer
+    // « pas organisateur » (401/403) de « la requete a echoue » (5xx, coupure
+    // reseau) : un micro-incident d'une seconde faisait disparaitre creer /
+    // dupliquer / enregistrer / supprimer / importer a un organisateur au jeton
+    // parfaitement valide, sans le moindre message. Un incident de transport
+    // n'est pas un refus d'autorite.
+    if (res.status === 401 || res.status === 403) {
+      isOrganizer.value = false;
+    }
   } catch {
-    isOrganizer.value = false;
+    // Exception reseau : on CONSERVE l'etat precedent (voir ci-dessus). Au tout
+    // premier passage il vaut false, donc le defaut prudent — masquer tant que
+    // la sonde n'a pas confirme — est intact.
   }
 }
 
@@ -324,16 +339,23 @@ async function importTheme(event: Event): Promise<void> {
       </button>
     </div>
 
-    <!-- Actions sur le theme selectionne + creation/import. -->
+    <!-- Export : action 100 % LOCALE (Blob + createObjectURL, aucun appel a
+         /api/themes). La gouverner par `canManage` la retirait a l'admin de
+         soiree — non organisateur — alors qu'aucune route ne la lui refuse.
+         Seule la presence d'un theme selectionne la conditionne desormais. -->
+    <div v-if="selectedTheme" class="theme-export-row">
+      <button
+        type="button"
+        class="ghost-btn"
+        :disabled="busy"
+        @click="exportTheme"
+      >{{ gt('gallery.export') }}</button>
+    </div>
+
+    <!-- Actions qui APPELLENT /api/themes (creation, import, enregistrement,
+         suppression) : elles seules restent sous l'autorite organisateur. -->
     <div v-if="canManage" class="theme-actions">
       <div class="theme-actions-row">
-        <button
-          type="button"
-          class="ghost-btn"
-          :disabled="!selectedTheme || busy"
-          @click="exportTheme"
-        >{{ gt('gallery.export') }}</button>
-
         <button type="button" class="ghost-btn" :disabled="busy" @click="triggerImport">
           {{ gt('gallery.import') }}
         </button>
@@ -518,6 +540,26 @@ async function importTheme(event: Event): Promise<void> {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--shell-border);
+}
+
+/* L'export vit hors du bloc de gestion : il porte alors le separateur, et le
+   bloc de gestion qui le SUIT renonce au sien — sans quoi un organisateur
+   verrait deux traits colles. Quand aucun theme n'est selectionne, cette rangee
+   n'existe pas et `.theme-actions` garde son separateur. */
+.theme-export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--shell-border);
+}
+
+.theme-export-row + .theme-actions {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .theme-actions-row,
