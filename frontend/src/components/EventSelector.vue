@@ -24,7 +24,7 @@ const { formatAmount } = useDonations();
 const events = ref<EventSummary[]>([]);
 const loading = ref(true);
 
-onMounted(async () => {
+async function loadEvents(): Promise<void> {
   try {
     const res = await adminFetch('/api/events');
     if (res.ok) {
@@ -34,10 +34,107 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-});
+}
+
+onMounted(loadEvents);
 
 function open(slug: string): void {
   router.push(`/e/${slug}/admin`);
+}
+
+// --- Creation d'une soiree (organisateur). Le code admin renvoye par le POST
+// n'est affiche qu'UNE fois (le backend ne stocke que son empreinte) : le bloc
+// de succes reste a l'ecran tant que l'organisateur ne l'a pas ferme.
+const showCreate = ref(false);
+const newName = ref('');
+const slugTouched = ref(false);
+const newSlug = ref('');
+const creating = ref(false);
+const createError = ref('');
+const created = ref<{ event: EventSummary; adminCode: string } | null>(null);
+const codeCopied = ref(false);
+
+// Translitteration minimale : un nom hebreu produit un slug vide -> l'
+// organisateur le remplit lui-meme (champ toujours editable).
+function slugify(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+function onNameInput(): void {
+  if (!slugTouched.value) {
+    newSlug.value = slugify(newName.value);
+  }
+}
+
+async function submitCreate(): Promise<void> {
+  if (creating.value) return;
+  createError.value = '';
+  creating.value = true;
+  try {
+    const res = await adminFetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName.value.trim(), slug: newSlug.value.trim() })
+    });
+    if (res.status === 409) {
+      createError.value = t('selector.slugTaken');
+      return;
+    }
+    if (!res.ok) {
+      createError.value = t('selector.createError');
+      return;
+    }
+    const data = await res.json();
+    created.value = { event: data.event as EventSummary, adminCode: data.adminCode as string };
+    showCreate.value = false;
+    newName.value = '';
+    newSlug.value = '';
+    slugTouched.value = false;
+    await loadEvents();
+  } catch {
+    createError.value = t('selector.createError');
+  } finally {
+    creating.value = false;
+  }
+}
+
+async function copyCode(): Promise<void> {
+  if (!created.value) return;
+  try {
+    await navigator.clipboard.writeText(created.value.adminCode);
+    codeCopied.value = true;
+    setTimeout(() => { codeCopied.value = false; }, 2500);
+  } catch {
+    // clipboard indisponible : le code reste visible, copie manuelle
+  }
+}
+
+// --- Activation / archivage par ligne (PUT /api/events/:id). Deux clics :
+// le premier arme la confirmation, le second execute — pas de dialogue bloquant.
+const pendingAction = ref<number | null>(null);
+
+async function toggleStatus(ev: EventSummary): Promise<void> {
+  if (pendingAction.value !== ev.id) {
+    pendingAction.value = ev.id;
+    setTimeout(() => { if (pendingAction.value === ev.id) pendingAction.value = null; }, 4000);
+    return;
+  }
+  pendingAction.value = null;
+  const nextStatus = ev.status === 'active' ? 'archived' : 'active';
+  const res = await adminFetch(`/api/events/${ev.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: nextStatus })
+  });
+  if (res.ok) {
+    await loadEvents();
+  }
 }
 </script>
 
@@ -51,7 +148,7 @@ function open(slug: string): void {
       <p v-else-if="events.length === 0" class="selector-empty">{{ t('selector.empty') }}</p>
 
       <ul v-else class="selector-list">
-        <li v-for="ev in events" :key="ev.id">
+        <li v-for="ev in events" :key="ev.id" class="selector-row">
           <button type="button" class="selector-item" @click="open(ev.slug)">
             <span class="item-main">
               <span class="item-name" dir="auto">{{ ev.name }}</span>
@@ -64,8 +161,68 @@ function open(slug: string): void {
               <span class="item-amount">{{ formatAmount(ev.totalAmount) }}</span>
             </span>
           </button>
+          <button
+            type="button"
+            class="status-action"
+            :class="{ danger: ev.status === 'active', armed: pendingAction === ev.id }"
+            @click="toggleStatus(ev)"
+          >
+            {{ pendingAction === ev.id
+              ? t('selector.confirmAction')
+              : (ev.status === 'active' ? t('selector.archive') : t('selector.activate')) }}
+          </button>
         </li>
       </ul>
+
+      <!-- Code admin affiche UNE seule fois, a la creation -->
+      <div v-if="created" class="created-box" role="alert">
+        <p class="created-title">{{ t('selector.createdTitle') }} — <span dir="auto">{{ created.event.name }}</span></p>
+        <p class="created-code-label">{{ t('selector.codeLabel') }}</p>
+        <div class="created-code-row">
+          <code class="created-code">{{ created.adminCode }}</code>
+          <button type="button" class="copy-btn" @click="copyCode">
+            {{ codeCopied ? t('selector.copied') : t('selector.copy') }}
+          </button>
+        </div>
+        <p class="created-warning">{{ t('selector.codeWarning') }}</p>
+        <div class="created-actions">
+          <button type="button" class="primary-btn" @click="open(created.event.slug)">{{ t('selector.open') }}</button>
+          <button type="button" class="ghost-btn" @click="created = null">{{ t('selector.cancel') }}</button>
+        </div>
+      </div>
+
+      <!-- Creation -->
+      <form v-if="showCreate && !created" class="create-form" @submit.prevent="submitCreate">
+        <label for="new-event-name">{{ t('selector.nameLabel') }}</label>
+        <input
+          id="new-event-name"
+          v-model="newName"
+          type="text"
+          maxlength="120"
+          :placeholder="t('selector.namePlaceholder')"
+          @input="onNameInput"
+        />
+        <label for="new-event-slug">{{ t('selector.slugLabel') }}</label>
+        <input
+          id="new-event-slug"
+          v-model="newSlug"
+          type="text"
+          dir="ltr"
+          maxlength="60"
+          spellcheck="false"
+          @input="slugTouched = true"
+        />
+        <p v-if="createError" class="create-error" role="alert">{{ createError }}</p>
+        <div class="created-actions">
+          <button type="submit" class="primary-btn" :disabled="creating || !newName.trim() || !newSlug.trim()">
+            {{ creating ? t('selector.creating') : t('selector.createSubmit') }}
+          </button>
+          <button type="button" class="ghost-btn" @click="showCreate = false; createError = ''">{{ t('selector.cancel') }}</button>
+        </div>
+      </form>
+      <button v-if="!showCreate && !created" type="button" class="create-toggle" @click="showCreate = true">
+        + {{ t('selector.create') }}
+      </button>
     </div>
   </div>
 </template>
@@ -205,11 +362,207 @@ function open(slug: string): void {
   color: var(--shell-accent);
 }
 
+.selector-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.selector-row .selector-item {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Activation/archivage : deux clics (arme puis confirme), pas de dialogue. */
+.status-action {
+  flex-shrink: 0;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--shell-border);
+  background: var(--shell-raised);
+  color: var(--shell-text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-action.danger {
+  color: var(--shell-error);
+}
+
+.status-action.armed {
+  border-color: var(--shell-accent);
+  background: color-mix(in srgb, var(--shell-accent) 16%, var(--shell-raised));
+  color: var(--shell-text-strong);
+}
+
+.create-toggle {
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1.5px dashed var(--shell-border-strong);
+  background: none;
+  color: var(--shell-accent);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-toggle:hover {
+  border-color: var(--shell-accent);
+  background: color-mix(in srgb, var(--shell-accent) 8%, var(--shell-card));
+}
+
+.create-form {
+  margin-top: 16px;
+  text-align: start;
+}
+
+.create-form label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--shell-accent);
+  margin: 12px 0 6px;
+}
+
+.create-form input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--field-bg);
+  border: 1.5px solid var(--field-border);
+  border-radius: 10px;
+  color: var(--field-text);
+  padding: 12px 13px;
+  font-size: 15px;
+}
+
+.create-form input:focus {
+  outline: none;
+  border-color: var(--field-border-focus);
+}
+
+.create-error {
+  background: color-mix(in srgb, var(--shell-error) 12%, var(--shell-card));
+  border: 1px solid var(--shell-error);
+  color: var(--shell-error);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin: 12px 0 0;
+}
+
+.created-box {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--shell-accent);
+  background: color-mix(in srgb, var(--shell-accent) 8%, var(--shell-card));
+  text-align: start;
+}
+
+.created-title {
+  font-weight: 700;
+  color: var(--shell-text-strong);
+  margin: 0 0 10px;
+}
+
+.created-code-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--shell-accent);
+  margin: 0 0 6px;
+}
+
+.created-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.created-code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  direction: ltr;
+  background: var(--field-bg);
+  color: var(--field-text);
+  border: 1.5px solid var(--field-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.copy-btn {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  background: linear-gradient(135deg, var(--shell-accent-flat) 0%, var(--shell-accent-flat-deep) 100%);
+  color: var(--shell-on-accent);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.created-warning {
+  font-size: 13px;
+  color: var(--shell-warning);
+  margin: 10px 0 0;
+}
+
+.created-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.primary-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, var(--shell-accent-flat) 0%, var(--shell-accent-flat-deep) 100%);
+  color: var(--shell-on-accent);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.primary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ghost-btn {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1.5px solid var(--shell-border);
+  background: none;
+  color: var(--shell-text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 @media (max-width: 520px) {
   .selector-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
+  }
+
+  .selector-row {
+    flex-direction: column;
+  }
+
+  .status-action {
+    padding: 10px;
   }
 }
 </style>
