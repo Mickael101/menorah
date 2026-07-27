@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import donationsRouter from './routes/donations';
-import statsRouter from './routes/stats';
-import configRouter from './routes/config';
+import { createDonationsRouter } from './routes/donations';
+import { createStatsRouter } from './routes/stats';
+import { createConfigRouter } from './routes/config';
 import gifsRouter from './routes/gifs';
 import adminRouter from './routes/admin';
+import eventsRouter from './routes/events';
+import { legacyEventContext, paramEventContext } from './routes/event-context';
 import { uploadsRoot } from './config/storage';
 import { resolveActiveEvent } from './middleware/resolve-event';
 
@@ -25,13 +27,26 @@ export function createApp(): express.Express {
   app.use('/uploads', express.static(uploadsRoot));
   app.use(express.static(publicPath));
 
-  // Routes heritees : meme URL, meme forme de reponse, resolues sur la soiree
-  // active. /api/admin en est exclu a dessein : il sert le fichier de base
-  // entier, qui contient TOUTES les soirees, et reste au niveau organisateur.
-  app.use('/api/donations', resolveActiveEvent, donationsRouter);
-  app.use('/api/stats', resolveActiveEvent, statsRouter);
-  app.use('/api/config', resolveActiveEvent, configRouter);
+  // Routes de gestion des soirees. Montee AVANT les routes de ressources
+  // prefixees : les chemins /api/events/:eventId/<ressource> ne matchent aucune
+  // route de ce routeur, ils retombent donc sur les montages prefixes suivants.
+  app.use('/api/events', eventsRouter);
+
+  // Routes de RESSOURCES, montees deux fois a partir du meme corps :
+  //   - herite  (/api/donations...)          resolu sur la soiree ACTIVE ;
+  //   - prefixe (/api/events/:eventId/...)    resolu sur la soiree NOMMEE.
+  // Meme forme de reponse des deux cotes : c'est la condition de migration du
+  // frontend. /api/admin en est exclu a dessein : il sert le fichier de base
+  // entier (TOUTES les soirees) et reste au niveau organisateur.
+  app.use('/api/donations', createDonationsRouter(legacyEventContext));
+  app.use('/api/stats', createStatsRouter(legacyEventContext));
+  app.use('/api/config', createConfigRouter(legacyEventContext));
   app.use('/api/gifs', resolveActiveEvent, gifsRouter);
+
+  app.use('/api/events/:eventId/donations', createDonationsRouter(paramEventContext));
+  app.use('/api/events/:eventId/stats', createStatsRouter(paramEventContext));
+  app.use('/api/events/:eventId/config', createConfigRouter(paramEventContext));
+
   app.use('/api/admin', adminRouter);
 
   app.get('/api/health', (_req, res) => {

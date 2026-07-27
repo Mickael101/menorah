@@ -3,11 +3,11 @@ import { donationService } from '../services/donation.service';
 import { socketService } from '../services/socket.service';
 import { validateCreateRequest, validateUpdateRequest, toPublicDonation } from '../models/donation';
 import { PREMIUM_TIERS } from '../models/types';
-import { requireAdmin } from '../middleware/admin-auth';
+import { requireEventAdmin } from '../middleware/admin-auth';
 import { requestEventId } from '../middleware/resolve-event';
 import { rateLimit } from '../middleware/rate-limit';
-
-const router = Router();
+import { UnknownEventError } from '../services/event.service';
+import { EventRouteContext } from './event-context';
 
 // Public self-service page posts here: keep it open but throttled
 const createLimiter = rateLimit(10, 10 * 60 * 1000);
@@ -29,179 +29,201 @@ function csvCell(value: unknown): string {
   return `"${sanitizeSpreadsheetValue(value).replace(/"/g, '""')}"`;
 }
 
-// GET /api/donations/premium-words - Get premium words with availability
-router.get('/premium-words', (req: Request, res: Response) => {
-  try {
-    const words = donationService.getPremiumWords(requestEventId(req));
-    res.json({ words, tiers: PREMIUM_TIERS });
-  } catch (error) {
-    console.error('Error fetching premium words:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET /api/donations/export.csv - Download a read-only UTF-8 export.
-// This route must stay before /:id so "export.csv" is not parsed as an ID.
-router.get('/export.csv', requireAdmin, (req: Request, res: Response) => {
-  try {
-    const requestedLocale = req.query.lang;
-    const locale: CsvLocale = requestedLocale === 'en' || requestedLocale === 'he'
-      ? requestedLocale
-      : 'fr';
-    const rows = donationService.getAll(requestEventId(req)).map(donation => [
-      donation.id,
-      donation.firstName,
-      donation.lastName,
-      donation.email,
-      donation.phone,
-      (donation.amount / 100).toFixed(2),
-      donation.reference,
-      donation.premiumWordId,
-      donation.createdAt,
-      donation.updatedAt
-    ]);
-    const csv = [CSV_HEADERS[locale], ...rows]
-      .map(row => row.map(csvCell).join(';'))
-      .join('\r\n');
-    const date = new Date().toISOString().slice(0, 10);
-
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="donations-${date}.csv"`);
-    res.setHeader('Cache-Control', 'no-store');
-    res.send(`\uFEFF${csv}`);
-  } catch (error) {
-    console.error('Error exporting donations:', error);
-    res.status(500).json({ error: 'Failed to export donations' });
-  }
-});
-
 // Le payload complet (email, telephone, reference) est une demande explicite.
 const wantsFullPayload = (req: Request): boolean => req.query.full === '1';
 
-// GET /api/donations - liste depouillee par defaut (l'ecran public en depend).
-// GET /api/donations?full=1 - payload complet, reserve a l'admin.
-// Le depouillement etant le comportement par defaut, un oubli de garde
-// echoue ferme : on n'expose jamais de donnee personnelle par accident.
-router.get('/', (req: Request, res: Response, next: NextFunction) => {
-  if (wantsFullPayload(req)) {
-    requireAdmin(req, res, next);
-    return;
-  }
-  next();
-}, (req: Request, res: Response) => {
-  try {
-    const eventId = requestEventId(req);
-    const donations = donationService.getAll(eventId);
-    const stats = donationService.getStats(eventId);
+export function createDonationsRouter(ctx: EventRouteContext): Router {
+  const router = Router({ mergeParams: true });
+  const requireAdminOfEvent = requireEventAdmin(ctx.getTargetEventId);
 
-    res.json({
-      donations: wantsFullPayload(req) ? donations : donations.map(toPublicDonation),
-      stats
-    });
-  } catch (error) {
-    console.error('Error fetching donations:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET /api/donations/:id - Get donation by ID
-router.get('/:id', requireAdmin, (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid ID' });
-    }
-
-    const donation = donationService.getById(requestEventId(req), id);
-    if (!donation) {
-      return res.status(404).json({ error: 'Donation not found' });
-    }
-
-    res.json(donation);
-  } catch (error) {
-    console.error('Error fetching donation:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// POST /api/donations - Create donation (public, rate-limited)
-router.post('/', createLimiter, (req: Request, res: Response) => {
-  try {
-    const eventId = requestEventId(req);
-    const data = validateCreateRequest(req.body);
-    const donation = donationService.create(eventId, data);
-    const stats = donationService.getStats(eventId);
-
-    // Emit real-time event
-    socketService.emitDonationNew(eventId, donation, stats);
-
-    res.status(201).json({ donation, stats });
-  } catch (error) {
-    console.error('Error creating donation:', error);
-    if (error instanceof Error) {
-      res.status(400).json({ error: error.message });
-    } else {
+  // GET /donations/premium-words - mots premium avec disponibilite (public)
+  router.get('/premium-words', ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const words = donationService.getPremiumWords(requestEventId(req));
+      res.json({ words, tiers: PREMIUM_TIERS });
+    } catch (error) {
+      console.error('Error fetching premium words:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
-});
+  });
 
-// PUT /api/donations/:id - Update donation (admin only)
-router.put('/:id', requireAdmin, (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid ID' });
+  // GET /donations/export.csv - export UTF-8 (admin de la soiree).
+  // Doit rester avant /:id pour que "export.csv" ne soit pas lu comme un ID.
+  // L'auth passe AVANT la resolution de soiree : sans jeton et sans soiree
+  // active, la reponse est 401 (defaut d'authentification), pas 503 (defaut de
+  // configuration) — le 503 masquait le 401.
+  router.get('/export.csv', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const requestedLocale = req.query.lang;
+      const locale: CsvLocale = requestedLocale === 'en' || requestedLocale === 'he'
+        ? requestedLocale
+        : 'fr';
+      const rows = donationService.getAll(requestEventId(req)).map(donation => [
+        donation.id,
+        donation.firstName,
+        donation.lastName,
+        donation.email,
+        donation.phone,
+        (donation.amount / 100).toFixed(2),
+        donation.reference,
+        donation.premiumWordId,
+        donation.createdAt,
+        donation.updatedAt
+      ]);
+      const csv = [CSV_HEADERS[locale], ...rows]
+        .map(row => row.map(csvCell).join(';'))
+        .join('\r\n');
+      const date = new Date().toISOString().slice(0, 10);
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="donations-${date}.csv"`);
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(`\uFEFF${csv}`);
+    } catch (error) {
+      console.error('Error exporting donations:', error);
+      res.status(500).json({ error: 'Failed to export donations' });
     }
+  });
 
-    const eventId = requestEventId(req);
-    const data = validateUpdateRequest(req.body);
-    const donation = donationService.update(eventId, id, data);
+  // GET /donations - liste depouillee par defaut (l'ecran public en depend).
+  // GET /donations?full=1 - payload complet, reserve a l'admin de la soiree.
+  // L'auth de ?full=1 passe avant la resolution : le depouillement etant le
+  // defaut, un oubli de garde echoue ferme, on n'expose jamais de donnee
+  // personnelle par accident.
+  router.get(
+    '/',
+    (req: Request, res: Response, next: NextFunction) => {
+      if (wantsFullPayload(req)) {
+        requireAdminOfEvent(req, res, next);
+        return;
+      }
+      next();
+    },
+    ctx.resolveEvent,
+    (req: Request, res: Response) => {
+      try {
+        const eventId = requestEventId(req);
+        const donations = donationService.getAll(eventId);
+        const stats = donationService.getStats(eventId);
 
-    if (!donation) {
-      return res.status(404).json({ error: 'Donation not found' });
+        res.json({
+          donations: wantsFullPayload(req) ? donations : donations.map(toPublicDonation),
+          stats
+        });
+      } catch (error) {
+        if (error instanceof UnknownEventError) {
+          return res.status(404).json({ error: 'Event not found' });
+        }
+        console.error('Error fetching donations:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
     }
+  );
 
-    const stats = donationService.getStats(eventId);
+  // GET /donations/:id - un don complet (admin de la soiree)
+  router.get('/:id', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid ID' });
+      }
 
-    // Emit real-time event
-    socketService.emitDonationUpdated(eventId, donation, stats);
+      const donation = donationService.getById(requestEventId(req), id);
+      if (!donation) {
+        return res.status(404).json({ error: 'Donation not found' });
+      }
 
-    res.json({ donation, stats });
-  } catch (error) {
-    console.error('Error updating donation:', error);
-    if (error instanceof Error) {
-      res.status(400).json({ error: error.message });
-    } else {
+      res.json(donation);
+    } catch (error) {
+      console.error('Error fetching donation:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
-  }
-});
+  });
 
-// DELETE /api/donations/:id - Delete donation (admin only)
-router.delete('/:id', requireAdmin, (req: Request, res: Response) => {
-  try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid ID' });
+  // POST /donations - creation publique, limitee. resolveEvent d'abord : la
+  // soiree doit exister pour recevoir le don, et sa cle sert au rate-limit.
+  router.post('/', ctx.resolveEvent, createLimiter, (req: Request, res: Response) => {
+    try {
+      const eventId = requestEventId(req);
+      const data = validateCreateRequest(req.body);
+      const donation = donationService.create(eventId, data);
+      const stats = donationService.getStats(eventId);
+
+      socketService.emitDonationNew(eventId, donation, stats);
+
+      res.status(201).json({ donation, stats });
+    } catch (error) {
+      console.error('Error creating donation:', error);
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Internal server error' });
+      }
     }
+  });
 
-    const eventId = requestEventId(req);
-    const donation = donationService.delete(eventId, id);
-    if (!donation) {
-      return res.status(404).json({ error: 'Donation not found' });
+  // PUT /donations/:id - modification (admin de la soiree)
+  router.put('/:id', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid ID' });
+      }
+
+      const eventId = requestEventId(req);
+      // C9 : le montant courant est passe a la validation. Sans lui, modifier
+      // premium_word_id sans renvoyer amount ferait retomber le montant a 0,
+      // et getPremiumLevel(0) effacerait silencieusement le mot sacre.
+      const existing = donationService.getById(eventId, id);
+      if (!existing) {
+        return res.status(404).json({ error: 'Donation not found' });
+      }
+      const data = validateUpdateRequest(req.body, existing.amount);
+      const donation = donationService.update(eventId, id, data);
+
+      if (!donation) {
+        return res.status(404).json({ error: 'Donation not found' });
+      }
+
+      const stats = donationService.getStats(eventId);
+
+      socketService.emitDonationUpdated(eventId, donation, stats);
+
+      res.json({ donation, stats });
+    } catch (error) {
+      console.error('Error updating donation:', error);
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: 'Internal server error' });
+      }
     }
+  });
 
-    const stats = donationService.getStats(eventId);
+  // DELETE /donations/:id - suppression (admin de la soiree)
+  router.delete('/:id', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Invalid ID' });
+      }
 
-    // Emit real-time event
-    socketService.emitDonationDeleted(eventId, id, stats);
+      const eventId = requestEventId(req);
+      const donation = donationService.delete(eventId, id);
+      if (!donation) {
+        return res.status(404).json({ error: 'Donation not found' });
+      }
 
-    res.json({ donation, stats });
-  } catch (error) {
-    console.error('Error deleting donation:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+      const stats = donationService.getStats(eventId);
 
-export default router;
+      socketService.emitDonationDeleted(eventId, id, stats);
+
+      res.json({ donation, stats });
+    } catch (error) {
+      console.error('Error deleting donation:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  return router;
+}

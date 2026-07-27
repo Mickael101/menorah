@@ -1,6 +1,6 @@
-import { getDb } from '../db/init';
+import { getDb, saveDatabase } from '../db/init';
 import { EventRecord } from '../models/types';
-import { EventRow, rowToEvent } from '../models/event';
+import { EventRow, rowToEvent, CreateEventInput } from '../models/event';
 import { verifyAdminCode } from '../middleware/admin-code';
 
 export interface ActiveEventResolution {
@@ -21,6 +21,19 @@ export class UnknownEventError extends Error {
     super(`Soiree inconnue : ${eventId}`);
     this.name = 'UnknownEventError';
     this.eventId = eventId;
+  }
+}
+
+// Le slug est la clef publique de l'URL /e/<slug> : deux soirees ne peuvent pas
+// le partager. Distincte d'une erreur de validation pour que la route reponde
+// 409 (conflit) et non 400 (requete malformee).
+export class SlugTakenError extends Error {
+  readonly slug: string;
+
+  constructor(slug: string) {
+    super(`Slug deja utilise : ${slug}`);
+    this.name = 'SlugTakenError';
+    this.slug = slug;
   }
 }
 
@@ -93,6 +106,83 @@ class EventService {
     }
     const value = rows[0].values[0][0];
     return typeof value === 'string' ? value : null;
+  }
+
+  // Slug deja pris : distincte des erreurs de validation pour que la route
+  // reponde 409 plutot que 400. La contrainte UNIQUE en base la leve aussi,
+  // mais un controle prealable rend le message clair au lieu d'une erreur SQL.
+  create(input: CreateEventInput, adminCodeHash: string | null): EventRecord {
+    if (this.getBySlug(input.slug) !== null) {
+      throw new SlugTakenError(input.slug);
+    }
+
+    const db = getDb();
+    db.run(
+      `INSERT INTO events (slug, name, status, admin_code_hash, logo_url, default_locale, currency)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [input.slug, input.name, input.status, adminCodeHash, input.logoUrl, input.defaultLocale, input.currency]
+    );
+    const id = db.exec('SELECT last_insert_rowid()')[0].values[0][0] as number;
+    saveDatabase();
+
+    const created = this.getById(id);
+    if (!created) {
+      throw new Error('Failed to create event');
+    }
+    return created;
+  }
+
+  updateEvent(eventId: number, patch: Partial<CreateEventInput>): EventRecord | null {
+    if (this.getById(eventId) === null) {
+      return null;
+    }
+
+    if (patch.slug !== undefined) {
+      const holder = this.getBySlug(patch.slug);
+      if (holder !== null && holder.id !== eventId) {
+        throw new SlugTakenError(patch.slug);
+      }
+    }
+
+    const updates: string[] = [];
+    const values: (string | number | null)[] = [];
+    const column: Record<keyof CreateEventInput, string> = {
+      slug: 'slug',
+      name: 'name',
+      status: 'status',
+      logoUrl: 'logo_url',
+      defaultLocale: 'default_locale',
+      currency: 'currency'
+    };
+
+    for (const key of Object.keys(patch) as (keyof CreateEventInput)[]) {
+      updates.push(`${column[key]} = ?`);
+      values.push(patch[key] as string | null);
+    }
+
+    // archived_at suit le statut : renseigne a l'archivage, efface au retour en
+    // brouillon ou en activite, pour que la colonne ne mente jamais sur l'etat.
+    if (patch.status !== undefined) {
+      updates.push(patch.status === 'archived' ? "archived_at = datetime('now')" : 'archived_at = NULL');
+    }
+
+    if (updates.length > 0) {
+      const db = getDb();
+      db.run(`UPDATE events SET ${updates.join(', ')} WHERE id = ?`, [...values, eventId]);
+      saveDatabase();
+    }
+
+    return this.getById(eventId);
+  }
+
+  setAdminCodeHash(eventId: number, adminCodeHash: string): boolean {
+    if (this.getById(eventId) === null) {
+      return false;
+    }
+    const db = getDb();
+    db.run('UPDATE events SET admin_code_hash = ? WHERE id = ?', [adminCodeHash, eventId]);
+    saveDatabase();
+    return true;
   }
 
   private queryOne(sql: string, params: (string | number)[]): EventRecord | null {

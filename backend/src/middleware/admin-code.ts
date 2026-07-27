@@ -21,6 +21,13 @@ const P = 1;
 const KEY_LENGTH = 32;
 const SALT_LENGTH = 16;
 
+// Un code en clair pour une nouvelle soiree. base64url : lisible, transmissible
+// oralement sans ambiguite de casse hasardeuse, et sans caractere a echapper
+// dans une URL. Renvoye UNE seule fois par la route de creation, jamais stocke.
+export function generateAdminCode(): string {
+  return randomBytes(9).toString('base64url');
+}
+
 export function hashAdminCode(code: string): string {
   const salt = randomBytes(SALT_LENGTH);
   const derived = scryptSync(code, salt, KEY_LENGTH, { N, r: R, p: P });

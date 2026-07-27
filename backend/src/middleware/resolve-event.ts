@@ -31,9 +31,23 @@ export function resolveActiveEvent(req: Request, res: Response, next: NextFuncti
   next();
 }
 
+// Routes prefixees /api/events/:eventId/... : la soiree est nommee dans l'URL.
+// Un identifiant inexistant renvoie 404 SEC, jamais un repli sur une autre
+// soiree (qui afficherait les dons de A sur l'ecran de B) ni le message interne
+// d'implementation. Requiert mergeParams sur le routeur pour voir :eventId.
+export function resolveParamEvent(req: Request, res: Response, next: NextFunction): void {
+  const id = Number(req.params.eventId);
+  if (!Number.isInteger(id) || id <= 0 || eventService.getById(id) === null) {
+    res.status(404).json({ error: 'Event not found' });
+    return;
+  }
+  req.eventId = id;
+  next();
+}
+
 export function requestEventId(req: Request): number {
   if (req.eventId === undefined) {
-    throw new Error('resolveActiveEvent n a pas ete monte devant cette route');
+    throw new Error('la soiree n a pas ete resolue devant cette route');
   }
   return req.eventId;
 }
