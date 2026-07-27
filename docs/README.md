@@ -1,6 +1,6 @@
 # Documentation menorah — point d'entrée unique
 
-Vérifié le **2026-07-27** contre le code à `099918c` (branche `feat/admin-navy-or`).
+Vérifié le **2026-07-28** contre la branche `fix/revue-multi-soirees-2026-07-28` (revue post-sprint + exemption d'autorité du rate-limit).
 
 ---
 
@@ -29,7 +29,7 @@ Vérifié le **2026-07-27** contre le code à `099918c` (branche `feat/admin-nav
 | Document | Sujet | Vérifié le |
 |---|---|---|
 | [`architecture.md`](architecture.md) | Stack réelle, modules, points d'entrée, routage multi-soirées frontend, code mort | 2026-07-27 |
-| [`api-et-socket.md`](api-et-socket.md) | Tous les endpoints HTTP et événements Socket.IO, avec leur garde | 2026-07-27 |
+| [`api-et-socket.md`](api-et-socket.md) | Tous les endpoints HTTP et événements Socket.IO, avec leur garde | 2026-07-28 |
 | [`donnees-et-migrations.md`](donnees-et-migrations.md) | Schéma des tables, migrations, sauvegardes | 2026-07-27 |
 | [`deploiement.md`](deploiement.md) | Railway, `railway up`, variables d'environnement, volume | 2026-07-27 |
 | [`tests.md`](tests.md) | Comment lancer le gate, et les pièges qui rendent le vert menteur | 2026-07-27 |

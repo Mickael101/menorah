@@ -50,7 +50,7 @@ réponse. « admin » = organisateur **ou** admin de la soirée résolue.
 | GET `/api/donations` | public | liste **dépouillée** via `toPublicDonation` + stats |
 | GET `/api/donations?full=1` | **admin** | payload complet : email, téléphone, référence |
 | GET `/api/donations/:id` | **admin** | un don complet |
-| POST `/api/donations` | public + **rate-limit 10 / 10 min / IP** | création publique (`/don`) + diffusion socket |
+| POST `/api/donations` | public + **rate-limit 10 / 10 min / IP (global, toutes soirées)** ; une **autorité admin réelle est exemptée** (vérifiée seulement au-delà du plafond, échecs bornés à 30/IP/fenêtre — l'opérateur en rafale et la salle sur un même wifi ne se bloquent plus) | création publique (`/don`) + saisie opérateur + diffusion socket |
 | PUT `/api/donations/:id` | **admin** | modification (passe `currentAmount` à la validation, C9) + diffusion socket |
 | DELETE `/api/donations/:id` | **admin** | suppression + diffusion socket |
 | GET `/api/stats` | public | total, nombre, pourcentage, segments allumés |
@@ -191,5 +191,5 @@ Prouvé par `tests/security/socket-pii.test.ts` : un vrai serveur, un vrai clien
 | D | **CORRIGÉ (E3, C10)** — frontière de chemin réelle (`path.relative`, `middleware/path-boundary.ts`) sur les suppressions GIF/audio, plus de préfixe de chaîne | `routes/gifs.ts` |
 | G | **CORRIGÉ (E3, B4)** — GIF, audio, SVG et associations cloisonnés par soirée via la table `media` ; inventaire des fichiers existants par migration | `services/media.service.ts`, `db/migrations.ts` |
 | H | **CORRIGÉ des deux côtés (C8)** — HTTP (`app.ts`, défaut `'*'`) et socket (`socket.service.ts`, défaut localhost inchangé) lisent la MÊME variable `CORS_ORIGIN` (liste séparée par virgules) | `app.ts`, `socket.service.ts` |
-| I | **CORRIGÉ partiellement (E3, B6)** — clé de rate-limit IP **+ soirée**. Reste en mémoire mono-instance et `x-forwarded-for` non validé, aucun `trust proxy` Express (hors périmètre du sprint) | `middleware/rate-limit.ts` |
+| I | **RE-CORRIGÉ (revue 2026-07-28)** — la clé IP+soirée (B6) multipliait le plafond par le nombre de soirées atteignables : retour à la clé **IP seule, globale**. En compensation, **exemption d'autorité différée** : au-delà du plafond seulement, un jeton organisateur ou un code de la soirée ciblée passe sans consommer le quota ; les jetons refusés sont bornés à 30 scrypt/IP/fenêtre (anti-amplification). Reste en mémoire mono-instance et `x-forwarded-for` non validé, aucun `trust proxy` Express (résidu assumé — une IP usurpée obtient quota et budget d'échecs neufs) | `middleware/rate-limit.ts`, `routes/donations.ts` |
 | L | `GET /api/admin/backup.db` livre la base **entière, toutes soirées** — incompatible avec un futur multi-locataire | `routes/admin.ts:34` |

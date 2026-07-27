@@ -3,14 +3,48 @@ import { donationService } from '../services/donation.service';
 import { socketService } from '../services/socket.service';
 import { validateCreateRequest, validateUpdateRequest, toPublicDonation } from '../models/donation';
 import { PREMIUM_TIERS } from '../models/types';
-import { requireEventAdmin } from '../middleware/admin-auth';
+import { eventAdminGrant, hasProvidedAdminToken, requireEventAdmin } from '../middleware/admin-auth';
 import { requestEventId, requireActiveOrAdmin } from '../middleware/resolve-event';
-import { rateLimit } from '../middleware/rate-limit';
+import { rateLimit, OverLimitVerdict } from '../middleware/rate-limit';
 import { UnknownEventError } from '../services/event.service';
 import { EventRouteContext } from './event-context';
 
-// Public self-service page posts here: keep it open but throttled
-const createLimiter = rateLimit(10, 10 * 60 * 1000);
+// Public self-service page posts here: keep it open but throttled.
+//
+// Le plafond vise le don PUBLIC. L'OPERATEUR de la soiree, lui, saisit les dons
+// en rafale depuis le panneau admin : au 11e il se retrouvait a 429, et une
+// salle entiere derriere un wifi partage ne presente qu'UNE seule IP. Une
+// requete qui porte une autorite REELLE (organisateur, ou admin de la soiree
+// ciblee) est donc exemptee du plafond.
+//
+// L'exemption est DIFFEREE : le contournement n'est consulte qu'une fois le
+// plafond atteint (voir rate-limit.ts). Verifier une autorite peut derouler un
+// scrypt ; le faire d'emblee sur ce chemin public ferait de n'importe quel jeton
+// bidon un amplificateur de charge. Sous le plafond, personne ne paie rien.
+const createLimiter = rateLimit(10, 10 * 60 * 1000, {
+  overLimitBypass: (req: Request): OverLimitVerdict => {
+    // Aucun jeton : c'est du trafic public, il n'y a rien a verifier et rien a
+    // reprocher. 'no-claim' pour ne pas entamer le budget d'echecs — sinon une
+    // rafale de donateurs de la salle verrouillerait le contournement de
+    // l'operateur, qui partage leur IP.
+    if (!hasProvidedAdminToken(req)) {
+      return 'no-claim';
+    }
+    // req.eventId est pose par ctx.resolveEvent, monte AVANT le limiteur.
+    const grant = eventAdminGrant(req, () => req.eventId ?? null);
+    if (grant === 'organizer' || grant === 'event-admin') {
+      return 'grant';
+    }
+    // Aucun secret d'environnement : c'est une politique de developpement, pas
+    // une attaque. Le plafond continue de s'appliquer, sans rien compter.
+    if (grant === 'unconfigured') {
+      return 'no-claim';
+    }
+    // Autorite pretendue et refusee : la seule voie qui a pu couter un scrypt,
+    // donc la seule que le budget d'echecs doit borner.
+    return 'deny';
+  }
+});
 
 type CsvLocale = 'fr' | 'en' | 'he';
 
@@ -147,6 +181,13 @@ export function createDonationsRouter(ctx: EventRouteContext): Router {
   // evite qu'un jeton bidon envoye en boucle sur ce chemin PUBLIC ne devienne un
   // amplificateur de charge. Un don public vers une soiree non-active est refuse
   // (403), un don saisi par un admin authentifie passe.
+  //
+  // L'ordre limiteur-avant-garde tient toujours : l'autorite n'est verifiee
+  // qu'AU-DELA du plafond (createLimiter ci-dessus), et le nombre de
+  // verifications refusees y est lui-meme borne par fenetre et par IP.
+  // requireActiveOrAdmin reste APRES, inchange : il repond a une autre question
+  // (cette soiree accueille-t-elle ce don ?) et refait son propre controle. Deux
+  // gardes independantes, chacune lisible seule — on ne mutualise pas.
   router.post('/', ctx.resolveEvent, createLimiter, requireActiveOrAdmin, (req: Request, res: Response) => {
     try {
       const eventId = requestEventId(req);

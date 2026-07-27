@@ -30,6 +30,16 @@ function providedToken(req: Request): string {
     || (typeof req.query.token === 'string' ? req.query.token : '');
 }
 
+// La requete PRETEND-elle a une autorite ? Question volontairement SANS cout :
+// ni base, ni scrypt, seulement la presence du jeton. Le limiteur de dons s'en
+// sert pour distinguer, au-dela du plafond, une rafale PUBLIQUE (rien a
+// verifier, donc rien a reprocher) d'une tentative de contournement (qui, elle,
+// merite d'etre comptee). Ne dit rien de la VALIDITE du jeton : c'est le role de
+// eventAdminGrant, et lui coute cher.
+export function hasProvidedAdminToken(req: Request): boolean {
+  return providedToken(req) !== '';
+}
+
 function isOrganizer(provided: string, secrets: EnvSecrets): boolean {
   if (!provided) {
     return false;
