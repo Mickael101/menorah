@@ -152,8 +152,20 @@ export function validateUpdateRequest(data: unknown, currentAmount?: number): Up
   }
 
   if (req.premiumWordId !== undefined) {
-    const amount = result.amount || currentAmount || 0;
-    result.premiumWordId = validatePremiumWordId(req.premiumWordId, amount) || undefined;
+    // Le mot sacre depend du palier, donc du MONTANT. Sans montant a comparer —
+    // ni renvoye dans cette requete (result.amount), ni fourni par l appelant
+    // (currentAmount) — le mot ne peut pas etre valide : on laisse alors le
+    // champ INCHANGE plutot que de le valider contre un montant de zero.
+    // L ancienne forme `result.amount || currentAmount || 0` faisait retomber le
+    // montant a 0 des qu il etait absent, si bien que validatePremiumWordId
+    // rendait null. La route heritee appelle validateUpdateRequest(req.body)
+    // SANS currentAmount (routes/donations.ts) : le garde-fou doit donc vivre
+    // ici, cote modele, pour qu un montant absent ne puisse jamais effacer un
+    // mot sacre deja valide.
+    const amount = result.amount ?? currentAmount;
+    if (amount !== undefined) {
+      result.premiumWordId = validatePremiumWordId(req.premiumWordId, amount) || undefined;
+    }
   }
 
   return result;

@@ -1,6 +1,7 @@
 import { Server as SocketServer } from 'socket.io';
 import { Server } from 'http';
 import { Donation, DonationStats, Config } from '../models/types';
+import { toPublicDonation } from '../models/donation';
 import { eventService } from './event.service';
 
 // Une soiree, une room. Le format est un contrat partage avec le client :
@@ -11,6 +12,25 @@ export function eventRoom(eventId: number): string {
 }
 
 const ROOM_PATTERN = /^event:\d+$/;
+
+// CORS du socket. Une seule variable, CORS_ORIGIN, partagee avec le HTTP
+// (app.ts) : liste d origines separees par des virgules. Non definie, le
+// comportement reste EXACTEMENT celui d avant — les deux origines de
+// developpement — pour ne rien regresser sur les ecrans en production, qui
+// servent depuis la meme origine. `*` seul autorise toutes les origines.
+const DEFAULT_SOCKET_CORS_ORIGINS = ['http://localhost:5173', 'http://localhost:3000'];
+
+export function socketCorsOrigin(): string | string[] {
+  const raw = process.env.CORS_ORIGIN?.trim();
+  if (!raw) {
+    return DEFAULT_SOCKET_CORS_ORIGINS;
+  }
+  const list = raw.split(',').map((origin) => origin.trim()).filter((origin) => origin.length > 0);
+  if (list.length === 0) {
+    return DEFAULT_SOCKET_CORS_ORIGINS;
+  }
+  return list.length === 1 && list[0] === '*' ? '*' : list;
+}
 
 // Abonne d'office un nouveau client a la soiree active.
 //
@@ -50,7 +70,7 @@ class SocketService {
   init(server: Server): void {
     this.io = new SocketServer(server, {
       cors: {
-        origin: ['http://localhost:5173', 'http://localhost:3000'],
+        origin: socketCorsOrigin(),
         methods: ['GET', 'POST']
       }
     });
@@ -121,20 +141,28 @@ class SocketService {
     }
   }
 
-  // Emit new donation event
+  // Emit new donation event.
+  //
+  // La room est recue par six pages PUBLIQUES : on n'y diffuse que la projection
+  // publique (nom et montant, projetes sur le mur), jamais email, telephone ni
+  // reference. Le meme depouillement protege deja la voie HTTP (toPublicDonation
+  // dans routes/donations.ts) ; la voie temps reel etait restee ouverte.
+  // L'administration, qui a besoin du payload complet, recharge par sa route
+  // authentifiee GET /api/donations?full=1 dans le handler qui fait deja un
+  // aller-retour.
   emitDonationNew(eventId: number, donation: Donation, stats: DonationStats): void {
     this.io?.to(eventRoom(eventId)).emit('donation:new', {
       type: 'donation:new',
-      donation,
+      donation: toPublicDonation(donation),
       stats
     });
   }
 
-  // Emit donation updated event
+  // Emit donation updated event. Meme projection publique que donation:new.
   emitDonationUpdated(eventId: number, donation: Donation, stats: DonationStats): void {
     this.io?.to(eventRoom(eventId)).emit('donation:updated', {
       type: 'donation:updated',
-      donation,
+      donation: toPublicDonation(donation),
       stats
     });
   }
