@@ -112,7 +112,7 @@ vague 2). INTERDITS : tout le reste.
 Périmètre : `frontend/src/router.ts`, `frontend/src/pages/**` (hors Display*),
 `frontend/src/composables/**`, nouveaux composants de connexion/sélecteur.
 
-- [ ] F1. B3 — routes `/e/:slug/{admin,display,don,display-light,display-hidden}` ; les six
+- [x] F1. B3 — routes `/e/:slug/{admin,display,don,display-light,display-hidden}` ; les six
       URL héritées redirigent/résolvent sur la soirée active ; `window.prompt` remplacé par
       un écran de connexion (erreur explicite, soirée nommée) ; `/admin` organisateur =
       sélecteur de soirée ; le socket `join` la room de la soirée résolue.
@@ -199,6 +199,18 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 - `f6f9572` — merge `sprint/events` dans master. Seul conflit : `docs/api-et-socket.md`
   (S et EB), résolu en fusionnant réfutation mesurée de C + corrections E2/E3. Gate rejoué :
   130/130 backend (23 fichiers), typecheck et build frontend verts — aucune couture cassée.
+- `9a2c0ec` / `b963b33` — F1 (front FE). Routes préfixées + héritées, `useEventContext`
+  (404 propre sur slug inconnu, jamais de repli), `AdminLogin.vue` (401 vs 403, soirée
+  nommée), jeton par soirée (`menorah_admin_token:<id>`), `EventSelector` organisateur,
+  `join` re-émis à la reconnexion. **Décision de couture VALIDÉE** : portée ambiante
+  (`scopedEventId` + réécriture d'URL dans `adminFetch`) au lieu d'un paramètre optionnel —
+  signatures byte-identiques (DD intact) et scoping automatique des enfants admin (dont le
+  panneau de TH) sans les toucher. Pas de paramètre explicite en plus (YAGNI). Preuve
+  d'isolation navigateur : don posté sur `/e/orot-netanel/don` → id2 seul incrémenté.
+  Reste documenté : câblage slug→display (5 points listés) = tranche O2 orchestrateur.
+- `f1d69b7` — merge `sprint/front-events`. Conflit `docs/architecture.md` (tables de routes
+  DD vs FE) résolu : table deux-familles de FE + encart fusion de DD. Gate rejoué :
+  130/130, typecheck, build verts.
 - `725a118` — D1 (front DD). Les 3 forks display deviennent des enveloppes ~10 lignes sur
   `DisplayScreen.vue` + `displayVariants.ts` (20 drapeaux, UN par contrôle divergent — les
   axes couleur or-vs-thème scindés en 3 drapeaux indépendants). `animations.ts` centralise
