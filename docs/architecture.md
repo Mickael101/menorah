@@ -73,7 +73,7 @@ sert l'admin, les écrans, l'API REST et le websocket.
 |---|---|
 | `pages/` | 6 vues — **5 routées, 1 orpheline** |
 | `components/admin/` | `DisplaySettingsPanel` (2439 l.), `DonationForm` (1253), `GifManager` (665), `ConfigPanel` (600), `DonationList` (565) |
-| `components/display/` | `MenorahDisplay`, `DonorPlate`/`DonorPlatesGrid`/`DonorPlateAnimation`, `CampaignVisual`, `StatsCompact` |
+| `components/display/` | `DisplayScreen` (écran générique unique, C3) + `displayVariants.ts` (3 adaptateurs) + `animations.ts` (tween rAF partagé, C4) ; `MenorahDisplay`, `DonorPlate`/`DonorPlatesGrid`/`DonorPlateAnimation`, `CampaignVisual`, `StatsCompact` |
 | `components/ui/` | `UiToast` |
 | `composables/` | `useDonations` (543 l., état + client API), `useSocket`, `useAdminAuth`, `useAdminI18n` (823), `useToast`, `useAudioPreview` |
 | `theme/displayThemes.ts` | Variables CSS dérivées de `displaySettings` |
@@ -87,9 +87,19 @@ sert l'admin, les écrans, l'API REST et le websocket.
 | `/admin` | `AdminPanel.vue` (1108 l.) | **admin** | 4 onglets : dons, images/sons, personnalisation, campagne |
 | `/don` | `DonorPledgePage.vue` (755 l.) | public | engagement libre-service, 3 langues |
 | `/donate` → `/don` | redirection | public | compatibilité des QR codes déjà imprimés |
-| `/display` | `DisplayPage.vue` (1165 l.) | public | écran principal |
-| `/display-light` | `DisplayPage8.vue` (252 l.) | public | variante LED géant, blanc chaud, police XXL |
-| `/display-hidden` | `DisplayHiddenPage.vue` (943 l.) | public | variante sans file d'attente de dons |
+| `/display` | `DisplayPage.vue` (wrapper) | public | écran principal — `MAIN_VARIANT` |
+| `/display-light` | `DisplayPage8.vue` (wrapper) | public | variante LED géant, police XXL — `LIGHT_VARIANT` |
+| `/display-hidden` | `DisplayHiddenPage.vue` (wrapper) | public | variante sans file d'attente de dons — `HIDDEN_VARIANT` |
+
+> **Trois forks fusionnés (C3, 2026-07-27).** Les trois `DisplayPage*.vue` (2 360 l. cumulées,
+> largement redondantes) sont désormais des **enveloppes minces** qui montent l'unique
+> `components/display/DisplayScreen.vue` avec l'un des trois descripteurs de
+> `displayVariants.ts`. Chaque contrôle divergent a SON drapeau (jamais un booléen pour une
+> paire) ; l'inventaire ligne-à-ligne et la preuve d'équivalence navigateur (avant/après,
+> 1440×900 + 390px) sont dans `docs/verif/sprint-2026-07-27/display-fusion/`. Seule
+> convergence visible : les variantes light/hidden lisent maintenant `config.texts` (source
+> unique) — la pastille de statut de hidden passe de « En direct » à la valeur configurée.
+> `router.ts` est inchangé (les routes pointent toujours sur les trois wrappers).
 
 > **Aucune garde de route côté routeur.** Toute la protection est côté API (`requireAdmin`).
 > Le jeton admin est demandé par `window.prompt` sur un 401 (`useAdminAuth.ts:27`).

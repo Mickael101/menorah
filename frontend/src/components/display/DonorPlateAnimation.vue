@@ -5,6 +5,7 @@ import type {
   DonationAnimationStyle,
   DisplayTextDirection
 } from '../../composables/useDonations';
+import { animateValue, easeOutQuart } from './animations';
 
 const props = withDefaults(defineProps<{
   donation: Donation | null;
@@ -32,7 +33,7 @@ const THRESHOLDS = {
 const displayedAmount = ref(0);
 let autoHideTimer: number | null = null;
 let amountDelayTimer: number | null = null;
-let amountAnimationFrame: number | null = null;
+let cancelAmount: (() => void) | null = null;
 
 const fullName = computed(() => {
   if (!props.donation) return '';
@@ -59,29 +60,23 @@ function formatAmount(cents: number): string {
 function clearAnimationTimers(): void {
   if (autoHideTimer !== null) window.clearTimeout(autoHideTimer);
   if (amountDelayTimer !== null) window.clearTimeout(amountDelayTimer);
-  if (amountAnimationFrame !== null) window.cancelAnimationFrame(amountAnimationFrame);
+  cancelAmount?.();
   autoHideTimer = null;
   amountDelayTimer = null;
-  amountAnimationFrame = null;
+  cancelAmount = null;
 }
 
+// Comptage anime du montant de la plaque. Tween centralise dans animations.ts
+// (easeOutQuart, 950 ms) ; le saut sous prefers-reduced-motion est conserve.
 function animateAmount(target: number): void {
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    displayedAmount.value = target;
-    return;
-  }
-
-  const duration = 950;
-  const startedAt = performance.now();
-
-  const update = (now: number) => {
-    const progress = Math.min((now - startedAt) / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 4);
-    displayedAmount.value = Math.round(target * eased);
-    if (progress < 1) amountAnimationFrame = window.requestAnimationFrame(update);
-  };
-
-  amountAnimationFrame = window.requestAnimationFrame(update);
+  cancelAmount?.();
+  cancelAmount = animateValue({
+    from: 0,
+    to: target,
+    duration: 950,
+    easing: easeOutQuart,
+    onUpdate: (value) => { displayedAmount.value = value; }
+  });
 }
 
 watch(
