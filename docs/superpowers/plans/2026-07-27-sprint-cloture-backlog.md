@@ -10,6 +10,8 @@ Si cette session est interrompue, reprendre ainsi :
    une case à ne pas croire.
 3. Ne recocher aucune case. Ne jamais écrire un SHA qui ne sort pas de `git log`.
 4. Gate de chaque commit : `cd backend && npm test` (**depuis `backend/`**, 63 tests au départ)
+   **et `cd backend && npm run build` (tsc — Railway compile avec, `npm test` seul est
+   AVEUGLE aux erreurs de types : appris au premier deploy raté du sprint)**
    **et** `cd frontend && npm run typecheck` **et** `cd frontend && npm run build`.
    Commit jamais dans le même appel shell que le gate sauf chaîné par `&&`. Jamais de pipe
    dans une chaîne `&&` (le pipe avale le code de sortie).

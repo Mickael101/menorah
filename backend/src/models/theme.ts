@@ -192,7 +192,7 @@ export function validateThemeTokens(data: unknown): ThemeTokens {
     if (typeof value !== 'string' || !HEX_PATTERN.test(value)) {
       throw new Error(`${key} must be a hex color (#rgb or #rrggbb)`);
     }
-    (tokens as Record<string, unknown>)[key] = value;
+    (tokens as unknown as Record<string, unknown>)[key] = value;
   }
 
   const image = body.backgroundImage;
