@@ -131,7 +131,7 @@ Périmètre : nouveaux fichiers backend thèmes (routes/service), table `themes`
 Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `DisplayHiddenPage.vue`,
 `frontend/src/components/display/**`. Les retouches `router.ts` passent par l'orchestrateur.
 
-- [ ] D1. C3 — les 3 forks (2 360 lignes) fusionnent en un composant + adaptateurs de
+- [x] D1. C3 — les 3 forks (2 360 lignes) fusionnent en un composant + adaptateurs de
       variante, divergences inventoriées AVANT fusion et re-vérifiées variante par variante
       au navigateur ; C4 — animations centralisées (`@formkit/auto-animate` seulement si le
       gain est net, sinon composable maison — YAGNI).
@@ -199,6 +199,18 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 - `f6f9572` — merge `sprint/events` dans master. Seul conflit : `docs/api-et-socket.md`
   (S et EB), résolu en fusionnant réfutation mesurée de C + corrections E2/E3. Gate rejoué :
   130/130 backend (23 fichiers), typecheck et build frontend verts — aucune couture cassée.
+- `725a118` — D1 (front DD). Les 3 forks display deviennent des enveloppes ~10 lignes sur
+  `DisplayScreen.vue` + `displayVariants.ts` (20 drapeaux, UN par contrôle divergent — les
+  axes couleur or-vs-thème scindés en 3 drapeaux indépendants). `animations.ts` centralise
+  le tween rAF (reduced-motion respecté), zéro dépendance ajoutée (auto-animate refusé,
+  YAGNI). Preuve d'équivalence : inventaire des divergences committé + 12 captures
+  avant/après identiques, UNE divergence intentionnelle déclarée (les textes en dur de
+  light/hidden lisent désormais `displaySettings.texts` — le kicker E1 se propage aux 3
+  écrans). Divergences non tranchables PRÉSERVÉES (queue hidden, flash left:25%, tailles).
+  `router.ts` : aucun diff nécessaire. Doutes notés : « ??? » hébreu = artefact de police du
+  renderer de capture (identique avant/après) ; padding fullscreen appliqué à light (bénin).
+- `471c10f` — merge `sprint/display` dans master. 13 captures bien versionnées (piège
+  gitignore vérifié). Gate rejoué : 130/130, typecheck, build verts (bundle −5 Ko).
 - `457d19c` — O1 (orchestrateur). C6 : la table `config` n'est plus créée ni semée au
   démarrage ; ALTER `display_settings` conservé sous try/catch ; `legacy-routes.test.ts`
   prouve « ni créée ni écrite » sur base neuve comme ancienne ; `config-handover.test.ts`
