@@ -48,6 +48,20 @@ describe('couture migration / service de configuration', () => {
     const objectif = 111222;
 
     configService.update(event.id, { goalAmount: objectif });
+    // Depuis la suppression de C6, init.ts ne cree plus la table heritee : une
+    // base neuve n'en a pas. Le scenario teste une base ANCIENNE — on la
+    // fabrique donc explicitement, au schema historique.
+    db.run(`
+      CREATE TABLE IF NOT EXISTS config (
+        id INTEGER PRIMARY KEY CHECK(id = 1),
+        goal_amount INTEGER NOT NULL DEFAULT 10000000,
+        preset_amounts TEXT NOT NULL DEFAULT '[1800,3600,18000,36000,100000]',
+        menorah_segments TEXT NOT NULL DEFAULT '[]',
+        display_settings TEXT NOT NULL DEFAULT '{}',
+        updated_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+    db.run('INSERT OR IGNORE INTO config (id) VALUES (1)');
     // Cas defavorable : l'ancienne table porte un horodatage EGAL a celui de la
     // configuration de la soiree. Une comparaison non stricte rafraichirait, et
     // le reglage du client disparaitrait au redemarrage suivant.

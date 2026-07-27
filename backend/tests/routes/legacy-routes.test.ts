@@ -100,8 +100,15 @@ describe('routes heritees resolues sur la soiree active', () => {
     expect(response.body.goalAmount).toBe(objectif);
     expect(scalaire('SELECT goal_amount FROM event_configs WHERE event_id = ?', [soireeActive]))
       .toBe(objectif);
-    // L'ancienne table reste en base, en lecture seule : plus rien ne l'ecrit.
-    expect(scalaire('SELECT goal_amount FROM config WHERE id = 1', [])).not.toBe(objectif);
+    // L'ancien singleton n'est plus ni cree ni ecrit : sur base neuve la table
+    // n'existe pas ; sur base ancienne elle survit mais ne recoit plus l'ecriture.
+    const tableConfig = scalaire(
+      "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'config'", []);
+    if (tableConfig === 1) {
+      expect(scalaire('SELECT goal_amount FROM config WHERE id = 1', [])).not.toBe(objectif);
+    } else {
+      expect(tableConfig).toBe(0);
+    }
     expect((await request(app).get('/api/config')).body.goalAmount).toBe(objectif);
   });
 

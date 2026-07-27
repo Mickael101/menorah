@@ -70,30 +70,18 @@ export async function initDatabase(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_donations_created_at ON donations(created_at)
   `);
 
-  // Create config table (singleton)
-  db.run(`
-    CREATE TABLE IF NOT EXISTS config (
-      id INTEGER PRIMARY KEY CHECK(id = 1),
-      goal_amount INTEGER NOT NULL DEFAULT 10000000,
-      preset_amounts TEXT NOT NULL DEFAULT '[1800,3600,18000,36000,100000]',
-      menorah_segments TEXT NOT NULL DEFAULT '[]',
-      display_settings TEXT NOT NULL DEFAULT '{}',
-      updated_at TEXT DEFAULT (datetime('now'))
-    )
-  `);
-
-  // Migration: Add display_settings column if it doesn't exist
+  // La table heritee `config` n'est PLUS creee : plus rien ne l'ecrit depuis la
+  // bascule vers event_configs, et la migration tolere son absence (lectures
+  // gardees par tableExists). Sur une base ancienne qui la porte encore, on
+  // garantit seulement la colonne attendue par la recopie de bascule :
   try {
     db.run(`ALTER TABLE config ADD COLUMN display_settings TEXT NOT NULL DEFAULT '{}'`);
   } catch (e) {
-    // Column already exists, ignore
+    // Base neuve (table absente) ou colonne deja presente : rien a faire
   }
 
-  // Insert default config if not exists
-  db.run(`INSERT OR IGNORE INTO config (id) VALUES (1)`);
-
-  // Schema multi-evenements. Idempotent, et volontairement APRES la creation
-  // des tables historiques : il recopie `config` et rattache les dons.
+  // Schema multi-evenements. Idempotent ; recopie `config` si elle existe
+  // et rattache les dons.
   runMigrations(db);
 
   // Save to file
