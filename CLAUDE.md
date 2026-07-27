@@ -73,10 +73,13 @@ Le `package.json` racine est une coquille vide : **rien ne se lance depuis la ra
 - KISS · YAGNI — voir `.specify/memory/constitution.md`.
 - Style et lint : délégués à `tsc`/`vue-tsc`, pas de règles de formatage ici.
 
-## État au 2026-07-27
+## État au 2026-07-27 (soir)
 
-Branche `feat/admin-navy-or` (poussée, **ni mergée ni déployée**). Le schéma multi-événements
-est en base, mais **aucune route `/api/events` n'existe et le frontend ignore la notion de
-soirée**. Une fuite PII par Socket.IO reste ouverte — c'est la priorité n°1.
+Sprint de clôture du backlog LIVRÉ et DÉPLOYÉ : multi-soirées complet (API `/api/events`,
+frontend `/e/:slug`, écran de connexion, isolation temps réel prouvée à deux contextes),
+fuite PII socket fermée, moteur de thèmes en base, 3 écrans display fusionnés en un,
+1 914 lignes mortes supprimées, jeton admin roté. 161 tests + 2 builds verts.
+⚠ Le gate inclut `cd backend && npm run build` (tsc) — `npm test` seul ne voit pas les
+erreurs de types, Railway si.
 
-👉 `docs/reste-a-faire.md`
+👉 `docs/reste-a-faire.md` (décisions commanditaire D1-D4 + angles morts F)

@@ -21,11 +21,9 @@ Si cette session est interrompue, reprendre ainsi :
 
 ## État courant
 
-**Prochaine action** : vague 2 — fronts FE (B3), TH (C1), DD (C3/C4) sur worktrees recyclés,
-base master `457d19c`. Couture FE/DD arbitrée : FE rend les composables event-aware en
-RÉTRO-COMPATIBLE (défaut = soirée active, paramètre optionnel) ; DD refactorise contre l'API
-ACTUELLE des composables ; le câblage slug→display unifié est une retouche post-merge
-(orchestrateur ou FE). `router.ts` appartient à FE seul ; DD passe par l'orchestrateur.
+**SPRINT CLOS le 2026-07-27.** Toutes les cases sont cochées avec SHAs au Journal, la
+production tourne sur le résultat. Restent uniquement les décisions commanditaire (D1-D4)
+et les angles morts (F) — voir `docs/reste-a-faire.md` réécrit.
 
 ## Contexte figé
 
@@ -149,7 +147,7 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 
 ## Livraison
 
-- [ ] L1. A2 — rotation `ADMIN_TOKEN` (nouvelle valeur via `railway variables --set`, mise à
+- [x] L1. A2 — rotation `ADMIN_TOKEN` (nouvelle valeur via `railway variables --set`, mise à
       jour `~/.menorah-admin-token.txt`) ; `railway up` ; vérification prod (health, /admin,
       /don, socket).
 - [x] L2. FAIT PAR ANTICIPATION le 2026-07-27 (indépendant du code ; la migration reprendra
@@ -159,7 +157,7 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
       souvenirs du 2026-07-26 étaient périmés. E4 exécuté : `DELETE /api/donations/88`
       (« TEST », 1 ₪) avec le jeton actuel, vérifié absent après coup, 30 dons restants,
       stats recalculées serveur.
-- [ ] L3. `docs/reste-a-faire.md` réécrit sur l'état réel, date `docs/README.md`, push
+- [x] L3. `docs/reste-a-faire.md` réécrit sur l'état réel, date `docs/README.md`, push
       `master`, récap final.
 
 ## Journal
@@ -213,6 +211,15 @@ Périmètre : `frontend/src/pages/DisplayPage.vue`, `DisplayPage8.vue`, `Display
 - `f1d69b7` — merge `sprint/front-events`. Conflit `docs/architecture.md` (tables de routes
   DD vs FE) résolu : table deux-familles de FE + encart fusion de DD. Gate rejoué :
   130/130, typecheck, build verts.
+- `72f3826` — correctif tsc + gate durci. Le premier `railway up` du sprint a ROUGI sur
+  TS2352 (`theme.ts:195`) : Railway compile le backend avec `tsc`, que le gate ne lançait
+  pas (`npm test` transpile sans vérifier les types). Le diagnostic IDE l'avait signalé et
+  l'orchestrateur l'avait écarté à tort comme « instantané d'édition ». Gate durci :
+  `cd backend && npm run build` obligatoire.
+- L1 : rotation `ADMIN_TOKEN` (43 caractères, posée avec `--skip-deploys`, confirmée par
+  relecture), déploiement `3b8f0286` SUCCESS 15:36, prod vérifiée : health OK, orot-netanel
+  actif, 31 dons (30 + UN DON RÉEL de ₪5 000 arrivé pendant le sprint), payload public
+  dépouillé, ancien jeton 401 / nouveau 200, 7 thèmes intégrés, `/e/:slug/*` servis (200).
 - V1 (agent verif, banc jetable, 24 captures `docs/verif/sprint-2026-07-27/verif-finale/`) :
   **TOUT PASS, zéro bug applicatif, zéro erreur console non triviale.** B5 prouvé chiffré en
   deux contextes playwright disjoints (don sur A : ₪108→198 côté A, B strictement figé à
