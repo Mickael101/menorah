@@ -111,17 +111,21 @@ L'hébreu passe par **repli de glyphe** (police `Heebo`, `index.html:19`) et un 
 — qui matche la directionnalité *résolue*, donc aussi `dir="auto"`. Un sélecteur `[dir='rtl']`
 ne matcherait pas `dir="auto"` : piège vérifié le 2026-07-27.
 
-## Code mort — ≈1 900 lignes frontend inatteignables
+## Code mort — supprime le 2026-07-27 (C5)
 
-| Fichier | Lignes | Preuve |
+1 914 lignes frontend inatteignables ont ete retirees, chaque suppression re-prouvee par
+grep 0-importeur avant retrait :
+
+| Fichier | Lignes | Preuve avant suppression |
 |---|---|---|
 | `pages/MenorahAscension.vue` | 1062 | absent de `router.ts`, aucun import |
 | `components/display/ProgressBar.vue` | 286 | aucun import |
 | `components/display/TotalCounter.vue` | 262 | aucun import |
-| `composables/useSoundEffects.ts` | 304 | importé uniquement par `MenorahAscension.vue` → mort par transitivité |
-| `postcss` (devDep frontend) | — | aucun `postcss.config.*` dans le dépôt |
+| `composables/useSoundEffects.ts` | 304 | importe uniquement par `MenorahAscension.vue` → mort par transitivite |
 
-Suppression planifiée au LOT 6 — voir `reste-a-faire.md`.
+Le devDep frontend `postcss` (aucun `postcss.config.*`, aucune config Vite/Tailwind ne le
+reference) a ete retire de `package.json` ; il subsiste dans `package-lock.json` comme simple
+dependance transitive de Vite.
 
 ## Graphify : évalué le 2026-07-27, écarté
 
