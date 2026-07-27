@@ -75,25 +75,50 @@ sert l'admin, les écrans, l'API REST et le websocket.
 | `components/admin/` | `DisplaySettingsPanel` (2439 l.), `DonationForm` (1253), `GifManager` (665), `ConfigPanel` (600), `DonationList` (565) |
 | `components/display/` | `MenorahDisplay`, `DonorPlate`/`DonorPlatesGrid`/`DonorPlateAnimation`, `CampaignVisual`, `StatsCompact` |
 | `components/ui/` | `UiToast` |
-| `composables/` | `useDonations` (543 l., état + client API), `useSocket`, `useAdminAuth`, `useAdminI18n` (823), `useToast`, `useAudioPreview` |
+| `composables/` | `useDonations` (état + client API), `useSocket` (+ `join(eventId)`), `useAdminAuth` (jeton par soirée), `useEventContext` (résolution slug/active + portée ambiante), `useAdminI18n`, `useToast`, `useAudioPreview` |
 | `theme/displayThemes.ts` | Variables CSS dérivées de `displaySettings` |
 | `assets/styles/global.css` | Base + doctrine RTL/typographie documentée (l. 210-241) |
 
 ### Pages et routes
 
-| Route | Composant | Accès | Rôle |
-|---|---|---|---|
-| `/` → `/admin` | redirection | — | — |
-| `/admin` | `AdminPanel.vue` (1108 l.) | **admin** | 4 onglets : dons, images/sons, personnalisation, campagne |
-| `/don` | `DonorPledgePage.vue` (755 l.) | public | engagement libre-service, 3 langues |
-| `/donate` → `/don` | redirection | public | compatibilité des QR codes déjà imprimés |
-| `/display` | `DisplayPage.vue` (1165 l.) | public | écran principal |
-| `/display-light` | `DisplayPage8.vue` (252 l.) | public | variante LED géant, blanc chaud, police XXL |
-| `/display-hidden` | `DisplayHiddenPage.vue` (943 l.) | public | variante sans file d'attente de dons |
+Deux familles (contrat § Routage frontend) : les routes **héritées** résolvent sur la
+soirée **active** (comportement conservé) ; les routes **préfixées** `/e/:slug/…` résolvent
+sur la soirée nommée. Chaque route héritée a sa jumelle préfixée.
 
-> **Aucune garde de route côté routeur.** Toute la protection est côté API (`requireAdmin`).
-> Le jeton admin est demandé par `window.prompt` sur un 401 (`useAdminAuth.ts:27`).
-> `/display-hidden` n'est pas protégé malgré son nom.
+| Route héritée | Route préfixée | Composant | Accès | Rôle |
+|---|---|---|---|---|
+| `/` → `/admin` | — | redirection | — | — |
+| `/admin` | `/e/:slug/admin` | `AdminEntry.vue` → `AdminPanel.vue` | **admin** | contexte + connexion + (organisateur) sélecteur, puis les 4 onglets |
+| `/don` | `/e/:slug/don` | `DonorPledgePage.vue` | public | engagement libre-service, 3 langues |
+| `/donate` → `/don` | — | redirection | public | compatibilité des QR codes déjà imprimés |
+| `/display` | `/e/:slug/display` | `DisplayPage.vue` | public | écran principal |
+| `/display-light` | `/e/:slug/display-light` | `DisplayPage8.vue` | public | variante LED géant |
+| `/display-hidden` | `/e/:slug/display-hidden` | `DisplayHiddenPage.vue` | public | variante sans file d'attente |
+
+**Résolution du contexte** (`useEventContext`) : `/e/:slug/…` appelle
+`GET /api/events/by-slug/:slug` (public) ; les routes héritées appellent `GET /api/events/active`.
+Un slug inconnu affiche un **404 propre**, jamais un repli silencieux sur une autre soirée. La
+résolution pose une **portée ambiante** (`scopedEventId`) que `useDonations` et `adminFetch`
+lisent : portée nulle ⇒ routes héritées (soirée active, byte-identique à avant) ; portée posée
+⇒ routes préfixées `/api/events/:id/…`. C'est la couture rétro-compatible avec les pages
+Display (elles n'appellent pas `resolve()`, restent donc sur la soirée active jusqu'au câblage
+slug→display post-merge).
+
+**Connexion admin** : le `window.prompt` a été remplacé par un **écran de connexion**
+(`AdminLogin.vue`) — champ code, soirée nommée, distinction **401** (code refusé) vs **403**
+(code valide mais pas pour cette soirée). Le jeton est stocké **par soirée**
+(`menorah_admin_token:<id>`), la clé historique `menorah_admin_token` restant le repli
+organisateur / soirée active. Sur `/admin` hérité, un organisateur (détecté via
+`GET /api/events`) obtient un **sélecteur de soirée** (`EventSelector.vue`) qui renvoie vers
+`/e/:slug/admin`.
+
+**Temps réel** : `useSocket.join(eventId)` fait rejoindre la room `event:<id>` (re-émise à
+chaque reconnexion). Une page en portée nulle ne force aucune room : l'auto-abonnement backend
+à la soirée active suffit.
+
+> **Aucune garde de route côté routeur.** La protection reste côté API ; l'écran de connexion
+> pose le jeton avant que `AdminPanel` ne s'affiche. `/display-hidden` n'est pas protégé malgré
+> son nom.
 
 ## Internationalisation
 
