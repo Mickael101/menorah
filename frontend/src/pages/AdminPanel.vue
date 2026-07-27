@@ -57,8 +57,6 @@ const {
   fetchConfig,
   fetchPremiumWords,
   formatAmount,
-  handleDonationNew,
-  handleDonationUpdated,
   handleDonationDeleted,
   handleConfigUpdated
 } = useDonations();
@@ -101,14 +99,21 @@ const activeAdminBranding = computed(() => ({
 onMounted(async () => {
   await Promise.all([fetchDonations({ full: true }), fetchConfig(), fetchPremiumWords()]);
 
-  // Listen for real-time events
-  on('donation:new', async (data: any) => {
-    handleDonationNew(data.donation, data.stats);
+  // Listen for real-time events.
+  //
+  // La room diffuse desormais la projection PUBLIQUE (sans email, telephone ni
+  // reference) : le payload socket ne suffit plus a l'administration. On
+  // recharge donc la liste complete par la route authentifiee ?full=1 — le
+  // handler faisait deja un aller-retour juste apres (fetchPremiumWords), la
+  // seule difference visible est que les coordonnees d'un don tout juste arrive
+  // apparaissent au rechargement plutot qu'a l'instant meme.
+  on('donation:new', async (_data: any) => {
+    await fetchDonations({ full: true });
     await fetchPremiumWords(); // Refresh premium words availability
   });
 
-  on('donation:updated', async (data: any) => {
-    handleDonationUpdated(data.donation, data.stats);
+  on('donation:updated', async (_data: any) => {
+    await fetchDonations({ full: true });
     await fetchPremiumWords(); // Refresh premium words availability
   });
 
