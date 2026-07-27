@@ -82,7 +82,7 @@ des quatre fonds sombres pour `--shell-text-muted`, qui est 4.53 sur `--shell-ra
 
 ## Tranche 6 — Acter la décision sur `GET /api/donations` dans la spec
 
-- [x] 6. Corriger §3.1, §3.5 et §6 de `specs/2026-07-26-fondation-multi-evenements-design.md` :
+- [x] 6. Corriger §3.1, §3.5 et §6 de `docs/specs/2026-07-26-fondation-multi-evenements-design.md` (déplacé depuis `specs/` le 2026-07-27) :
       la projection publique est la décision, pas un manque. Corriger aussi la référence de ligne
       erronée du §3.2 (le point 2 visait `.curve-point-glow`, pas `.curve-area`).
 

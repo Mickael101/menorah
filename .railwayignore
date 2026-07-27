@@ -25,13 +25,10 @@ backend/.tmp-test-data/
 # Historique git : inutile au build
 .git/
 
-# Doublons et artefacts a la racine, verifies inutiles au build.
+# Doublons a la racine, verifies inutiles au build.
 # Le buildCommand de railway.json ne touche que frontend/ et backend/, et Vite
-# ne copie que frontend/public/ vers dist/. Verifie avant exclusion :
-#   - gif/            duplicata exact de frontend/public/gif/
-#   - asset/          un seul svg, duplicata de frontend/public/assets/
-#   - assets/         ne contient qu'un dossier readme
-#   - le SVG racine   duplicata de frontend/public/assets/menorahshiviti3.svg
+# ne copie que frontend/public/ vers dist/.
+#   - assets/  ne contient qu'un dossier readme (visuels du README GitHub)
 # Les fichiers reellement servis (/assets/menorahshiviti3.svg charge au runtime
 # par MenorahDisplay.vue, /assets/menorah.svg en favicon) vivent tous dans
 # frontend/public/assets/ et ne sont donc PAS concernes.
@@ -39,18 +36,12 @@ backend/.tmp-test-data/
 # syntaxe gitignore fait correspondre le nom a n'importe quel niveau — « assets/ »
 # exclurait aussi frontend/src/assets/ (qui contient global.css importe par
 # main.ts) et frontend/public/assets/, ce qui casse le build et le runtime.
-/gif/
-/asset/
+#
+# 2026-07-27 : gif/, asset/, /menorahshiviti3.svg, /adminer.tar,
+# /Plaques_donateurs.html et /26000|36000|72000.txt ont ete retires du depot
+# (passe doc-vivante) — leurs motifs d'exclusion sont donc devenus inutiles.
+# Idem /specs/, dont le contenu vit desormais sous /docs/.
 /assets/
-/menorahshiviti3.svg
-
-# Outils et notes hors application
-/adminer.tar
-/Plaques_donateurs.html
-/26000.txt
-/36000.txt
-/72000.txt
 
 # Documentation : utile au depot, inutile au build
 /docs/
-/specs/

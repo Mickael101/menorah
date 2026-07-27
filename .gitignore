@@ -46,3 +46,9 @@ coverage/
 
 # Local browser QA artifacts
 .playwright-cli/
+.playwright-mcp/
+
+# Permissions Claude Code propres a une machine.
+# Etait versionne et exposait le chemin utilisateur d'un autre poste
+# (C:\Users\Mickael\...) — retire le 2026-07-27.
+.claude/settings.local.json
