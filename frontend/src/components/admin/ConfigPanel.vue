@@ -21,7 +21,6 @@ const newPreset = ref('');
 const segments = ref<{ id: string; thresholdPercent: number; order: number }[]>([]);
 const newSegmentId = ref('');
 const newSegmentThreshold = ref(0);
-const brandingLocales: AdminBrandingLocale[] = ['fr', 'en', 'he'];
 
 function cloneAdminBranding(source: AdminBrandingSettings): AdminBrandingSettings {
   return {
@@ -32,6 +31,15 @@ function cloneAdminBranding(source: AdminBrandingSettings): AdminBrandingSetting
 }
 
 const adminBranding = ref<AdminBrandingSettings>(cloneAdminBranding(DEFAULT_ADMIN_BRANDING));
+
+// Une langue a la fois : les trois cartes cote a cote noyaient l'ecran.
+// Meme motif d'onglets que les textes de la page /don (libelles natifs).
+const brandingLocale = ref<AdminBrandingLocale>('fr');
+const BRANDING_LOCALE_TABS: { id: AdminBrandingLocale; label: string }[] = [
+  { id: 'fr', label: 'Français' },
+  { id: 'en', label: 'English' },
+  { id: 'he', label: 'עברית' }
+];
 
 // Load config on mount
 onMounted(async () => {
@@ -142,36 +150,48 @@ async function saveSegments(): Promise<void> {
       <h4>{{ t('config.adminIdentity') }}</h4>
       <p class="hint branding-hint">{{ t('config.adminIdentityDescription') }}</p>
 
-      <div class="branding-grid">
-        <fieldset
-          v-for="brandingLocale in brandingLocales"
-          :key="brandingLocale"
-          class="branding-card"
-          :dir="brandingLocale === 'he' ? 'rtl' : 'ltr'"
+      <div class="branding-locale-tabs" role="tablist" :aria-label="t('config.adminIdentity')">
+        <button
+          v-for="tab in BRANDING_LOCALE_TABS"
+          :key="tab.id"
+          type="button"
+          role="tab"
+          class="branding-locale-tab"
+          :class="{ selected: brandingLocale === tab.id }"
+          :aria-selected="brandingLocale === tab.id"
+          @click="brandingLocale = tab.id"
         >
-          <legend>{{ t(`language.${brandingLocale}`) }}</legend>
-
-          <label class="branding-field">
-            <span>{{ t('config.adminTitle') }}</span>
-            <input
-              v-model="adminBranding[brandingLocale].title"
-              type="text"
-              maxlength="80"
-              dir="auto"
-            />
-          </label>
-
-          <label class="branding-field">
-            <span>{{ t('config.adminSubtitle') }}</span>
-            <input
-              v-model="adminBranding[brandingLocale].subtitle"
-              type="text"
-              maxlength="160"
-              dir="auto"
-            />
-          </label>
-        </fieldset>
+          {{ tab.label }}
+        </button>
       </div>
+
+      <fieldset
+        :key="brandingLocale"
+        class="branding-card"
+        :dir="brandingLocale === 'he' ? 'rtl' : 'ltr'"
+      >
+        <legend>{{ t(`language.${brandingLocale}`) }}</legend>
+
+        <label class="branding-field">
+          <span>{{ t('config.adminTitle') }}</span>
+          <input
+            v-model="adminBranding[brandingLocale].title"
+            type="text"
+            maxlength="80"
+            dir="auto"
+          />
+        </label>
+
+        <label class="branding-field">
+          <span>{{ t('config.adminSubtitle') }}</span>
+          <input
+            v-model="adminBranding[brandingLocale].subtitle"
+            type="text"
+            maxlength="160"
+            dir="auto"
+          />
+        </label>
+      </fieldset>
 
       <button @click="saveAdminBranding" :disabled="isLoading" class="save-btn">
         {{ isLoading ? t('common.saving') : t('config.saveAdminIdentity') }}
@@ -415,10 +435,43 @@ h4 {
   margin-bottom: 16px;
 }
 
-.branding-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+/* Onglets de langue : piste en creux, onglet actif leve avec anneau or —
+   meme langage que les sous-onglets de l'ecran (DisplaySettingsPanel). */
+.branding-locale-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid var(--shell-border);
+  border-radius: 10px;
+  background: var(--shell-page);
+}
+
+.branding-locale-tab {
+  flex: 1 1 auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--shell-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.branding-locale-tab:hover {
+  color: var(--shell-text-strong);
+  background: var(--shell-raised);
+}
+
+.branding-locale-tab.selected {
+  color: var(--shell-accent-strong);
+  background: var(--shell-raised);
+  box-shadow: inset 0 0 0 1px var(--shell-accent-deep);
 }
 
 .branding-card {
@@ -574,12 +627,6 @@ h4 {
      de .preset-list + .input-group button:hover. */
   background: rgba(228, 190, 99, 0.20); /* compose #3F3C42 ; or a 6.12 */
   border-color: var(--shell-accent);
-}
-
-@media (max-width: 900px) {
-  .branding-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 600px) {

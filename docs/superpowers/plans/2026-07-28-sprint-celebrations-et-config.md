@@ -85,7 +85,7 @@ En cas de reprise (crash, /clear, nouvelle session) :
   matching dans `showDonationCelebration` (GIF du palier + son associé sinon son par défaut,
   jamais deux audios superposés), audio unique stoppable, handler `celebration:stop` qui coupe
   tout (GIF, plaque, file, flash, audio).
-- [ ] **S4 — /don : célébration par palier.** `DonorPledgePage.vue` : fetch gifs public,
+- [x] **S4 — /don : célébration par palier.** `DonorPledgePage.vue` : fetch gifs public,
   matching `playOnPledge` à la soumission réussie, overlay GIF + son, nettoyage
   reset/unmount.
 - [ ] **S5 — Refonte des onglets admin.** `AdminPanel.vue` : 5 onglets persistés,
@@ -116,7 +116,8 @@ En cas de reprise (crash, /clear, nouvelle session) :
   code de sortie — toujours lire le compte de fichiers, pas la présence d'erreur shell.
 
 - S3 `387f8cd` — écran : palier + stop + audio stoppable (199 tests, run complète 27/27).
+- S4 `b95fe39` — /don : célébration par palier (gate complet vert).
 
 ## État courant
 
-S4 (/don : célébration par palier) prêt : ce commit le porte. Prochaine action : S5.
+S5 (refonte onglets admin) prêt : ce commit le porte. Prochaine action : S6.

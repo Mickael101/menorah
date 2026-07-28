@@ -18,8 +18,15 @@ import {
 import { useAdminI18n } from '../../composables/useAdminI18n';
 import { adminFetch } from '../../composables/useAdminAuth';
 import ThemeGallery from './ThemeGallery.vue';
+import GifManager from './GifManager.vue';
 import { resolveActiveEventId, applyTheme } from '../../theme/themesApi';
 import { currentEventScope } from '../../composables/useEventContext';
+
+// Vue portee par l'onglet principal de l'admin : ecran de salle, page /don ou
+// medias. UNE instance sert les trois (AdminPanel la garde en v-show) : l'etat
+// de saisie et la barre d'enregistrement sont communs, displaySettings n'est
+// jamais edite par deux composants concurrents.
+const props = defineProps<{ view: 'screen' | 'pledge' | 'media' }>();
 
 const { t } = useAdminI18n();
 
@@ -71,19 +78,25 @@ onMounted(async () => {
 
 const toast = useToast();
 
-// Sous-onglets. Les 10 sections tenaient dans un seul scroll de 38 champs,
-// avec l'unique bouton Enregistrer tout en bas : impossible de s'y retrouver.
-// L'ordre suit l'usage reel, et « Thème et couleurs » vient en premier parce
-// que le theme conditionne toutes les couleurs des sections suivantes.
-type ScreenTab = 'appearance' | 'texts' | 'composition' | 'donation' | 'pledge';
+// Sous-onglets de la vue « Écran de salle ». Les sections page de don et
+// medias/celebrations sont devenues des onglets PRINCIPAUX de l'admin (props
+// view) : ici ne restent que les axes de l'ecran lui-meme. « Thème et
+// couleurs » vient en premier parce que le theme conditionne toutes les
+// couleurs des sections suivantes.
+type ScreenTab = 'appearance' | 'texts' | 'composition';
 
 const SCREEN_TABS: { id: ScreenTab; labelKey: string }[] = [
   { id: 'appearance', labelKey: 'screenTabs.appearance' },
   { id: 'texts', labelKey: 'screenTabs.texts' },
-  { id: 'composition', labelKey: 'screenTabs.composition' },
-  { id: 'donation', labelKey: 'screenTabs.donation' },
-  { id: 'pledge', labelKey: 'screenTabs.pledge' }
+  { id: 'composition', labelKey: 'screenTabs.composition' }
 ];
+
+// Titre de la carte : nomme la page cible de la vue courante.
+const panelTitleKey = computed(() =>
+  props.view === 'pledge' ? 'admin.tabs.pledge'
+    : props.view === 'media' ? 'admin.tabs.media'
+      : 'display.title'
+);
 
 const SCREEN_TAB_KEY = 'menorah_admin_screen_tab';
 
@@ -334,13 +347,13 @@ onUnmounted(stopAudio);
           <circle cx="12" cy="12" r="10"/>
           <path d="M12 6v6l4 2"/>
         </svg>
-        {{ t('display.title') }}
+        {{ t(panelTitleKey) }}
       </h2>
 
       <p v-if="error" class="error-msg">{{ error }}</p>
 
-      <!-- Sous-onglets : les 10 sections tenaient dans un seul scroll. -->
-      <nav class="screen-tabs" role="tablist" :aria-label="t('display.title')">
+      <!-- Sous-onglets de l'ecran (la page /don et les medias ont leur onglet principal). -->
+      <nav v-if="view === 'screen'" class="screen-tabs" role="tablist" :aria-label="t('display.title')">
         <button
           v-for="tab in SCREEN_TABS"
           :key="tab.id"
@@ -356,7 +369,7 @@ onUnmounted(stopAudio);
       </nav>
 
       <!-- Scene composition -->
-      <section v-show="screenTab === 'composition'" class="settings-section visual-section">
+      <section v-show="view === 'screen' && screenTab === 'composition'" class="settings-section visual-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('display.visual.title') }}</h3>
@@ -456,7 +469,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Customizable copy and language direction -->
-      <section v-show="screenTab === 'texts'" class="settings-section content-settings-section">
+      <section v-show="view === 'screen' && screenTab === 'texts'" class="settings-section content-settings-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('display.content.title') }}</h3>
@@ -557,7 +570,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Public pledge page (/don) texts -->
-      <section v-show="screenTab === 'pledge'" class="settings-section">
+      <section v-show="view === 'pledge'" class="settings-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('pledge.sectionTitle') }}</h3>
@@ -639,7 +652,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Donation animation selection -->
-      <section v-show="screenTab === 'donation'" class="settings-section animation-settings-section">
+      <section v-show="view === 'media'" class="settings-section animation-settings-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('display.animation.title') }}</h3>
@@ -673,7 +686,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Theme selection -->
-      <section v-show="screenTab === 'appearance'" class="settings-section theme-section">
+      <section v-show="view === 'screen' && screenTab === 'appearance'" class="settings-section theme-section">
         <div class="section-heading-row">
           <div>
             <h3>{{ t('display.theme.title') }}</h3>
@@ -708,7 +721,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Background Section -->
-      <section v-show="screenTab === 'appearance'" class="settings-section">
+      <section v-show="view === 'screen' && screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.background.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
         <p class="section-description theme-scope-hint">
           {{ t('display.themeScopedHint', { theme: themeText(settings.theme, 'short') }) }}
@@ -747,7 +760,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Plate Colors Section -->
-      <section v-show="screenTab === 'appearance'" class="settings-section">
+      <section v-show="view === 'screen' && screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.plates.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
         <p class="section-description theme-scope-hint">
           {{ t('display.themeScopedHint', { theme: themeText(settings.theme, 'short') }) }}
@@ -796,7 +809,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Text Colors Section -->
-      <section v-show="screenTab === 'appearance'" class="settings-section">
+      <section v-show="view === 'screen' && screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.textColors.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
         <p class="section-description theme-scope-hint">
           {{ t('display.themeScopedHint', { theme: themeText(settings.theme, 'short') }) }}
@@ -820,7 +833,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Chart Colors Section -->
-      <section v-show="screenTab === 'appearance'" class="settings-section">
+      <section v-show="view === 'screen' && screenTab === 'appearance'" class="settings-section">
         <h3>{{ t('display.chart.title', { theme: themeText(settings.theme, 'short') }) }}</h3>
         <p class="section-description theme-scope-hint">
           {{ t('display.themeScopedHint', { theme: themeText(settings.theme, 'short') }) }}
@@ -844,7 +857,7 @@ onUnmounted(stopAudio);
       </section>
 
       <!-- Audio Section -->
-      <section v-show="screenTab === 'donation'" class="settings-section">
+      <section v-show="view === 'media'" class="settings-section">
         <h3>{{ t('display.sound.title') }}</h3>
         <p class="section-description">{{ t('display.sound.description') }}</p>
 
@@ -895,6 +908,12 @@ onUnmounted(stopAudio);
         </div>
       </section>
 
+      <!-- Galerie GIF + sons : centralisee ICI (l'ancien onglet « Images et
+           sons » de l'admin faisait doublon avec cette vue medias). -->
+      <section v-show="view === 'media'" class="settings-section gallery-section">
+        <GifManager />
+      </section>
+
       <!-- Barre de sauvegarde collante.
            Avant, l'unique bouton Enregistrer etait tout en bas des 10
            sections : on modifiait, on ne voyait aucune confirmation, et les
@@ -939,6 +958,15 @@ onUnmounted(stopAudio);
 </template>
 
 <style scoped>
+/* La galerie (GifManager) rend sa propre carte : imbriquee dans la carte du
+   panneau, on retire son cadre pour ne pas empiler deux bordures. */
+.gallery-section :deep(.card) {
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 /* Rappel de portee sous chaque bloc de couleurs. */
 .theme-scope-hint {
   margin: -6px 0 14px;

@@ -10,7 +10,6 @@ import {
 import DonationForm from '../components/admin/DonationForm.vue';
 import DonationList from '../components/admin/DonationList.vue';
 import ConfigPanel from '../components/admin/ConfigPanel.vue';
-import GifManager from '../components/admin/GifManager.vue';
 import DisplaySettingsPanel from '../components/admin/DisplaySettingsPanel.vue';
 import UiToast from '../components/ui/UiToast.vue';
 import { useAdminI18n, type AdminLocale } from '../composables/useAdminI18n';
@@ -95,7 +94,36 @@ const premiumWordsStatus = computed(() => {
 });
 
 const editingDonation = ref<Donation | null>(null);
-const activeTab = ref<'donations' | 'gifs' | 'display' | 'config'>('donations');
+
+// Onglets par PAGE CIBLE : chaque onglet nomme ce qu'il configure (l'ecran de
+// la salle, la page /don, les medias partages, la soiree). L'ancienne partition
+// technique (Personnalisation / Images / Campagne) obligeait a savoir OU
+// vivait chaque reglage. L'onglet actif est memorise.
+type AdminTab = 'donations' | 'screen' | 'pledge' | 'media' | 'event';
+const ADMIN_TAB_KEY = 'menorah_admin_main_tab';
+const ADMIN_TABS: AdminTab[] = ['donations', 'screen', 'pledge', 'media', 'event'];
+
+function readStoredAdminTab(): AdminTab {
+  const stored = localStorage.getItem(ADMIN_TAB_KEY) as AdminTab | null;
+  return stored !== null && ADMIN_TABS.includes(stored) ? stored : 'donations';
+}
+
+const activeTab = ref<AdminTab>(readStoredAdminTab());
+
+function selectTab(next: AdminTab): void {
+  activeTab.value = next;
+  localStorage.setItem(ADMIN_TAB_KEY, next);
+}
+
+// Les trois onglets ecran / page de don / medias partagent UNE instance de
+// DisplaySettingsPanel (v-show, jamais v-if) : un seul etat local, une seule
+// barre d'enregistrement, pas de fragments concurrents sur displaySettings.
+const settingsView = computed<'screen' | 'pledge' | 'media'>(() =>
+  activeTab.value === 'pledge' ? 'pledge' : activeTab.value === 'media' ? 'media' : 'screen'
+);
+const showSettingsPanel = computed(() =>
+  activeTab.value === 'screen' || activeTab.value === 'pledge' || activeTab.value === 'media'
+);
 const showPremiumOverview = ref(false);
 const usesMenorahVisual = computed(() => config.value.displaySettings.visualMode === 'menorah');
 const activeAdminBranding = computed(() => ({
@@ -336,12 +364,12 @@ function handleCancel(): void {
       </div>
     </header>
 
-    <!-- Navigation Tabs -->
+    <!-- Navigation Tabs — un onglet par page cible. -->
     <nav class="tabs-container">
       <div class="tabs">
         <button
           :class="['tab', { active: activeTab === 'donations' }]"
-          @click="activeTab = 'donations'"
+          @click="selectTab('donations')"
         >
           <!-- Main qui offre un coeur : signifie "don" sans supposer de devise.
                L'ancienne icone etait un glyphe dollar, alors que la campagne
@@ -355,36 +383,45 @@ function handleCancel(): void {
           {{ t('admin.tabs.donations') }}
         </button>
         <button
-          :class="['tab', { active: activeTab === 'gifs' }]"
-          @click="activeTab = 'gifs'"
+          :class="['tab', { active: activeTab === 'screen' }]"
+          @click="selectTab('screen')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <path d="M8 21h8M12 17v4"/>
+          </svg>
+          {{ t('admin.tabs.screen') }}
+        </button>
+        <button
+          :class="['tab', { active: activeTab === 'pledge' }]"
+          @click="selectTab('pledge')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="5" y="2" width="14" height="20" rx="2"/>
+            <path d="M12 18h.01"/>
+          </svg>
+          {{ t('admin.tabs.pledge') }}
+        </button>
+        <button
+          :class="['tab', { active: activeTab === 'media' }]"
+          @click="selectTab('media')"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2"/>
             <circle cx="8.5" cy="8.5" r="1.5"/>
             <path d="m21 15-5-5L5 21"/>
           </svg>
-          {{ t('admin.tabs.gifs') }}
+          {{ t('admin.tabs.media') }}
         </button>
         <button
-          :class="['tab', { active: activeTab === 'display' }]"
-          @click="activeTab = 'display'"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
-          </svg>
-          {{ t('admin.tabs.display') }}
-        </button>
-        <button
-          :class="['tab', { active: activeTab === 'config' }]"
-          @click="activeTab = 'config'"
+          :class="['tab', { active: activeTab === 'event' }]"
+          @click="selectTab('event')"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
-          {{ t('admin.tabs.config') }}
+          {{ t('admin.tabs.event') }}
         </button>
       </div>
     </nav>
@@ -405,15 +442,14 @@ function handleCancel(): void {
         </section>
       </div>
 
-      <div v-else-if="activeTab === 'gifs'" class="gifs-layout animate-fade-in">
-        <GifManager />
+      <!-- v-show, PAS v-if : l'instance (et sa saisie en cours) survit au
+           passage d'un onglet a l'autre, et la barre « modifications non
+           enregistrees » reste visible sur les trois vues. -->
+      <div v-show="showSettingsPanel" class="display-layout animate-fade-in">
+        <DisplaySettingsPanel :view="settingsView" />
       </div>
 
-      <div v-else-if="activeTab === 'display'" class="display-layout animate-fade-in">
-        <DisplaySettingsPanel />
-      </div>
-
-      <div v-else class="config-layout animate-fade-in">
+      <div v-if="activeTab === 'event'" class="config-layout animate-fade-in">
         <ConfigPanel />
       </div>
     </main>
@@ -998,10 +1034,6 @@ h1 {
 
 .config-layout {
   max-width: 700px;
-}
-
-.gifs-layout {
-  max-width: 900px;
 }
 
 .display-layout {
