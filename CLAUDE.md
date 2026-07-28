@@ -73,13 +73,21 @@ Le `package.json` racine est une coquille vide : **rien ne se lance depuis la ra
 - KISS · YAGNI — voir `.specify/memory/constitution.md`.
 - Style et lint : délégués à `tsc`/`vue-tsc`, pas de règles de formatage ici.
 
-## État au 2026-07-27 (soir)
+## État au 2026-07-28 (après-midi)
 
-Sprint de clôture du backlog LIVRÉ et DÉPLOYÉ : multi-soirées complet (API `/api/events`,
-frontend `/e/:slug`, écran de connexion, isolation temps réel prouvée à deux contextes),
-fuite PII socket fermée, moteur de thèmes en base, 3 écrans display fusionnés en un,
-1 914 lignes mortes supprimées, jeton admin roté. 161 tests + 2 builds verts.
+Sprint célébrations LIVRÉ sur `feat/celebrations-et-config-2026-07-28` (mergé master, **pas
+de `railway up`** — la mise en prod attend le commanditaire, deux lots sont en attente) :
+paliers montant→GIF+son (`displaySettings.celebrations`, résolution côté client synchrone
+avec la file d'animations), arrêt d'urgence temps réel (`POST /api/gifs/stop` →
+`celebration:stop`), célébration sur `/don`, audio des écrans stoppable, recherche dans la
+liste des dons, admin refondu en 5 onglets par page cible (Dons · Écran de salle · Page de
+don · Médias et célébrations · Soirée — une seule instance de panneau, une seule barre
+d'enregistrement), identité admin par onglets de langue. 199 tests + 2 builds verts,
+vérification navigateur complète (`docs/verif/2026-07-28/`).
 ⚠ Le gate inclut `cd backend && npm run build` (tsc) — `npm test` seul ne voit pas les
 erreurs de types, Railway si.
+⚠ Vitest : le pool forks par défaut crashe aléatoirement sur cette machine Windows
+(préexistant, prouvé sur master) — en cas de « Worker exited unexpectedly », rejouer, ou
+`npx vitest run --pool=threads` (27/27 stable). Voir `docs/reste-a-faire.md`.
 
-👉 `docs/reste-a-faire.md` (décisions commanditaire D1-D4 + angles morts F)
+👉 `docs/reste-a-faire.md` (dette mineure + angles morts F)

@@ -1,6 +1,7 @@
 # Documentation menorah — point d'entrée unique
 
-Vérifié le **2026-07-28** contre la branche `fix/revue-multi-soirees-2026-07-28` (revue post-sprint + exemption d'autorité du rate-limit).
+Vérifié le **2026-07-28** contre la branche `feat/celebrations-et-config-2026-07-28`
+(sprint célébrations par palier, stop temps réel, refonte des onglets admin).
 
 ---
 
@@ -36,8 +37,8 @@ Vérifié le **2026-07-28** contre la branche `fix/revue-multi-soirees-2026-07-2
 | [`historique.md`](historique.md) | Chronologie, décisions datées, changelog | 2026-07-27 |
 | [`reste-a-faire.md`](reste-a-faire.md) | Backlog vérifié dans le code, par famille | 2026-07-27 |
 | [`specs/2026-07-26-fondation-multi-evenements-design.md`](specs/2026-07-26-fondation-multi-evenements-design.md) | Design validé du virage multi-soirées + moteur de thèmes | 2026-07-27 |
-| [`superpowers/plans/`](superpowers/plans/) | Plans de travail vivants (chantier en cours) | 2026-07-27 |
-| [`verif/`](verif/) | 27 captures avant/après, preuves des tranches livrées | 2026-07-27 |
+| [`superpowers/plans/`](superpowers/plans/) | Plans de travail vivants (chantier en cours) | 2026-07-28 |
+| [`verif/`](verif/) | 36 captures avant/après, preuves des tranches livrées (dont `2026-07-28/` : célébrations + refonte admin) | 2026-07-28 |
 | [`archive/`](archive/) | Documents livrés ou remplacés, préfixés par date. Jamais supprimés. | — |
 
 > Une date de plus d'un mois sur un module dont le code a bougé depuis = suspecter une dérive.

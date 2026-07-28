@@ -92,11 +92,11 @@ En cas de reprise (crash, /clear, nouvelle session) :
   `DisplaySettingsPanel` prop `view` (screen : thème/textes/composition ; pledge : page de
   don ; media : animation + son par défaut + galerie), `ConfigPanel` : identité par onglets
   de langue, renommage i18n des onglets (fr/en/he). Aucune fonctionnalité nouvelle.
-- [ ] **S6 — Galerie pilotée par paliers + stop admin.** `GifManager.vue` intégré à la vue
+- [x] **S6 — Galerie pilotée par paliers + stop admin.** `GifManager.vue` intégré à la vue
   media : par GIF, champ « déclencher à partir de X ₪ » + portées (écran //don), édition via
   l'état parent (barre d'enregistrement partagée, isDirty), purge de la règle à la
   suppression du GIF, bouton « Arrêter le son et l'animation à l'écran » → POST /gifs/stop.
-- [ ] **S7 — Vérification navigateur + docs + merge.** Passe playwright-cli : admin (5
+- [x] **S7 — Vérification navigateur + docs + merge.** Passe playwright-cli : admin (5
   onglets, seuils, stop), écran (palier déclenché par un vrai don, stop en direct), /don
   (fr + he, mobile 390px + desktop, célébration palier), captures `docs/verif/2026-07-28/`,
   correctifs éventuels, mise à jour `docs/README.md` (carte de fraîcheur), `CLAUDE.md`
@@ -125,6 +125,17 @@ En cas de reprise (crash, /clear, nouvelle session) :
   pendant que le pool forks crashait systématiquement. Gate de secours du sprint : la run
   threads complète. À proposer (reste-a-faire) : épingler `pool: 'threads'` côté Windows.
 
+- S6 `76fc608` — galerie pilotée par paliers + bouton stop (gate : threads 27/27 ×2).
+- S7 (ce commit) — vérification navigateur COMPLÈTE sur serveur local prod-like (DATA_DIR
+  isolé, DB vierge seedée) : palier déclenché par un vrai don sur l'écran (GIF attendu +
+  plaque), stop coupe le GIF en ~1,5 s (avant l'auto-masquage 4 s), /don fr+he mobile
+  célèbre avec le GIF du palier (auto-masqué à 6 s), admin 5 onglets fr + he RTL, recherche
+  1/3, aller-retour seuil UI→save→base (300 ₪ → 30000 agorot), toast du stop, 0 erreur
+  console. 9 captures `docs/verif/2026-07-28/`. Docs synchronisées (README, api-et-socket,
+  reste-a-faire, historique, CLAUDE.md) + polish `config.title`.
+
 ## État courant
 
-S6 (galerie pilotée par paliers + stop admin) prêt : ce commit le porte. Prochaine action : S7.
+Sprint TERMINÉ. Merge dans master effectué (voir git log). `railway up` NON lancé —
+mise en prod à la main du commanditaire (deux lots en attente : revue durcie du 2026-07-28
+matin + ce sprint).

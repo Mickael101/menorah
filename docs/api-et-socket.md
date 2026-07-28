@@ -1,6 +1,7 @@
 # API HTTP et événements Socket.IO
 
-Vérifié le **2026-07-27** contre `099918c`.
+Vérifié le **2026-07-28** contre la branche `feat/celebrations-et-config-2026-07-28`
+(sprint célébrations par palier + stop temps réel).
 
 ## Règle de montage
 
@@ -62,6 +63,7 @@ réponse. « admin » = organisateur **ou** admin de la soirée résolue.
 | POST `/api/gifs/upload-audio` | **admin** | audio ≤ 50 Mo, rattaché à la soirée |
 | POST `/api/gifs/associate-audio` | **admin** | associe un son à un GIF **de la soirée** (média, plus de JSON global) |
 | POST `/api/gifs/trigger` | **admin** | déclenche GIF + son sur les écrans de la soirée |
+| POST `/api/gifs/stop` | **admin** | coupe la célébration en cours sur les écrans (socket `celebration:stop`) — idempotent |
 | GET `/api/gifs/audio` | public | audios **de la soirée** |
 | DELETE `/api/gifs/audio/:filename` | **admin** | supprime un audio de la soirée + ses associations (frontière `path.relative`, C10) |
 | DELETE `/api/gifs/:filename` | **admin** | supprime un GIF de la soirée (frontière `path.relative`, C10) |
@@ -165,7 +167,17 @@ en production (même origine). `CORS_ORIGIN=*` autorise toutes les origines
 | émis | `donation:updated` (**projection publique**) | `socket.service.ts:134` ← `routes/donations.ts:168` | idem, 5 écrans |
 | émis | `donation:deleted` | `socket.service.ts:143` ← `routes/donations.ts:198` | idem, 5 écrans |
 | émis | `config:updated` | `socket.service.ts:152` ← `routes/config.ts:31` | idem, 5 écrans |
-| émis | `gif:trigger` | `socket.service.ts:161` ← `routes/gifs.ts:297` | `DisplayPage:141`, `DisplayPage8:85`, `DisplayHiddenPage:92` |
+| émis | `gif:trigger` | `socket.service.ts:161` ← `routes/gifs.ts:297` | `DisplayScreen` (implémentation unique des 3 routes display) |
+| émis | `celebration:stop` | `socket.service.ts:emitCelebrationStop` ← `routes/gifs.ts` (POST `/stop`) | `DisplayScreen` — coupe GIF, plaque, file d'attente, flash et audio |
+
+> **Paliers de célébration** (2026-07-28) : `displaySettings.celebrations`
+> (`[{ id, minAmount (agorot), gifUrl, playOnDisplay, playOnPledge }]`, normalisé dans
+> `models/config.ts`, une règle par GIF, ≤ 50). La résolution est **côté client**
+> (`matchCelebrationRule`, `useDonations.ts`) : l'écran déclenche le GIF du plus haut palier
+> atteint au moment où il joue la plaque du don (synchrone avec la file d'attente), la page
+> `/don` le joue sur son écran de remerciement. Le son d'un palier = le son associé au GIF
+> dans la galerie (index public `GET /api/gifs`), à défaut `donationSound`. Une règle dont le
+> GIF a disparu de la galerie est ignorée (auto-guérison, pas de purge serveur).
 
 > **`join` n'est émis par aucun client** (0 occurrence dans `frontend/src`). Le « filet de
 > compatibilité » qu'est l'auto-join de la soirée active est en pratique le **seul**

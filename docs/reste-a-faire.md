@@ -30,6 +30,8 @@ Ce qui suit est ce qui reste — rien d'autre.
 | `nixpacks.toml [start]` | Doublon mort de `railway.json deploy.startCommand` — purgeable maintenant qu'un `railway up` a validé la chaîne dédupliquée |
 | CSS orphelin | `.theme-grid`/`.theme-preview` dans `DisplaySettingsPanel.vue` (ancienne grille remplacée par la galerie) |
 | E2 sous-titre fondateurs | FAIT par l'admin lui-même (vérifié en prod le 2026-07-27) — plus rien à faire |
+| Vitest : pool `forks` instable sous Windows | Le pool par défaut (tinypool, processus fils) meurt aléatoirement (« Worker exited unexpectedly », souvent sur `rate-limit.test.ts`) sur la machine de dev — **prouvé préexistant sur master `14e3d4f`**, PAS lié au code. `npx vitest run --pool=threads` est passé 27/27 (199 tests) deux fois de suite pendant que forks crashait. À trancher : épingler `pool: 'threads'` dans `backend/vitest.config` (vérifier d'abord que l'isolation par fichier tient sur CI/Linux) |
+| Association son↔GIF changée sans « Enregistrer » | L'écran ne rafraîchit son index gif→son que sur `config:updated` (donc à chaque enregistrement du panneau), au montage et à la reconnexion — une association changée SANS toucher aux réglages n'atteint les écrans déjà ouverts qu'au prochain de ces trois moments. Assumé (rare, se répare seul) |
 
 ## ⚫ F. Angles morts — rien n'existe, et personne ne l'a décidé
 
