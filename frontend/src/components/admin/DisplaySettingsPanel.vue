@@ -74,6 +74,12 @@ onMounted(async () => {
   // resolution best-effort de la soiree active. Un echec laisse eventId a null,
   // la galerie bascule en mode hors-ligne (lecture seule) sans casser le panneau.
   eventId.value = currentEventScope() ?? await resolveActiveEventId();
+  // Une soiree deja en mode scene ouvre le panneau avec son selecteur rempli.
+  // Charge APRES la resolution de eventId : sans ?eventId=, la liste n'est
+  // ouverte qu'a l'organisateur et l'admin de soiree recevrait un 401.
+  if (settings.value.visualMode === 'scene') {
+    void loadScenes();
+  }
 });
 
 const toast = useToast();
@@ -189,6 +195,36 @@ function resetActiveTheme(): void {
 
 function selectVisualMode(mode: DisplayVisualMode): void {
   settings.value.visualMode = mode;
+}
+
+// Bibliotheque de scenes Rive (Atelier Scenes). Chargee a l'entree en mode
+// scene ; l'upload reste hors app (organisateur, runbook de l'Atelier).
+interface SceneOption { id: number; name: string; url: string; }
+const scenes = ref<SceneOption[]>([]);
+const scenesLoadError = ref('');
+let scenesLoaded = false;
+
+async function loadScenes(): Promise<void> {
+  scenesLoadError.value = '';
+  try {
+    const query = eventId.value !== null ? `?eventId=${eventId.value}` : '';
+    const response = await adminFetch(`${API_BASE}/api/scenes${query}`);
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.error || 'scenes load failed');
+    }
+    scenes.value = (result.scenes as SceneOption[]).map(({ id, name, url }) => ({ id, name, url }));
+    scenesLoaded = true;
+  } catch {
+    scenesLoadError.value = t('display.visual.scene.loadError');
+  }
+}
+
+function selectSceneMode(): void {
+  selectVisualMode('scene');
+  if (!scenesLoaded) {
+    void loadScenes();
+  }
 }
 
 function selectTextDirection(direction: DisplayTextDirection): void {
@@ -455,6 +491,38 @@ onUnmounted(stopAudio);
             </span>
             <span v-if="settings.visualMode === 'custom'" class="selected-badge">{{ t('common.active') }}</span>
           </button>
+
+          <button
+            type="button"
+            class="visual-mode-card"
+            :class="{ selected: settings.visualMode === 'scene' }"
+            :aria-pressed="settings.visualMode === 'scene'"
+            @click="selectSceneMode()"
+          >
+            <span class="visual-mode-preview scene-preview" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </span>
+            <span class="visual-mode-copy">
+              <strong>{{ t('display.visual.scene.name') }}</strong>
+              <small>{{ t('display.visual.scene.description') }}</small>
+            </span>
+            <span v-if="settings.visualMode === 'scene'" class="selected-badge">{{ t('common.active') }}</span>
+          </button>
+        </div>
+
+        <!-- Selecteur de la bibliotheque : l'activation part dans le PUT /config
+             de la barre d'enregistrement commune, pas par un chemin dedie. -->
+        <div v-if="settings.visualMode === 'scene'" class="scene-picker">
+          <label for="scene-picker-select">{{ t('display.visual.scene.selectLabel') }}</label>
+          <select
+            id="scene-picker-select"
+            v-model.number="settings.sceneId"
+            :disabled="scenes.length === 0"
+          >
+            <option v-for="scene in scenes" :key="scene.id" :value="scene.id">{{ scene.name }}</option>
+          </select>
+          <p v-if="scenesLoadError" class="upload-error" role="alert">{{ scenesLoadError }}</p>
+          <p v-else-if="scenes.length === 0" class="scene-picker-empty">{{ t('display.visual.scene.empty') }}</p>
         </div>
 
         <div v-if="settings.visualMode === 'custom'" class="custom-svg-panel">
@@ -1776,6 +1844,28 @@ onUnmounted(stopAudio);
   object-fit: contain;
 }
 
+/* Facade de fenetres : meme langage que les previews voisines (or sur navy).
+   La rangee du BAS est allumee, celle du haut eteinte — c'est le sens de
+   l'illumination d'une scene quand le pourcentage monte. */
+.scene-preview {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  place-items: stretch;
+  gap: 4px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.scene-preview span {
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.28;
+}
+
+.scene-preview span:nth-child(n + 4) {
+  opacity: 0.9;
+}
+
 .visual-mode-copy {
   display: flex;
   min-width: 0;
@@ -1800,6 +1890,56 @@ onUnmounted(stopAudio);
   border: 1px solid var(--shell-border);
   border-radius: var(--radius-md);
   background: var(--shell-page);
+}
+
+/* Meme creux que le panneau SVG : les deux modes ouvrent un reglage sous la
+   grille, ils doivent se lire comme la meme famille de blocs. */
+.scene-picker {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--radius-md);
+  background: var(--shell-page);
+}
+
+.scene-picker label {
+  color: var(--shell-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Champ CLAIR comme les autres saisies du panneau (voir .copy-field input) :
+   la surface identifie le champ sur une carte sombre. */
+.scene-picker select {
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 9px;
+  background: var(--field-bg);
+  color: var(--field-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.scene-picker select:focus {
+  border-color: var(--field-border-focus);
+  outline: 3px solid rgba(228, 190, 99, 0.55);
+}
+
+.scene-picker select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.scene-picker-empty {
+  margin: 8px 0 0;
+  color: var(--shell-text-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .custom-svg-current {
