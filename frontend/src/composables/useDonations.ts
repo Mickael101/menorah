@@ -63,15 +63,15 @@ export type AdminBrandingSettings = Record<AdminBrandingLocale, AdminBrandingCop
 
 export const DEFAULT_ADMIN_BRANDING: AdminBrandingSettings = {
   fr: {
-    title: 'Ohel Yeochoua',
+    title: '',
     subtitle: 'Panel d’administration des dons'
   },
   en: {
-    title: 'Ohel Yeochoua',
+    title: '',
     subtitle: 'Donation administration panel'
   },
   he: {
-    title: 'Ohel Yeochoua',
+    title: '',
     subtitle: 'לוח ניהול התרומות'
   }
 };
@@ -144,7 +144,7 @@ export interface DisplayTextSettings {
 
 export const DEFAULT_DISPLAY_TEXTS: DisplayTextSettings = {
   eventTitle: 'SOIRÉE DE GÉNÉROSITÉ',
-  organizationName: 'OHEL YEHOSHUA',
+  organizationName: '',
   browserTitle: 'OROT NETANEL',
   boardKicker: 'TABLEAU EN DIRECT',
   boardTitle: 'MERCI À NOS DONATEURS',

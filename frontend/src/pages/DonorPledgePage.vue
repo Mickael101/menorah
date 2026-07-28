@@ -122,7 +122,7 @@ interface ConfettiPiece {
 const confetti = ref<ConfettiPiece[]>([]);
 
 const organizationName = computed(() =>
-  config.value.displaySettings?.texts?.organizationName || 'OHEL YEHOSHUA'
+  config.value.displaySettings?.texts?.organizationName || ''
 );
 
 // Editorial copy comes from the admin config (per locale); empty fields hide the element
