@@ -39,7 +39,7 @@ Vérifié le **2026-07-28** contre la branche `feat/celebrations-et-config-2026-
 | [`specs/2026-07-26-fondation-multi-evenements-design.md`](specs/2026-07-26-fondation-multi-evenements-design.md) | Design validé du virage multi-soirées + moteur de thèmes | 2026-07-27 |
 | [`specs/2026-07-28-atelier-scenes-design.md`](specs/2026-07-28-atelier-scenes-design.md) | Design validé de l'Atelier Scènes (Rive, pipeline hors app, scène bâtiment) | 2026-07-28 |
 | [`superpowers/plans/`](superpowers/plans/) | Plans de travail vivants (chantier en cours) | 2026-07-28 |
-| [`verif/`](verif/) | 41 captures avant/après, preuves des tranches livrées (dont `2026-07-29-atelier-scenes/` : fallback scène + carte admin) | 2026-07-29 |
+| [`verif/`](verif/) | 40 captures avant/après, preuves des tranches livrées (dont `2026-07-29-atelier-scenes/` : fallback scène + carte admin FR — la capture HE reste à faire, le toggle de locale a résisté à l'automatisation) | 2026-07-29 |
 | [`archive/`](archive/) | Documents livrés ou remplacés, préfixés par date. Jamais supprimés. | — |
 
 > Une date de plus d'un mois sur un module dont le code a bougé depuis = suspecter une dérive.
