@@ -73,7 +73,7 @@ En cas de reprise (crash, /clear, nouvelle session) :
 - [x] **S1 — Recherche dans la liste des dons.** `DonationList.vue` : champ (nom, référence,
   montant), insensible casse/accents, compteur « filtrés/total », état « aucun résultat »,
   clés i18n fr/en/he.
-- [ ] **S2 — Modèle celebrations.** Backend : `types.ts` (interface + défaut), `config.ts`
+- [x] **S2 — Modèle celebrations.** Backend : `types.ts` (interface + défaut), `config.ts`
   (normalisation : tableau ≤ 50, minAmount entier > 0, gifUrl `/uploads/gifs/…`, booléens,
   id régénéré si absent, entrées invalides éliminées), tests dédiés
   (`backend/tests/services/` ou `routes/config`). Frontend : miroir types + défauts dans
@@ -107,7 +107,14 @@ En cas de reprise (crash, /clear, nouvelle session) :
 
 - S0 `cc451c1` — plan committé.
 - S1 `a237ddc` — recherche liste des dons (gate 188 tests + 2 builds + vue-tsc verts).
+- S2 `712be07` — modèle celebrations + 8 tests (196 tests verts).
+- ⚠ Flakiness PRÉEXISTANTE prouvée sur master (`14e3d4f`) : « Worker exited unexpectedly »
+  (tinypool, Windows) tue la run vitest à un point aléatoire ~1 fois sur 3 — reproduite sur la
+  base run 1/3, verte runs 2-3. Règle du sprint : n'accepter comme gate qu'une run COMPLÈTE
+  (27 fichiers passés) ; une run partielle avec ce crash se rejoue. À consigner dans
+  reste-a-faire (S7). Piège associé corrigé dans la procédure : `npm test | tail` avale le
+  code de sortie — toujours lire le compte de fichiers, pas la présence d'erreur shell.
 
 ## État courant
 
-S2 (modèle celebrations) prêt : ce commit le porte. Prochaine action : S3.
+S3 (écran : palier + stop) prêt : ce commit le porte. Prochaine action : S4.
