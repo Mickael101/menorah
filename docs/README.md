@@ -37,6 +37,7 @@ Vérifié le **2026-07-28** contre la branche `feat/celebrations-et-config-2026-
 | [`historique.md`](historique.md) | Chronologie, décisions datées, changelog | 2026-07-27 |
 | [`reste-a-faire.md`](reste-a-faire.md) | Backlog vérifié dans le code, par famille | 2026-07-27 |
 | [`specs/2026-07-26-fondation-multi-evenements-design.md`](specs/2026-07-26-fondation-multi-evenements-design.md) | Design validé du virage multi-soirées + moteur de thèmes | 2026-07-27 |
+| [`specs/2026-07-28-atelier-scenes-design.md`](specs/2026-07-28-atelier-scenes-design.md) | Design validé de l'Atelier Scènes (Rive, pipeline hors app, scène bâtiment) | 2026-07-28 |
 | [`superpowers/plans/`](superpowers/plans/) | Plans de travail vivants (chantier en cours) | 2026-07-28 |
 | [`verif/`](verif/) | 36 captures avant/après, preuves des tranches livrées (dont `2026-07-28/` : célébrations + refonte admin) | 2026-07-28 |
 | [`archive/`](archive/) | Documents livrés ou remplacés, préfixés par date. Jamais supprimés. | — |
