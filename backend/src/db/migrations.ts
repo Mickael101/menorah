@@ -97,6 +97,7 @@ export function runMigrations(db: Database): void {
   createEventConfigsTable(db);
   createMediaTable(db);
   createThemesTable(db);
+  createScenesTable(db);
   addEventIdToDonations(db);
   seedFirstEvent(db);
   copyLegacyConfig(db);
@@ -200,6 +201,21 @@ function createThemesTable(db: Database): void {
       name TEXT NOT NULL,
       tokens_json TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+}
+
+function createScenesTable(db: Database): void {
+  // Bibliotheque de scenes Rive (Atelier Scenes, spec 2026-07-28). Globale :
+  // une scene est un actif de l'organisateur, activable par n'importe quelle
+  // soiree via displaySettings.sceneId. Le fichier .riv vit sous
+  // DATA_DIR/uploads/scenes/, servi par le montage statique /uploads existant.
+  db.run(`
+    CREATE TABLE IF NOT EXISTS scenes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      filename TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
 }
