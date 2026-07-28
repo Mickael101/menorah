@@ -259,6 +259,39 @@ export const DEFAULT_THEME_PALETTES: Record<DisplayThemeId, DisplayThemePalette>
   }
 };
 
+// Palier de celebration (miroir du backend, models/types.ts) : a partir de
+// minAmount (agorot), declencher ce GIF. Le son joue est celui associe au GIF
+// dans la galerie, a defaut le son par defaut donationSound.
+export interface CelebrationRule {
+  id: string;
+  minAmount: number; // agorot, > 0
+  gifUrl: string;    // /uploads/gifs/<fichier>
+  playOnDisplay: boolean;
+  playOnPledge: boolean;
+}
+
+export type CelebrationScope = 'display' | 'pledge';
+
+// Regle gagnante : parmi les regles actives sur cette portee et dont le seuil
+// est atteint, le plus HAUT minAmount l'emporte (egalite -> premiere du
+// tableau). Pure et defensive : un tableau absent ou une entree malformee ne
+// doit jamais faire tomber un ecran public.
+export function matchCelebrationRule(
+  amount: number,
+  rules: CelebrationRule[] | undefined | null,
+  scope: CelebrationScope
+): CelebrationRule | null {
+  if (!Array.isArray(rules)) return null;
+  let best: CelebrationRule | null = null;
+  for (const rule of rules) {
+    if (!rule || typeof rule.minAmount !== 'number' || typeof rule.gifUrl !== 'string') continue;
+    if (scope === 'display' ? !rule.playOnDisplay : !rule.playOnPledge) continue;
+    if (rule.minAmount > amount) continue;
+    if (!best || rule.minAmount > best.minAmount) best = rule;
+  }
+  return best;
+}
+
 export interface DisplaySettings extends DisplayThemePalette {
   theme: DisplayThemeId;
   themePalettes: Record<DisplayThemeId, DisplayThemePalette>;
@@ -271,6 +304,7 @@ export interface DisplaySettings extends DisplayThemePalette {
   pledgeTexts: PledgeTextsSettings;
   pledgeRequiredFields: PledgeRequiredFields;
   donationSound: string | null;
+  celebrations: CelebrationRule[];
 }
 
 export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
@@ -285,7 +319,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   adminBranding: structuredClone(DEFAULT_ADMIN_BRANDING),
   pledgeTexts: structuredClone(DEFAULT_PLEDGE_TEXTS),
   pledgeRequiredFields: { ...DEFAULT_PLEDGE_REQUIRED_FIELDS },
-  donationSound: null
+  donationSound: null,
+  celebrations: []
 };
 
 export interface Config {

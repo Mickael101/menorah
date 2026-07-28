@@ -162,6 +162,22 @@ export const DEFAULT_PLEDGE_TEXTS: PledgeTextsSettings = {
   }
 };
 
+// Palier de celebration : a partir de minAmount (agorot), l'ecran declenche ce
+// GIF ; le son joue est celui associe au GIF dans la galerie (table media), a
+// defaut le son par defaut donationSound. UNE regle par GIF (impose a la
+// normalisation) ; la regle gagnante est le plus haut minAmount <= montant.
+// La resolution se fait cote client (ecran et /don) pour rester synchrone avec
+// la file d'attente des animations — le serveur ne declenche rien ici.
+export interface CelebrationRule {
+  id: string;
+  minAmount: number; // agorot, > 0
+  gifUrl: string;    // /uploads/gifs/<fichier>
+  playOnDisplay: boolean;
+  playOnPledge: boolean;
+}
+
+export const CELEBRATION_RULES_MAX = 50;
+
 export interface DisplayTextSettings {
   eventTitle: string;
   organizationName: string;
@@ -310,6 +326,7 @@ export interface DisplaySettings extends DisplayThemePalette {
   pledgeTexts: PledgeTextsSettings;
   pledgeRequiredFields: PledgeRequiredFields;
   donationSound: string | null;
+  celebrations: CelebrationRule[];
 }
 
 // Default display settings
@@ -325,7 +342,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   adminBranding: structuredClone(DEFAULT_ADMIN_BRANDING),
   pledgeTexts: structuredClone(DEFAULT_PLEDGE_TEXTS),
   pledgeRequiredFields: { ...DEFAULT_PLEDGE_REQUIRED_FIELDS },
-  donationSound: null
+  donationSound: null,
+  celebrations: []
 };
 
 // Une soiree de dons. Plusieurs peuvent se tenir en meme temps.

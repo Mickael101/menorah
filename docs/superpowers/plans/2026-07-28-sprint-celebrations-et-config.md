@@ -69,8 +69,8 @@ En cas de reprise (crash, /clear, nouvelle session) :
 
 ## Tranches (une case = un commit mergeable, gate vert)
 
-- [ ] **S0 — Plan committé** (ce fichier).
-- [ ] **S1 — Recherche dans la liste des dons.** `DonationList.vue` : champ (nom, référence,
+- [x] **S0 — Plan committé** (ce fichier).
+- [x] **S1 — Recherche dans la liste des dons.** `DonationList.vue` : champ (nom, référence,
   montant), insensible casse/accents, compteur « filtrés/total », état « aucun résultat »,
   clés i18n fr/en/he.
 - [ ] **S2 — Modèle celebrations.** Backend : `types.ts` (interface + défaut), `config.ts`
@@ -105,8 +105,9 @@ En cas de reprise (crash, /clear, nouvelle session) :
 
 ## Journal
 
-_(vide — n'ajouter une ligne qu'avec un SHA copié depuis `git log`)_
+- S0 `cc451c1` — plan committé.
+- S1 `a237ddc` — recherche liste des dons (gate 188 tests + 2 builds + vue-tsc verts).
 
 ## État courant
 
-Prochaine action : committer ce plan (S0), puis S1.
+S2 (modèle celebrations) prêt : ce commit le porte. Prochaine action : S3.
