@@ -43,6 +43,13 @@ const displayStyles = computed(() => getDisplayThemeStyles(config.value.displayS
 const themeClass = computed(() => `theme-${config.value.displaySettings.theme}`);
 const visualMode = computed(() => config.value.displaySettings.visualMode ?? 'none');
 const customSvgUrl = computed(() => config.value.displaySettings.customSvgUrl ?? null);
+const sceneUrl = computed(() => config.value.displaySettings.sceneUrl ?? null);
+// Une scene qui echoue au chargement retombe sur le visuel none (spec §6).
+// Reinitialise quand l'admin change de scene : la nouvelle merite sa chance.
+const sceneFailed = ref(false);
+watch(sceneUrl, () => {
+  sceneFailed.value = false;
+});
 const displayTexts = computed(() => ({
   ...DEFAULT_DISPLAY_TEXTS,
   ...(config.value.displaySettings.texts ?? {})
@@ -52,6 +59,7 @@ const donationAnimation = computed(() => config.value.displaySettings.donationAn
 const hasCampaignVisual = computed(() =>
   visualMode.value === 'menorah'
   || (visualMode.value === 'custom' && Boolean(customSvgUrl.value))
+  || (visualMode.value === 'scene' && Boolean(sceneUrl.value) && !sceneFailed.value)
 );
 
 // Classes de racine qui portent les axes de divergence (voir <style>).
@@ -411,9 +419,22 @@ function toggleFullscreen(): void {
         <!-- Visuel de campagne optionnel ; les donateurs restent la priorite visuelle. -->
         <div v-if="hasCampaignVisual" class="campaign-visual-section">
           <div v-if="variant.campaignFrame" class="campaign-visual-frame">
-            <CampaignVisual :mode="visualMode" :custom-svg-url="customSvgUrl" />
+            <CampaignVisual
+              :mode="visualMode"
+              :custom-svg-url="customSvgUrl"
+              :scene-url="sceneUrl"
+              :progress="stats.percentComplete"
+              @scene-failed="sceneFailed = true"
+            />
           </div>
-          <CampaignVisual v-else :mode="visualMode" :custom-svg-url="customSvgUrl" />
+          <CampaignVisual
+            v-else
+            :mode="visualMode"
+            :custom-svg-url="customSvgUrl"
+            :scene-url="sceneUrl"
+            :progress="stats.percentComplete"
+            @scene-failed="sceneFailed = true"
+          />
         </div>
 
         <!-- Scene principale des donateurs -->

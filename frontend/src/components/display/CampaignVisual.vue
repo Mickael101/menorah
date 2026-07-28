@@ -1,16 +1,27 @@
 <script setup lang="ts">
 import MenorahDisplay from './MenorahDisplay.vue';
+import SceneDisplay from './SceneDisplay.vue';
 import type { DisplayVisualMode } from '../../composables/useDonations';
 
 defineProps<{
   mode: DisplayVisualMode;
   customSvgUrl?: string | null;
+  sceneUrl?: string | null;
+  progress?: number;
 }>();
+
+defineEmits<{ 'scene-failed': [] }>();
 </script>
 
 <template>
   <div class="campaign-visual" :class="`visual-${mode}`">
     <MenorahDisplay v-if="mode === 'menorah'" />
+    <SceneDisplay
+      v-else-if="mode === 'scene' && sceneUrl"
+      :scene-url="sceneUrl"
+      :progress="progress ?? 0"
+      @failed="$emit('scene-failed')"
+    />
     <img
       v-else-if="mode === 'custom' && customSvgUrl"
       :src="customSvgUrl"
@@ -45,6 +56,13 @@ defineProps<{
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+/* Un canvas ne se dimensionne pas comme une image : `object-fit: contain` n'a
+   pas de sens ici, la scene Rive gere elle-meme son cadrage interne. */
+.campaign-visual :deep(.scene-canvas) {
+  width: 100%;
+  height: 100%;
 }
 
 .custom-visual {
