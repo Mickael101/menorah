@@ -264,6 +264,13 @@ export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
   const customSvgUrl = source.customSvgUrl === null || typeof source.customSvgUrl === 'string'
     ? source.customSvgUrl
     : null;
+  const rawSceneId = source.sceneId;
+  const sceneId = typeof rawSceneId === 'number' && Number.isInteger(rawSceneId)
+    ? rawSceneId
+    : null;
+  // sceneUrl est REECRIT par config.service a chaque sauvegarde ; on ne fait
+  // ici que tolerer la valeur stockee pour la relecture du blob.
+  const sceneUrl = typeof source.sceneUrl === 'string' ? source.sceneUrl : null;
   const requestedAnimation = source.donationAnimation;
   const donationAnimation: DonationAnimationStyle = typeof requestedAnimation === 'string'
     && DONATION_ANIMATION_STYLES.includes(requestedAnimation as DonationAnimationStyle)
@@ -289,6 +296,8 @@ export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
     ...activePalette,
     visualMode,
     customSvgUrl,
+    sceneId,
+    sceneUrl,
     donationAnimation,
     textDirection,
     texts,

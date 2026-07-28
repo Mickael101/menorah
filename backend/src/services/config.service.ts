@@ -1,7 +1,8 @@
 import { getDb, saveDatabase } from '../db/init';
-import { Config, DEFAULT_DISPLAY_SETTINGS } from '../models/types';
+import { Config, DisplaySettings, DEFAULT_DISPLAY_SETTINGS } from '../models/types';
 import { ConfigRow, rowToConfig } from '../models/config';
 import { eventService, UnknownEventError } from './event.service';
+import { sceneService } from './scene.service';
 
 // La source de verite est `event_configs`. L'ancienne table `config` reste en
 // base, en lecture seule, jusqu'a sa suppression au LOT 6 : la migration l'a
@@ -61,6 +62,7 @@ class ConfigService {
     }
 
     if (data.displaySettings !== undefined) {
+      this.resolveSceneBinding(data.displaySettings);
       updates.push('display_settings = ?');
       values.push(JSON.stringify(data.displaySettings));
     }
@@ -80,6 +82,22 @@ class ConfigService {
     saveDatabase();
 
     return this.get(eventId);
+  }
+
+  // Le serveur est la seule source de verite : sceneUrl est toujours derive
+  // de sceneId au moment de la sauvegarde, jamais accepte du client. En mode
+  // scene, une reference morte est une erreur de requete (400 via la route).
+  private resolveSceneBinding(settings: DisplaySettings): void {
+    if (settings.visualMode === 'scene') {
+      const scene = settings.sceneId !== null ? sceneService.get(settings.sceneId) : null;
+      if (!scene) {
+        throw new Error('sceneId must reference an existing scene when visualMode is "scene"');
+      }
+      settings.sceneUrl = scene.url;
+      return;
+    }
+    const scene = settings.sceneId !== null ? sceneService.get(settings.sceneId) : null;
+    settings.sceneUrl = scene ? scene.url : null;
   }
 
   private assertEventExists(eventId: number): void {

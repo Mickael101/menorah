@@ -78,7 +78,7 @@ export interface MenorahSegment {
 export const DISPLAY_THEME_IDS = ['premium', 'modern', 'ceremonial', 'royal', 'emerald', 'ivory', 'midnight'] as const;
 export type DisplayThemeId = typeof DISPLAY_THEME_IDS[number];
 
-export const DISPLAY_VISUAL_MODES = ['none', 'menorah', 'custom'] as const;
+export const DISPLAY_VISUAL_MODES = ['none', 'menorah', 'custom', 'scene'] as const;
 export type DisplayVisualMode = typeof DISPLAY_VISUAL_MODES[number];
 
 export const DONATION_ANIMATION_STYLES = ['prestige', 'confetti', 'ribbons', 'minimal'] as const;
@@ -319,6 +319,8 @@ export interface DisplaySettings extends DisplayThemePalette {
   themePalettes: Record<DisplayThemeId, DisplayThemePalette>;
   visualMode: DisplayVisualMode;
   customSvgUrl: string | null;
+  sceneId: number | null;
+  sceneUrl: string | null;
   donationAnimation: DonationAnimationStyle;
   textDirection: DisplayTextDirection;
   texts: DisplayTextSettings;
@@ -336,6 +338,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   ...DEFAULT_THEME_PALETTES.premium,
   visualMode: 'none',
   customSvgUrl: null,
+  sceneId: null,
+  sceneUrl: null,
   donationAnimation: 'prestige',
   textDirection: 'auto',
   texts: structuredClone(DEFAULT_DISPLAY_TEXTS),
