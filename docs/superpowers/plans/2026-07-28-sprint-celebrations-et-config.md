@@ -79,7 +79,7 @@ En cas de reprise (crash, /clear, nouvelle session) :
   (`backend/tests/services/` ou `routes/config`). Frontend : miroir types + défauts dans
   `useDonations.ts`, clonage profond dans `cloneDisplaySettings`, util partagée
   `matchCelebrationRule(amount, rules, scope)`.
-- [ ] **S3 — Écran : palier + stop.** Backend : `emitCelebrationStop` + route
+- [x] **S3 — Écran : palier + stop.** Backend : `emitCelebrationStop` + route
   `POST /gifs/stop` (admin) + tests (route + réception socket, isolation par soirée).
   Frontend `DisplayScreen.vue` : index gifs (fetch public au montage/reconnexion/config),
   matching dans `showDonationCelebration` (GIF du palier + son associé sinon son par défaut,
@@ -115,6 +115,8 @@ En cas de reprise (crash, /clear, nouvelle session) :
   reste-a-faire (S7). Piège associé corrigé dans la procédure : `npm test | tail` avale le
   code de sortie — toujours lire le compte de fichiers, pas la présence d'erreur shell.
 
+- S3 `387f8cd` — écran : palier + stop + audio stoppable (199 tests, run complète 27/27).
+
 ## État courant
 
-S3 (écran : palier + stop) prêt : ce commit le porte. Prochaine action : S4.
+S4 (/don : célébration par palier) prêt : ce commit le porte. Prochaine action : S5.

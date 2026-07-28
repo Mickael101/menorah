@@ -3,11 +3,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import {
   useDonations,
+  matchCelebrationRule,
   DEFAULT_PLEDGE_TEXTS,
   DEFAULT_PLEDGE_REQUIRED_FIELDS,
   type PledgePageCopy,
   type PledgeRequiredFields
 } from '../composables/useDonations';
+import { scopedApiUrl } from '../composables/useAdminAuth';
 import { useEventContext, currentEventScope } from '../composables/useEventContext';
 import { useSocket } from '../composables/useSocket';
 import { getPledgeThemeStyles } from '../theme/displayThemes';
@@ -121,6 +123,68 @@ interface ConfettiPiece {
 }
 const confetti = ref<ConfettiPiece[]>([]);
 
+// Palier de celebration (galerie de la soiree) sur l'ecran de remerciement.
+// Meme mecanique que l'ecran de salle : index gifUrl -> audioUrl, regle au GIF
+// disparu ignoree. L'audio est stoppable et coupe au reset comme au demontage.
+const celebrationGifUrl = ref<string | null>(null);
+const gifAudioIndex = ref<Map<string, string | null>>(new Map());
+let celebrationAudio: HTMLAudioElement | null = null;
+let celebrationGifTimer: number | null = null;
+
+async function refreshGifIndex(): Promise<void> {
+  try {
+    const response = await fetch(scopedApiUrl('/api/gifs', currentEventScope()));
+    if (!response.ok) return;
+    const gifs: { url: string; audioUrl: string | null }[] = await response.json();
+    gifAudioIndex.value = new Map(gifs.map((gif) => [gif.url, gif.audioUrl]));
+  } catch {
+    // Sans index, les paliers ne jouent pas : la page reste pleinement utilisable.
+  }
+}
+
+function stopCelebrationMedia(): void {
+  if (celebrationAudio) {
+    celebrationAudio.onended = null;
+    celebrationAudio.pause();
+    celebrationAudio.currentTime = 0;
+    celebrationAudio = null;
+  }
+  if (celebrationGifTimer !== null) {
+    window.clearTimeout(celebrationGifTimer);
+    celebrationGifTimer = null;
+  }
+  celebrationGifUrl.value = null;
+}
+
+function playCelebrationRule(donationAmount: number): void {
+  const rule = matchCelebrationRule(
+    donationAmount,
+    config.value.displaySettings?.celebrations,
+    'pledge'
+  );
+  if (!rule || !gifAudioIndex.value.has(rule.gifUrl)) return;
+
+  celebrationGifUrl.value = rule.gifUrl;
+  const audioUrl = gifAudioIndex.value.get(rule.gifUrl);
+  if (audioUrl) {
+    try {
+      // Autoplay permis : on est dans la foulee du clic de soumission.
+      const audio = new Audio(audioUrl);
+      celebrationAudio = audio;
+      audio.onended = () => {
+        if (celebrationAudio === audio) celebrationAudio = null;
+      };
+      audio.play().catch(() => { /* le GIF suffit si le navigateur refuse */ });
+    } catch {
+      // Idem : la celebration visuelle reste.
+    }
+  }
+  celebrationGifTimer = window.setTimeout(() => {
+    celebrationGifUrl.value = null;
+    celebrationGifTimer = null;
+  }, 6000);
+}
+
 const organizationName = computed(() =>
   config.value.displaySettings?.texts?.organizationName || ''
 );
@@ -143,6 +207,7 @@ onMounted(async () => {
   await resolve(typeof route.params.slug === 'string' ? route.params.slug : null);
   if (!pageNotFound.value) {
     fetchConfig();
+    void refreshGifIndex();
     // Meme reactivite que l'ecran de salle : un changement de theme ou de
     // texte fait par l'admin s'applique EN DIRECT, sans recharger la page.
     join(currentEventScope());
@@ -156,6 +221,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  stopCelebrationMedia();
   // Ne pas laisser fuiter la portee de cette soiree sur la page suivante.
   clear();
 });
@@ -230,10 +296,12 @@ async function submit(): Promise<void> {
     makeConfetti();
     showCelebration.value = true;
     animateAmount(result.amount);
+    playCelebrationRule(result.amount);
   }
 }
 
 function reset(): void {
+  stopCelebrationMedia();
   showCelebration.value = false;
   confetti.value = [];
   firstName.value = '';
@@ -367,6 +435,13 @@ function reset(): void {
           }"
         ></span>
       </div>
+
+      <!-- GIF du palier atteint (configuré dans la galerie de l'admin). -->
+      <Transition name="gif-pop">
+        <div v-if="celebrationGifUrl" class="celebration-gif" aria-hidden="true">
+          <img :src="celebrationGifUrl" alt="" />
+        </div>
+      </Transition>
 
       <div class="celebration-card">
         <div class="big-flame">
@@ -748,6 +823,47 @@ input:focus {
   100% {
     transform: translateY(110vh) translateX(var(--drift)) rotate(var(--rotate));
     opacity: 0.75;
+  }
+}
+
+/* GIF du palier : par-dessus la carte, sans capter les clics, disparait seul. */
+.celebration-gif {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.celebration-gif img {
+  max-width: min(340px, 78vw);
+  max-height: 46vh;
+  border-radius: 20px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+}
+
+.gif-pop-enter-active {
+  animation: gif-pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gif-pop-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.gif-pop-leave-to {
+  opacity: 0;
+}
+
+@keyframes gif-pop-in {
+  0% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gif-pop-enter-active {
+    animation: none;
   }
 }
 
