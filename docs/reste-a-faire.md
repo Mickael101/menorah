@@ -1,6 +1,7 @@
 # Ce qui reste à faire
 
-Vérifié le **2026-07-27** (fin de journée) contre master après le sprint de clôture du
+Vérifié le **2026-07-29** (nuit) contre `feat/atelier-scenes-2026-07-28` — section
+« Atelier Scènes » ajoutée. Base antérieure : 2026-07-27 contre master après le sprint de clôture du
 backlog (plan : `superpowers/plans/2026-07-27-sprint-cloture-backlog.md`, journal avec SHAs).
 **L'intégralité des familles A (sécurité), B (multi-événements), C (qualité) et E (contenu
 admin) du backlog du matin est LIVRÉE, vérifiée au navigateur (24 captures
@@ -20,6 +21,17 @@ Ce qui suit est ce qui reste — rien d'autre.
 | **D2** | `/don` multi-actives : **statu quo** — la plus récente gagne + avertissement | Rien à faire (déjà le comportement du contrat) |
 | **D3** | Bandeau display : **statu quo** — texte configuré, personnalisable par soirée, rien d'automatique | Rien à faire |
 | **D4** | Contraste des thèmes : **avertir sans bloquer** (conforme spec §5.4) | Rien à faire (déjà appliqué) |
+
+## 🟠 Atelier Scènes — reste à livrer (2026-07-29)
+
+| Quoi | Détail |
+|---|---|
+| **Fabriquer `building.riv`** | Geste **HUMAIN** (Rive Editor, GUI) : dérouler `D:\Menora\atelier-scenes\RUNBOOK.md` (5 étapes ; seuils dans `scenes/building/THRESHOLDS.md`), déposer le `.riv`, uploader (organisateur), rejouer les captures 0/60/100 % avec la vraie scène. Vérifier au passage le plan Rive Editor (gratuit vs payant). |
+| **Bug PRÉEXISTANT — éjection de l'admin de soirée au montage** | Sur `/e/:slug/admin`, un login au **code de soirée** monte le panneau puis se fait éjecter vers la connexion (message « Code refusé » trompeur). Cause prouvée au réseau (2026-07-29) : au montage, `GET /api/themes` **sans** `eventId` (`themesApi.ts:193`, `eventId` pas encore résolu) et `GET /api/events` (organisateur-only) partent avec le code → 401 by-design → signal `authExpired`. Le jeton organisateur passe, lui. Antérieur à la branche (aucun fichier thèmes touché par le sprint scènes). Piste : `expectAuthFailure` sur ces deux appels, ou attendre la résolution d'`eventId` avant d'interroger les thèmes. |
+
+Dette mineure ajoutée par le sprint scènes : la 4e carte visuelle passe seule en 2e ligne
+(grille admin figée à 3 colonnes) ; la bibliothèque de scènes ne se rafraîchit qu'au
+rechargement du panneau ; `sceneFailed` ne se réinitialise qu'au changement d'URL de scène.
 
 ## 🟡 Dette mineure assumée (sans échéance)
 

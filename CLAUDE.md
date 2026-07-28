@@ -73,7 +73,20 @@ Le `package.json` racine est une coquille vide : **rien ne se lance depuis la ra
 - KISS · YAGNI — voir `.specify/memory/constitution.md`.
 - Style et lint : délégués à `tsc`/`vue-tsc`, pas de règles de formatage ici.
 
-## État au 2026-07-28 (après-midi)
+## État au 2026-07-29 (nuit)
+
+Atelier Scènes v1 LIVRÉ sur `feat/atelier-scenes-2026-07-28` (branche poussée, **NON mergée,
+pas de `railway up`**) : bibliothèque de scènes Rive (`/api/scenes`, upload organisateur,
+magic bytes, 400 contractuels), 4e mode visuel `scene` par soirée (`sceneId`/`sceneUrl`
+résolus SERVEUR, self-healing au DELETE), `SceneDisplay.vue` (runtime `@rive-app/canvas`
+lazy en chunk séparé, `progress` ← `percentComplete`, fallback `none` sans crash — prouvé),
+carte + sélecteur admin (i18n fr/en/he), **premier harnais vitest frontend** (6 tests).
+Atelier hors app : `D:\Menora\atelier-scenes\` (runbook, dépôt git dédié). Spec :
+`docs/specs/2026-07-28-atelier-scenes-design.md`. 217 tests backend + 6 frontend + 2 builds
+verts, preuves `docs/verif/2026-07-29-atelier-scenes/`. Reste HUMAIN : fabriquer
+`building.riv` dans Rive Editor (runbook) puis preuve visuelle avec la vraie scène.
+⚠ Piège relevé : sur `/e/:slug/admin`, le login au CODE DE SOIRÉE est éjecté au montage
+(401 by-design thèmes/events → `authExpired`) — PRÉEXISTANT, voir `docs/reste-a-faire.md`.
 
 Sprint célébrations LIVRÉ sur `feat/celebrations-et-config-2026-07-28` (mergé master, **pas
 de `railway up`** — la mise en prod attend le commanditaire, deux lots sont en attente) :
@@ -88,6 +101,6 @@ vérification navigateur complète (`docs/verif/2026-07-28/`).
 erreurs de types, Railway si.
 ⚠ Vitest : le pool forks par défaut crashe aléatoirement sur cette machine Windows
 (préexistant, prouvé sur master) — en cas de « Worker exited unexpectedly », rejouer, ou
-`npx vitest run --pool=threads` (27/27 stable). Voir `docs/reste-a-faire.md`.
+`npx vitest run --pool=threads` (29/29 stable). Voir `docs/reste-a-faire.md`.
 
 👉 `docs/reste-a-faire.md` (dette mineure + angles morts F)

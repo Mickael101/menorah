@@ -1,7 +1,7 @@
 # API HTTP et événements Socket.IO
 
-Vérifié le **2026-07-28** contre la branche `feat/celebrations-et-config-2026-07-28`
-(sprint célébrations par palier + stop temps réel).
+Vérifié le **2026-07-29** contre la branche `feat/atelier-scenes-2026-07-28`
+(Atelier Scènes v1 : bibliothèque de scènes Rive + mode visuel `scene`).
 
 ## Règle de montage
 
@@ -114,6 +114,34 @@ ThemeTokens = { base: DisplayThemeId } & DisplayThemePalette   // base + 10 coul
 (hérité + `/api/events/:eventId/...`). Le routage **frontend** `/e/:slug` est livré (F1) et
 les écrans display consomment leur slug (O2). Contrat de référence :
 `superpowers/plans/2026-07-27-contrat-api-multi-evenements.md`.
+
+### Scènes (`routes/scenes.ts`, Atelier Scènes v1)
+
+Une scène est un fichier **Rive** (`.riv`) fabriqué HORS app (atelier
+`D:\Menora\atelier-scenes\`, spec `specs/2026-07-28-atelier-scenes-design.md`) et joué par
+l'écran de salle. Bibliothèque **globale** (table `scenes`) : un actif de l'organisateur,
+activable par n'importe quelle soirée via `displaySettings`.
+
+| Méthode + chemin | Accès | Rôle |
+|---|---|---|
+| GET `/api/scenes?eventId=` | **admin de la soirée** (avec `eventId`) sinon **organisateur** | `{ scenes: SceneRecord[] }` |
+| POST `/api/scenes` | **organisateur** | multipart champ `scene` (+ champ texte `name` optionnel). `.riv` seulement, ≤ 10 Mo, magic bytes `RIVE` vérifiés après écriture (fichier supprimé sinon). Les refus multer (extension, taille) sont convertis en **400** contractuels. 201 `{ scene }` |
+| DELETE `/api/scenes/:id` | **organisateur** | 204. **Self-healing** : les soirées qui référençaient la scène repassent `visualMode:'none'`, `sceneId`/`sceneUrl` null, config rediffusée par socket. Fichier supprimé (frontière `path.relative`) |
+
+```ts
+SceneRecord = { id, name, filename, url, createdAt }   // url = /uploads/scenes/<filename>
+```
+
+**Activation** : `PUT /config` avec `displaySettings.visualMode:'scene'` + `sceneId`. Le
+serveur **réécrit toujours `sceneUrl`** depuis `sceneId` (jamais accepté du client) ;
+`sceneId` absent ou inconnu en mode scène → **400**.
+
+**Contrat de scène (couplage atelier ↔ app)** : artboard unique ; state machine nommée
+`Scene` ; input **number** `progress` (0–100) ; seuils d'illumination bakés dans le `.riv` ;
+transitions ≤ 2 s sans flash ; fichier autonome. L'écran pousse `stats.percentComplete`
+(déjà plafonné à 100 côté serveur) dans `progress` via `@rive-app/canvas` **lazy-loadé** en
+chunk séparé (`SceneDisplay.vue`) ; toute défaillance — fichier mort, state machine absente —
+retombe sur le visuel `none` sans crash (prouvé : `verif/2026-07-29-atelier-scenes/`).
 
 ## Authentification
 

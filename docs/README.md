@@ -30,16 +30,16 @@ Vérifié le **2026-07-28** contre la branche `feat/celebrations-et-config-2026-
 | Document | Sujet | Vérifié le |
 |---|---|---|
 | [`architecture.md`](architecture.md) | Stack réelle, modules, points d'entrée, routage multi-soirées frontend, code mort | 2026-07-27 |
-| [`api-et-socket.md`](api-et-socket.md) | Tous les endpoints HTTP et événements Socket.IO, avec leur garde | 2026-07-28 |
+| [`api-et-socket.md`](api-et-socket.md) | Tous les endpoints HTTP et événements Socket.IO, avec leur garde | 2026-07-29 |
 | [`donnees-et-migrations.md`](donnees-et-migrations.md) | Schéma des tables, migrations, sauvegardes | 2026-07-27 |
 | [`deploiement.md`](deploiement.md) | Railway, `railway up`, variables d'environnement, volume | 2026-07-27 |
-| [`tests.md`](tests.md) | Comment lancer le gate, et les pièges qui rendent le vert menteur | 2026-07-27 |
-| [`historique.md`](historique.md) | Chronologie, décisions datées, changelog | 2026-07-27 |
-| [`reste-a-faire.md`](reste-a-faire.md) | Backlog vérifié dans le code, par famille | 2026-07-27 |
+| [`tests.md`](tests.md) | Comment lancer le gate, et les pièges qui rendent le vert menteur | 2026-07-29 |
+| [`historique.md`](historique.md) | Chronologie, décisions datées, changelog | 2026-07-29 |
+| [`reste-a-faire.md`](reste-a-faire.md) | Backlog vérifié dans le code, par famille | 2026-07-29 |
 | [`specs/2026-07-26-fondation-multi-evenements-design.md`](specs/2026-07-26-fondation-multi-evenements-design.md) | Design validé du virage multi-soirées + moteur de thèmes | 2026-07-27 |
 | [`specs/2026-07-28-atelier-scenes-design.md`](specs/2026-07-28-atelier-scenes-design.md) | Design validé de l'Atelier Scènes (Rive, pipeline hors app, scène bâtiment) | 2026-07-28 |
 | [`superpowers/plans/`](superpowers/plans/) | Plans de travail vivants (chantier en cours) | 2026-07-28 |
-| [`verif/`](verif/) | 36 captures avant/après, preuves des tranches livrées (dont `2026-07-28/` : célébrations + refonte admin) | 2026-07-28 |
+| [`verif/`](verif/) | 41 captures avant/après, preuves des tranches livrées (dont `2026-07-29-atelier-scenes/` : fallback scène + carte admin) | 2026-07-29 |
 | [`archive/`](archive/) | Documents livrés ou remplacés, préfixés par date. Jamais supprimés. | — |
 
 > Une date de plus d'un mois sur un module dont le code a bougé depuis = suspecter une dérive.

@@ -1,12 +1,18 @@
 # Tests — et pourquoi le vert peut mentir
 
-Vérifié le **2026-07-27** contre `099918c`.
+Vérifié le **2026-07-29** contre `feat/atelier-scenes-2026-07-28`.
 
 ## Lancer le gate
 
 ```bash
 cd D:\Menora\menorah\backend
-npm test                      # vitest run — 10 fichiers, ~59 assertions
+npm test                      # vitest run — 29 fichiers, 217 tests (--pool=threads si crash forks)
+npm run build                 # tsc — npm test seul ne voit pas les erreurs de types
+
+cd ..\frontend
+npm run typecheck             # vue-tsc — garde-fou des composants
+npm test                      # vitest node-env — contrôleur de scène (6 tests)
+npm run build                 # vite — seul à prouver le bundling (chunk Rive séparé)
 ```
 
 > **Depuis `backend/`, jamais depuis la racine.** Le `package.json` racine est une coquille
@@ -20,12 +26,12 @@ Un garde-fou explicite jette maintenant si le cwd est mauvais (`tests/helpers/ap
 
 | Aspect | Réalité |
 |---|---|
-| Emplacement | `backend/tests/` **uniquement** — 10 fichiers `.test.ts` + 3 helpers |
-| Volume | ~59 `it(...)` : `multi-events` 12, `donations-pii` 10, `event-isolation` 9, `legacy-routes` 8, `event.service` 7, `admin-auth` 4, `socket-isolation` 3, `config-handover` 2, `live-screen-seam` 2, `smoke` 2 |
-| Runner | vitest **2.1.9** + supertest 7.2.2 |
-| Config | **une seule** — `backend/vitest.config.ts`. Aucun autre `vitest.config.*` ni `vitest.workspace.*` dans le dépôt |
+| Emplacement | `backend/tests/` — 29 fichiers `.test.ts` + helpers ; `frontend/src/scene/` — 1 fichier |
+| Volume | **217** assertions backend + **6** frontend (comptées le 2026-07-29, gate complet vert) |
+| Runner | vitest **2.1.9** + supertest 7.2.2 (backend) ; vitest **2.1.9** env `node` (frontend) |
+| Config | `backend/vitest.config.ts` (DATA_DIR isolé) + `frontend/vitest.config.ts` (env `node`, `src/**/*.test.ts`) |
 | Isolation | `DATA_DIR = backend/.tmp-test-data` posé par `vitest.config.ts:14-17` ; `globalSetup` efface le dossier (`tests/helpers/global-setup.ts:11`) |
-| **Frontend** | **ZÉRO test.** Pas de vitest, pas de script `test`. Seul garde-fou : `npm run typecheck` (vue-tsc) |
+| **Frontend** | **1 fichier** : `src/scene/sceneRuntime.test.ts` (6 tests, runtime Rive injecté — pas de jsdom). Les composants restent couverts par `npm run typecheck` (vue-tsc) + vérification navigateur |
 | Vérification visuelle | captures playwright-cli figées dans `docs/verif/`, **non automatisées** |
 
 ### Réglages non négociables de `vitest.config.ts`
