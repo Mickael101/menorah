@@ -4,15 +4,67 @@ import { useAdminI18n } from '../../composables/useAdminI18n';
 import { adminFetch } from '../../composables/useAdminAuth';
 import { useAudioPreview } from '../../composables/useAudioPreview';
 import { useToast } from '../../composables/useToast';
+import { useDonations, type CelebrationRule } from '../../composables/useDonations';
+
+// Les paliers appartiennent a displaySettings (etat du panneau parent, barre
+// d'enregistrement commune) : la galerie les LIT et emet des tableaux neufs,
+// elle ne possede rien et ne mute jamais la prop.
+const props = defineProps<{ celebrations: CelebrationRule[] }>();
+const emit = defineEmits<{ (e: 'update:celebrations', rules: CelebrationRule[]): void }>();
 
 const { t } = useAdminI18n();
 const toast = useToast();
+const { formatAmount } = useDonations();
 
 interface Gif {
   filename: string;
   url: string;
   audioUrl: string | null;
   uploadedAt: string;
+}
+
+function ruleFor(gifUrl: string): CelebrationRule | null {
+  return props.celebrations.find((rule) => rule.gifUrl === gifUrl) ?? null;
+}
+
+// Montant du palier en shekels pour l'affichage ; champ vide = pas de regle.
+function ruleAmountShekels(gifUrl: string): string {
+  const rule = ruleFor(gifUrl);
+  return rule ? String(rule.minAmount / 100) : '';
+}
+
+function setRuleAmount(gif: Gif, raw: string): void {
+  const others = props.celebrations.filter((rule) => rule.gifUrl !== gif.url);
+  const parsed = parseFloat(raw);
+  if (isNaN(parsed) || parsed <= 0) {
+    // Champ vide : ce GIF ne se declenche plus automatiquement.
+    if (others.length !== props.celebrations.length) {
+      emit('update:celebrations', others);
+    }
+    return;
+  }
+  const existing = ruleFor(gif.url);
+  emit('update:celebrations', [
+    ...others,
+    {
+      // Id stable derive du fichier : pas d'horloge, pas de doublon possible.
+      id: existing?.id ?? `rule-${gif.filename}`,
+      minAmount: Math.round(parsed * 100),
+      gifUrl: gif.url,
+      // Une regle neuve joue partout : c'est le geste demande (« aussi pour la
+      // page de don ») ; les cases permettent ensuite de restreindre.
+      playOnDisplay: existing?.playOnDisplay ?? true,
+      playOnPledge: existing?.playOnPledge ?? true
+    }
+  ]);
+}
+
+function toggleRuleScope(gifUrl: string, scope: 'playOnDisplay' | 'playOnPledge'): void {
+  const rule = ruleFor(gifUrl);
+  if (!rule) return;
+  emit('update:celebrations', props.celebrations.map((entry) =>
+    entry.gifUrl === gifUrl ? { ...entry, [scope]: !entry[scope] } : entry
+  ));
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -163,6 +215,13 @@ async function deleteGif(filename: string): Promise<void> {
     if (!response.ok) throw new Error(t('toast.actionFailed'));
 
     await fetchGifs();
+    // La regle de palier du GIF supprime part avec lui (a enregistrer via la
+    // barre commune). Une regle orpheline restee en base serait de toute
+    // facon ignoree par les ecrans.
+    const next = props.celebrations.filter((rule) => rule.gifUrl !== `/uploads/gifs/${filename}`);
+    if (next.length !== props.celebrations.length) {
+      emit('update:celebrations', next);
+    }
     toast.success(t('toast.gifDeleted'));
   } catch (error) {
     toast.error(error instanceof Error ? error.message : t('toast.actionFailed'));
@@ -209,6 +268,7 @@ onUnmounted(stopAudio);
         </label>
         <p v-if="uploadError" class="upload-error">{{ uploadError }}</p>
         <p class="upload-hint">{{ t('gifs.formats') }}</p>
+        <p class="upload-hint">{{ t('gifs.thresholdHint') }}</p>
       </div>
 
       <!-- GIFs Grid -->
@@ -276,6 +336,42 @@ onUnmounted(stopAudio);
               </svg>
               {{ uploadingAudioFor === gif.filename ? t('common.uploading') : t('gifs.addSound') }}
             </label>
+          </div>
+
+          <!-- Palier : montant a partir duquel ce GIF part automatiquement
+               quand un don arrive (ecran de salle et/ou page /don). -->
+          <div class="threshold-section">
+            <label class="threshold-field">
+              <span>{{ t('gifs.thresholdLabel') }}</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                inputmode="decimal"
+                :value="ruleAmountShekels(gif.url)"
+                :placeholder="t('gifs.thresholdPlaceholder')"
+                @change="setRuleAmount(gif, ($event.target as HTMLInputElement).value)"
+              />
+            </label>
+            <div v-if="ruleFor(gif.url)" class="threshold-scopes">
+              <label class="scope-toggle">
+                <input
+                  type="checkbox"
+                  :checked="ruleFor(gif.url)?.playOnDisplay"
+                  @change="toggleRuleScope(gif.url, 'playOnDisplay')"
+                />
+                <span>{{ t('admin.tabs.screen') }}</span>
+              </label>
+              <label class="scope-toggle">
+                <input
+                  type="checkbox"
+                  :checked="ruleFor(gif.url)?.playOnPledge"
+                  @change="toggleRuleScope(gif.url, 'playOnPledge')"
+                />
+                <span>{{ t('admin.tabs.pledge') }}</span>
+              </label>
+              <span class="threshold-badge">≥ {{ formatAmount(ruleFor(gif.url)!.minAmount) }}</span>
+            </div>
           </div>
 
           <div class="gif-actions">
@@ -674,5 +770,71 @@ onUnmounted(stopAudio);
 .add-audio-btn svg {
   width: 14px;
   height: 14px;
+}
+
+/* Palier de declenchement automatique */
+.threshold-section {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--shell-border);
+  background: var(--shell-raised);
+}
+
+.threshold-field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.threshold-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--shell-border-strong);
+  border-radius: var(--radius);
+  background: var(--shell-page);
+  color: var(--shell-text-strong);
+  font: inherit;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.threshold-field input:focus {
+  border-color: var(--shell-accent);
+  outline: 2px solid rgba(228, 190, 99, 0.45);
+}
+
+.threshold-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.scope-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--shell-text);
+  cursor: pointer;
+}
+
+.scope-toggle input {
+  accent-color: var(--shell-accent-deep);
+}
+
+.threshold-badge {
+  margin-inline-start: auto;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(228, 190, 99, 0.16);
+  color: var(--shell-accent);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useDonations, type Donation } from '../../composables/useDonations';
 import { useAdminI18n } from '../../composables/useAdminI18n';
 import { adminFetch } from '../../composables/useAdminAuth';
@@ -20,6 +20,27 @@ function toggleCollapsed(): void {
   isCollapsed.value = !isCollapsed.value;
   localStorage.setItem(COLLAPSE_KEY, isCollapsed.value ? '1' : '0');
 }
+
+// Recherche locale : la liste admin est deja chargee en entier, on filtre sur
+// place. Insensible a la casse et aux accents (« remi » trouve « Rémi »).
+const searchQuery = ref('');
+
+function normalizeForSearch(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+const filteredDonations = computed(() => {
+  const query = normalizeForSearch(searchQuery.value.trim());
+  if (!query) return donations.value;
+  return donations.value.filter((donation) => {
+    // Montant cherchable en shekels, entier (« 180 ») comme decimal (« 180.50 »).
+    const shekels = donation.amount / 100;
+    const haystack = normalizeForSearch(
+      `${donation.firstName} ${donation.lastName} ${donation.reference ?? ''} ${shekels.toFixed(0)} ${shekels.toFixed(2)}`
+    );
+    return haystack.includes(query);
+  });
+});
 
 const isExporting = ref(false);
 
@@ -108,6 +129,37 @@ function getInitials(firstName: string, lastName: string): string {
       </button>
     </div>
 
+    <!-- Recherche : filtre local sur nom, référence et montant. -->
+    <div v-if="donations.length > 0 && !isCollapsed" class="search-row">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/>
+        <path d="m21 21-4.3-4.3"/>
+      </svg>
+      <input
+        v-model="searchQuery"
+        type="search"
+        class="search-input"
+        dir="auto"
+        :placeholder="t('donation.searchPlaceholder')"
+        :aria-label="t('donation.searchPlaceholder')"
+      />
+      <span v-if="searchQuery" class="search-count">
+        {{ filteredDonations.length }}/{{ donations.length }}
+      </span>
+      <button
+        v-if="searchQuery"
+        type="button"
+        class="clear-search-btn"
+        :aria-label="t('common.clear')"
+        @click="searchQuery = ''"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
     <!-- Empty State -->
     <div v-if="donations.length === 0 && !isCollapsed" class="empty-state">
       <div class="empty-icon">
@@ -121,8 +173,11 @@ function getInitials(firstName: string, lastName: string): string {
 
     <!-- Donations List -->
     <div v-else-if="donations.length > 0 && !isCollapsed" id="donations-body" class="donations-container">
+      <p v-if="filteredDonations.length === 0" class="search-no-results">
+        {{ t('donation.searchNoResults', { query: searchQuery }) }}
+      </p>
       <div
-        v-for="donation in donations"
+        v-for="donation in filteredDonations"
         :key="donation.id"
         class="donation-card"
       >
@@ -326,6 +381,87 @@ h3 svg {
   border-radius: var(--radius-full);
   font-size: 13px;
   font-weight: 600;
+}
+
+/* Recherche */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--shell-border);
+  background: var(--shell-card);
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--shell-text-muted);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--shell-text-strong);
+  font: inherit;
+  font-size: 14px;
+  padding: 6px 0;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--shell-text-muted);
+}
+
+/* Le natif ajoute sa propre croix : on la masque, la nôtre est stylée. */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-count {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(228, 190, 99, 0.16);
+  color: var(--shell-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clear-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--shell-raised);
+  color: var(--shell-text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.clear-search-btn:hover {
+  color: var(--shell-text-strong);
+}
+
+.clear-search-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.search-no-results {
+  margin: 0;
+  padding: 28px 24px;
+  text-align: center;
+  color: var(--shell-text-muted);
+  font-size: 14px;
 }
 
 /* Empty State */

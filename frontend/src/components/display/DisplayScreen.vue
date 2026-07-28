@@ -8,9 +8,11 @@ import { useSocket } from '../../composables/useSocket';
 import { useEventContext, currentEventScope } from '../../composables/useEventContext';
 import {
   useDonations,
+  matchCelebrationRule,
   type Donation,
   DEFAULT_DISPLAY_TEXTS
 } from '../../composables/useDonations';
+import { scopedApiUrl } from '../../composables/useAdminAuth';
 import { getDisplayThemeStyles } from '../../theme/displayThemes';
 import CampaignVisual from './CampaignVisual.vue';
 import StatsCompact from './StatsCompact.vue';
@@ -72,13 +74,52 @@ let flashTimeoutId: number | null = null;
 let nextDonationTimeoutId: number | null = null;
 let gifTimeoutId: number | null = null;
 
+// UNE seule instance audio, dont on garde la reference. L'ancien
+// `new Audio(url).play()` jetait l'objet aussitot : le son etait inarretable
+// et les lectures s'empilaient (meme defaut que corrige cote admin par
+// useAudioPreview). Jouer un nouveau son coupe le precedent — jamais deux
+// audios superposes sur l'ecran de la salle.
+let currentAudio: HTMLAudioElement | null = null;
+
+function stopAudio(): void {
+  if (!currentAudio) return;
+  currentAudio.onended = null;
+  currentAudio.pause();
+  currentAudio.currentTime = 0;
+  currentAudio = null;
+}
+
 function playAudio(url: string): void {
+  stopAudio();
   try {
     const audio = new Audio(url);
     audio.volume = 1.0;
+    currentAudio = audio;
+    audio.onended = () => {
+      if (currentAudio === audio) currentAudio = null;
+    };
     audio.play().catch(err => console.log('Audio play failed:', err));
   } catch (e) {
     console.log('Audio error:', e);
+  }
+}
+
+// Index gifUrl -> audioUrl de la galerie de la soiree. Deux roles : jouer le
+// son associe au GIF d'un palier, et ignorer une regle dont le GIF a ete
+// supprime de la galerie (auto-guerison, pas de purge serveur). Rafraichi au
+// montage, a chaque reconnexion et a chaque config:updated — l'enregistrement
+// des paliers dans l'admin passe justement par config:updated.
+const gifAudioIndex = ref<Map<string, string | null>>(new Map());
+
+async function refreshGifIndex(): Promise<void> {
+  try {
+    const response = await fetch(scopedApiUrl('/api/gifs', currentEventScope()));
+    if (!response.ok) return; // index precedent conserve
+    const gifs: { url: string; audioUrl: string | null }[] = await response.json();
+    gifAudioIndex.value = new Map(gifs.map((gif) => [gif.url, gif.audioUrl]));
+  } catch {
+    // Reseau indisponible : l'index courant reste en place, les paliers
+    // deja connus continuent de jouer.
   }
 }
 
@@ -87,7 +128,22 @@ function showDonationCelebration(donation: Donation): void {
   latestDonation.value = donation;
   showPlateAnimation.value = true;
 
-  if (config.value.displaySettings.donationSound) {
+  // Palier de celebration : declenche ICI, jamais cote serveur, pour rester
+  // synchrone avec la file d'attente (un declenchement serveur partirait
+  // pendant la plaque du don precedent). Le son du palier est celui associe
+  // au GIF dans la galerie, a defaut le son par defaut.
+  const rule = matchCelebrationRule(
+    donation.amount,
+    config.value.displaySettings.celebrations,
+    'display'
+  );
+  if (rule && gifAudioIndex.value.has(rule.gifUrl)) {
+    const gifAudio = gifAudioIndex.value.get(rule.gifUrl);
+    triggerGifExplosion(
+      rule.gifUrl,
+      gifAudio ?? config.value.displaySettings.donationSound ?? undefined
+    );
+  } else if (config.value.displaySettings.donationSound) {
     playAudio(config.value.displaySettings.donationSound);
   }
 
@@ -96,6 +152,29 @@ function showDonationCelebration(donation: Donation): void {
     showDonationFlash.value = false;
     flashTimeoutId = null;
   }, 2000);
+}
+
+// Arret d'urgence demande par l'operateur (bouton « Arreter » de l'admin) :
+// tout ce qui celebre s'eteint — GIF, plaque, file d'attente, flash et audio.
+// Idempotent : sans celebration en cours, il ne fait rien.
+function stopCelebrations(): void {
+  stopAudio();
+  donationQueue.value = [];
+  if (nextDonationTimeoutId !== null) {
+    window.clearTimeout(nextDonationTimeoutId);
+    nextDonationTimeoutId = null;
+  }
+  if (gifTimeoutId !== null) {
+    window.clearTimeout(gifTimeoutId);
+    gifTimeoutId = null;
+  }
+  showGifExplosion.value = false;
+  if (flashTimeoutId !== null) {
+    window.clearTimeout(flashTimeoutId);
+    flashTimeoutId = null;
+  }
+  showDonationFlash.value = false;
+  showPlateAnimation.value = false;
 }
 
 // Avec file d'attente (main/light), chaque don a son moment complet a l'ecran.
@@ -164,7 +243,7 @@ async function resolveAndLoad(): Promise<void> {
   if (current !== sequence) return; // idem juste avant d'agir sur la socket
   join(currentEventScope());
 
-  await Promise.all([fetchDonations(), fetchConfig()]);
+  await Promise.all([fetchDonations(), fetchConfig(), refreshGifIndex()]);
 }
 
 onMounted(async () => {
@@ -193,11 +272,18 @@ onMounted(async () => {
 
   on('config:updated', (data: any) => {
     handleConfigUpdated(data.config, data.stats);
+    // L'enregistrement admin (paliers, sons, galerie) passe par cet evenement :
+    // c'est le moment de resynchroniser l'index gif -> son.
+    void refreshGifIndex();
+  });
+
+  on('celebration:stop', () => {
+    stopCelebrations();
   });
 
   on('connect', async () => {
     console.log('Socket reconnected, reloading state...');
-    await Promise.all([fetchDonations(), fetchConfig()]);
+    await Promise.all([fetchDonations(), fetchConfig(), refreshGifIndex()]);
   });
 });
 
@@ -208,6 +294,7 @@ onMounted(async () => {
 watch(() => route.params.slug, () => { void resolveAndLoad(); });
 
 onUnmounted(() => {
+  stopAudio();
   if (flashTimeoutId !== null) window.clearTimeout(flashTimeoutId);
   if (nextDonationTimeoutId !== null) window.clearTimeout(nextDonationTimeoutId);
   if (gifTimeoutId !== null) window.clearTimeout(gifTimeoutId);

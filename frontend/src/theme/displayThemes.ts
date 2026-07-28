@@ -210,6 +210,12 @@ export function cloneDisplaySettings(settings?: Partial<DisplaySettings>): Displ
       ...DEFAULT_PLEDGE_REQUIRED_FIELDS,
       ...(source.pledgeRequiredFields ?? {})
     },
+    // Copie PROFONDE : le spread de `source` plus haut recopierait le tableau
+    // par reference, et l'edition admin mutait alors l'etat partage (isDirty
+    // toujours faux). Chaque regle est recopiee objet par objet.
+    celebrations: Array.isArray(source.celebrations)
+      ? source.celebrations.map((rule) => ({ ...rule }))
+      : [],
     themePalettes,
     ...themePalettes[theme]
   };

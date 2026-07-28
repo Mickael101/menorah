@@ -293,6 +293,19 @@ export function createGifsRouter(ctx: EventRouteContext): Router {
     }
   });
 
+  // POST /gifs/stop - coupe la celebration en cours sur les ecrans (admin).
+  // Pas d'etat a verifier : l'evenement est idempotent, un ecran sans
+  // celebration en cours l'ignore.
+  router.post('/stop', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
+    try {
+      socketService.emitCelebrationStop(requestEventId(req));
+      res.json({ success: true, message: 'Celebrations stopped on the displays of the event' });
+    } catch (error) {
+      console.error('Error stopping celebrations:', error);
+      res.status(500).json({ error: 'Failed to stop celebrations' });
+    }
+  });
+
   // DELETE /gifs/audio/:filename - supprime un audio + ses associations (admin)
   router.delete('/audio/:filename', requireAdminOfEvent, ctx.resolveEvent, (req: Request, res: Response) => {
     try {

@@ -193,6 +193,16 @@ class SocketService {
       audioUrl
     });
   }
+
+  // Coupe court a toute celebration en cours sur les ecrans de la soiree :
+  // GIF, animation de plaque, file d'attente et audio. Bouton d'urgence de
+  // l'operateur — un son trop long ou un GIF errone ne doit pas occuper la
+  // salle jusqu'a son terme.
+  emitCelebrationStop(eventId: number): void {
+    this.io?.to(eventRoom(eventId)).emit('celebration:stop', {
+      type: 'celebration:stop'
+    });
+  }
 }
 
 export const socketService = new SocketService();

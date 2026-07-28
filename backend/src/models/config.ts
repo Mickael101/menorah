@@ -2,6 +2,8 @@ import {
   Config,
   MenorahSegment,
   DisplaySettings,
+  CelebrationRule,
+  CELEBRATION_RULES_MAX,
   DisplayThemeId,
   DisplayThemePalette,
   DisplayVisualMode,
@@ -171,6 +173,44 @@ function normalizePledgeRequiredFields(value: unknown): PledgeRequiredFields {
   return result;
 }
 
+// Les fichiers GIF televerses sont nommes par le serveur (gif-<ts>-<alea>.<ext>) :
+// tout ce qui sort de ce motif est rejete. L'URL n'est jamais utilisee cote
+// serveur pour lire un fichier, mais autant ne stocker que des chemins sains.
+const CELEBRATION_GIF_URL_PATTERN = /^\/uploads\/gifs\/[A-Za-z0-9._-]+$/;
+
+function normalizeCelebrations(value: unknown): CelebrationRule[] {
+  if (!Array.isArray(value)) return [];
+
+  const rules: CelebrationRule[] = [];
+  const seenGifs = new Set<string>();
+
+  for (const entry of value) {
+    if (rules.length >= CELEBRATION_RULES_MAX) break;
+    if (!isRecord(entry)) continue;
+
+    const gifUrl = entry.gifUrl;
+    if (typeof gifUrl !== 'string' || !CELEBRATION_GIF_URL_PATTERN.test(gifUrl)) continue;
+    // Une regle par GIF : la premiere occurrence gagne, les doublons tombent.
+    if (seenGifs.has(gifUrl)) continue;
+
+    const minAmount = entry.minAmount;
+    if (typeof minAmount !== 'number' || !Number.isFinite(minAmount) || minAmount <= 0) continue;
+
+    seenGifs.add(gifUrl);
+    rules.push({
+      id: typeof entry.id === 'string' && entry.id
+        ? entry.id.slice(0, 60)
+        : `rule-${rules.length + 1}`,
+      minAmount: Math.floor(minAmount),
+      gifUrl,
+      playOnDisplay: typeof entry.playOnDisplay === 'boolean' ? entry.playOnDisplay : true,
+      playOnPledge: typeof entry.playOnPledge === 'boolean' ? entry.playOnPledge : false
+    });
+  }
+
+  return rules;
+}
+
 function validateThemePalette(
   palette: unknown,
   defaults: DisplayThemePalette
@@ -241,6 +281,7 @@ export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
   const donationSound = source.donationSound === null || typeof source.donationSound === 'string'
     ? source.donationSound
     : null;
+  const celebrations = normalizeCelebrations(source.celebrations);
 
   return {
     theme,
@@ -254,7 +295,8 @@ export function normalizeDisplaySettings(settings: unknown): DisplaySettings {
     adminBranding,
     pledgeTexts,
     pledgeRequiredFields,
-    donationSound
+    donationSound,
+    celebrations
   };
 }
 

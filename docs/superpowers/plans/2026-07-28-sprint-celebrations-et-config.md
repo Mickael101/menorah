@@ -1,0 +1,141 @@
+# Sprint 2026-07-28 — Célébrations par palier, stop temps réel, refonte des onglets admin
+
+## PROTOCOLE DE REPRISE
+
+En cas de reprise (crash, /clear, nouvelle session) :
+
+1. Lire ce fichier EN ENTIER avant d'agir.
+2. `git log --oneline -15` + `git status --short` sur la branche
+   `feat/celebrations-et-config-2026-07-28` : établir ce qui a réellement atterri.
+3. Ne JAMAIS cocher une case sans SHA copié depuis la sortie réelle de `git log`.
+4. Reprendre à la première case non cochée, dans l'ordre.
+5. « État courant » (en bas) nomme la prochaine action.
+
+## Contexte figé
+
+- **Base** : master `14e3d4f` (fix: retirer la marque « Ohel Yeochoua » des valeurs par défaut).
+- **Branche de travail** : `feat/celebrations-et-config-2026-07-28`. Merge dans master en fin
+  de sprint après vérification navigateur. **`railway up` N'EST PAS lancé** — la mise en prod
+  reste un acte du commanditaire (le déploiement précédent est déjà en attente de son feu vert).
+- **Gate par commit** (les 4, chaînés `&&`, jamais `;`, jamais de pipe sur commande faillible) :
+  `cd backend && npm test && npm run build` puis `cd frontend && npm run typecheck && npm run build`.
+  Rappel : `vite build` ne type-vérifie PAS ; seul `vue-tsc` garde le front. Le build Railway
+  (nixpacks) = `vite build` + `tsc` backend.
+- Staging par chemins explicites, jamais `git add -A`. Doc et code dans le même commit.
+- Un texte affiché ne s'invente pas : tout libellé public vient de la config ou des dictionnaires
+  admin existants ; les nouveaux libellés admin sont des clés i18n fr/en/he (parité stricte).
+- sql.js : ne pas toucher à l'écriture atomique ni au PRAGMA FK (backend/src/db/init.ts).
+- Tests backend depuis `backend/` uniquement (jamais la racine).
+
+## Demande du commanditaire (verbatim condensé)
+
+1. Galerie de GIF : selon un montant défini, déclencher un certain GIF + son.
+2. Pouvoir arrêter un son/animation déjà lancé sur l'écran des dons.
+3. Galerie son+GIF valable aussi pour la page de don, pas seulement l'affichage principal.
+4. Barre de recherche dans la liste des dons.
+5. Config de l'affichage principal plus amicale : ce qui concerne l'écran principal et la page
+   de don n'est pas au même endroit, on ne voit pas à quoi chaque réglage fait référence.
+6. Textes par langue : ne pas afficher toutes les langues à la fois (fold/onglets par langue).
+7. L'onglet images/GIF et la section animations (GIF+son) sont redondants → centraliser.
+
+## Décisions de conception (prises en autonomie, à défaut du commanditaire joignable)
+
+- **Modèle** : `displaySettings.celebrations: CelebrationRule[]` avec
+  `{ id, minAmount (agorot), gifUrl, playOnDisplay, playOnPledge }`. Une règle par GIF
+  (imposé par l'UI). La règle gagnante = plus haut `minAmount <= montant du don`.
+  Le SON d'un palier = le son déjà associé au GIF dans la galerie (pas de doublon de donnée),
+  à défaut le son par défaut « quand un don arrive ».
+- **Résolution côté client** (écran + /don), pas côté serveur : l'écran principal synchronise
+  le GIF avec l'animation de plaque et sa file d'attente (un déclenchement serveur arriverait
+  pendant la plaque du don PRÉCÉDENT en mode file). L'écran garde un index gifUrl→audioUrl
+  rafraîchi au montage, à la reconnexion et à chaque `config:updated`.
+- **Une règle dont le GIF n'existe plus dans la galerie est ignorée à l'affichage**
+  (auto-guérison : pas besoin de purge serveur).
+- **Stop** : `POST /api/gifs/stop` (admin de la soirée) → socket `celebration:stop` → l'écran
+  coupe GIF, plaque, file d'attente, flash et audio. L'audio de l'écran devient UNIQUE et
+  stoppable (le `new Audio` jeté actuel est inarrêtable et empilable — même défaut que
+  corrigé côté admin par useAudioPreview).
+- **Page /don** : après soumission réussie, si une règle `playOnPledge` correspond → GIF en
+  overlay sur l'écran de remerciement + son (geste utilisateur → autoplay permis). Coupé au
+  reset et à l'unmount.
+- **Onglets admin par page cible** (réponse au « on ne sait pas à quoi ça correspond ») :
+  `Dons · Écran de salle · Page de don · Médias et célébrations · Soirée`.
+  DisplaySettingsPanel reste UNE instance (v-show) avec une prop `view` — un seul état, une
+  seule barre d'enregistrement, zéro fragment concurrent. Aucun déplacement massif de markup :
+  on re-route les `v-show` des sections existantes (technique éprouvée du panneau).
+- **Langues en onglets** : l'identité de l'administration (ConfigPanel) passe des 3 fieldsets
+  côte à côte au même motif d'onglets de langue que la page de don (déjà en place et validé).
+- **Montants saisis en ₪, stockés en agorot** (comme goalAmount).
+
+## Tranches (une case = un commit mergeable, gate vert)
+
+- [x] **S0 — Plan committé** (ce fichier).
+- [x] **S1 — Recherche dans la liste des dons.** `DonationList.vue` : champ (nom, référence,
+  montant), insensible casse/accents, compteur « filtrés/total », état « aucun résultat »,
+  clés i18n fr/en/he.
+- [x] **S2 — Modèle celebrations.** Backend : `types.ts` (interface + défaut), `config.ts`
+  (normalisation : tableau ≤ 50, minAmount entier > 0, gifUrl `/uploads/gifs/…`, booléens,
+  id régénéré si absent, entrées invalides éliminées), tests dédiés
+  (`backend/tests/services/` ou `routes/config`). Frontend : miroir types + défauts dans
+  `useDonations.ts`, clonage profond dans `cloneDisplaySettings`, util partagée
+  `matchCelebrationRule(amount, rules, scope)`.
+- [x] **S3 — Écran : palier + stop.** Backend : `emitCelebrationStop` + route
+  `POST /gifs/stop` (admin) + tests (route + réception socket, isolation par soirée).
+  Frontend `DisplayScreen.vue` : index gifs (fetch public au montage/reconnexion/config),
+  matching dans `showDonationCelebration` (GIF du palier + son associé sinon son par défaut,
+  jamais deux audios superposés), audio unique stoppable, handler `celebration:stop` qui coupe
+  tout (GIF, plaque, file, flash, audio).
+- [x] **S4 — /don : célébration par palier.** `DonorPledgePage.vue` : fetch gifs public,
+  matching `playOnPledge` à la soumission réussie, overlay GIF + son, nettoyage
+  reset/unmount.
+- [x] **S5 — Refonte des onglets admin.** `AdminPanel.vue` : 5 onglets persistés,
+  `DisplaySettingsPanel` prop `view` (screen : thème/textes/composition ; pledge : page de
+  don ; media : animation + son par défaut + galerie), `ConfigPanel` : identité par onglets
+  de langue, renommage i18n des onglets (fr/en/he). Aucune fonctionnalité nouvelle.
+- [x] **S6 — Galerie pilotée par paliers + stop admin.** `GifManager.vue` intégré à la vue
+  media : par GIF, champ « déclencher à partir de X ₪ » + portées (écran //don), édition via
+  l'état parent (barre d'enregistrement partagée, isDirty), purge de la règle à la
+  suppression du GIF, bouton « Arrêter le son et l'animation à l'écran » → POST /gifs/stop.
+- [x] **S7 — Vérification navigateur + docs + merge.** Passe playwright-cli : admin (5
+  onglets, seuils, stop), écran (palier déclenché par un vrai don, stop en direct), /don
+  (fr + he, mobile 390px + desktop, célébration palier), captures `docs/verif/2026-07-28/`,
+  correctifs éventuels, mise à jour `docs/README.md` (carte de fraîcheur), `CLAUDE.md`
+  (état), `docs/reste-a-faire.md`, `docs/api-et-socket.md` (nouvel événement + route),
+  merge fast-forward ou merge commit dans master. Pas de `railway up`.
+
+## Journal
+
+- S0 `cc451c1` — plan committé.
+- S1 `a237ddc` — recherche liste des dons (gate 188 tests + 2 builds + vue-tsc verts).
+- S2 `712be07` — modèle celebrations + 8 tests (196 tests verts).
+- ⚠ Flakiness PRÉEXISTANTE prouvée sur master (`14e3d4f`) : « Worker exited unexpectedly »
+  (tinypool, Windows) tue la run vitest à un point aléatoire ~1 fois sur 3 — reproduite sur la
+  base run 1/3, verte runs 2-3. Règle du sprint : n'accepter comme gate qu'une run COMPLÈTE
+  (27 fichiers passés) ; une run partielle avec ce crash se rejoue. À consigner dans
+  reste-a-faire (S7). Piège associé corrigé dans la procédure : `npm test | tail` avale le
+  code de sortie — toujours lire le compte de fichiers, pas la présence d'erreur shell.
+
+- S3 `387f8cd` — écran : palier + stop + audio stoppable (199 tests, run complète 27/27).
+- S4 `b95fe39` — /don : célébration par palier (gate complet vert).
+- S5 `3049f7d` — refonte onglets admin (gate complet vert).
+- Diagnostic affiné du crash vitest : le fichier qui meurt est
+  `tests/security/rate-limit.test.ts` (verdicts mockés, pas de scrypt réel) et la cause est le
+  POOL DE PROCESSUS (tinypool forks, défaut vitest) qui meurt sur cette machine Windows sous
+  charge — `npx vitest run --pool=threads` est passé 27/27 (199 tests) DEUX fois de suite
+  pendant que le pool forks crashait systématiquement. Gate de secours du sprint : la run
+  threads complète. À proposer (reste-a-faire) : épingler `pool: 'threads'` côté Windows.
+
+- S6 `76fc608` — galerie pilotée par paliers + bouton stop (gate : threads 27/27 ×2).
+- S7 (ce commit) — vérification navigateur COMPLÈTE sur serveur local prod-like (DATA_DIR
+  isolé, DB vierge seedée) : palier déclenché par un vrai don sur l'écran (GIF attendu +
+  plaque), stop coupe le GIF en ~1,5 s (avant l'auto-masquage 4 s), /don fr+he mobile
+  célèbre avec le GIF du palier (auto-masqué à 6 s), admin 5 onglets fr + he RTL, recherche
+  1/3, aller-retour seuil UI→save→base (300 ₪ → 30000 agorot), toast du stop, 0 erreur
+  console. 9 captures `docs/verif/2026-07-28/`. Docs synchronisées (README, api-et-socket,
+  reste-a-faire, historique, CLAUDE.md) + polish `config.title`.
+
+## État courant
+
+Sprint TERMINÉ. Merge dans master effectué (voir git log). `railway up` NON lancé —
+mise en prod à la main du commanditaire (deux lots en attente : revue durcie du 2026-07-28
+matin + ce sprint).

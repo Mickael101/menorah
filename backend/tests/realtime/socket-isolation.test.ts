@@ -15,7 +15,7 @@ import { Donation, DonationStats, Config, DEFAULT_DISPLAY_SETTINGS } from '../..
 const SOIREE_A = 1;
 const SOIREE_B = 2;
 
-const EVENEMENTS = ['donation:new', 'donation:updated', 'donation:deleted', 'config:updated', 'gif:trigger'] as const;
+const EVENEMENTS = ['donation:new', 'donation:updated', 'donation:deleted', 'config:updated', 'gif:trigger', 'celebration:stop'] as const;
 
 const DON: Donation = {
   id: 42,
@@ -49,7 +49,8 @@ const EMISSIONS: Array<{ nom: (typeof EVENEMENTS)[number]; declenche: (eventId: 
   { nom: 'donation:updated', declenche: (id) => socketService.emitDonationUpdated(id, DON, STATS) },
   { nom: 'donation:deleted', declenche: (id) => socketService.emitDonationDeleted(id, DON.id, STATS) },
   { nom: 'config:updated', declenche: (id) => socketService.emitConfigUpdated(id, CONFIG, STATS) },
-  { nom: 'gif:trigger', declenche: (id) => socketService.emitGifTrigger(id, '/uploads/gifs/mazal.gif') }
+  { nom: 'gif:trigger', declenche: (id) => socketService.emitGifTrigger(id, '/uploads/gifs/mazal.gif') },
+  { nom: 'celebration:stop', declenche: (id) => socketService.emitCelebrationStop(id) }
 ];
 
 interface JoinAck {
