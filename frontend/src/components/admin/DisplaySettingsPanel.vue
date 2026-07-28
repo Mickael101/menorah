@@ -331,6 +331,23 @@ function removeDonationSound(): void {
   settings.value.donationSound = null;
 }
 
+// Bouton d'urgence : coupe GIF, animation et son en cours sur les ecrans de la
+// soiree (socket celebration:stop). Ne touche a aucun reglage — action live.
+const isStopping = ref(false);
+
+async function stopCelebrationsOnDisplays(): Promise<void> {
+  isStopping.value = true;
+  try {
+    const response = await adminFetch(`${API_BASE}/api/gifs/stop`, { method: 'POST' });
+    if (!response.ok) throw new Error(t('toast.actionFailed'));
+    toast.success(t('toast.celebrationsStopped'));
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : t('toast.actionFailed'));
+  } finally {
+    isStopping.value = false;
+  }
+}
+
 // Lecture partagee avec le reste du panel : un seul son a la fois,
 // re-cliquer arrete. Voir composables/useAudioPreview.ts.
 const { toggle: toggleAudio, stop: stopAudio, isPlaying } = useAudioPreview();
@@ -651,6 +668,23 @@ onUnmounted(stopAudio);
         </div>
       </section>
 
+      <!-- Contrôle en direct : arret d'urgence des celebrations sur les ecrans. -->
+      <section v-show="view === 'media'" class="settings-section live-control-section">
+        <h3>{{ t('media.liveTitle') }}</h3>
+        <p class="section-description">{{ t('media.liveDescription') }}</p>
+        <button
+          type="button"
+          class="stop-live-btn"
+          :disabled="isStopping"
+          @click="stopCelebrationsOnDisplays"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+            <rect x="6" y="6" width="12" height="12" rx="2"/>
+          </svg>
+          {{ t('media.stopButton') }}
+        </button>
+      </section>
+
       <!-- Donation animation selection -->
       <section v-show="view === 'media'" class="settings-section animation-settings-section">
         <div class="section-heading-row">
@@ -911,7 +945,7 @@ onUnmounted(stopAudio);
       <!-- Galerie GIF + sons : centralisee ICI (l'ancien onglet « Images et
            sons » de l'admin faisait doublon avec cette vue medias). -->
       <section v-show="view === 'media'" class="settings-section gallery-section">
-        <GifManager />
+        <GifManager v-model:celebrations="settings.celebrations" />
       </section>
 
       <!-- Barre de sauvegarde collante.
@@ -958,6 +992,40 @@ onUnmounted(stopAudio);
 </template>
 
 <style scoped>
+/* Arret d'urgence : la seule action rouge du panneau — inversion semantique
+   au survol, comme le Supprimer de la liste des dons. */
+.stop-live-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 18px;
+  border: 1px solid var(--shell-error);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--shell-error);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.stop-live-btn:hover:not(:disabled) {
+  background: var(--shell-error);
+  color: var(--shell-on-accent);
+}
+
+.stop-live-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.stop-live-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* La galerie (GifManager) rend sa propre carte : imbriquee dans la carte du
    panneau, on retire son cadre pour ne pas empiler deux bordures. */
 .gallery-section :deep(.card) {

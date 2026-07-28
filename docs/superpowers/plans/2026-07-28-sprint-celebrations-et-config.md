@@ -88,7 +88,7 @@ En cas de reprise (crash, /clear, nouvelle session) :
 - [x] **S4 — /don : célébration par palier.** `DonorPledgePage.vue` : fetch gifs public,
   matching `playOnPledge` à la soumission réussie, overlay GIF + son, nettoyage
   reset/unmount.
-- [ ] **S5 — Refonte des onglets admin.** `AdminPanel.vue` : 5 onglets persistés,
+- [x] **S5 — Refonte des onglets admin.** `AdminPanel.vue` : 5 onglets persistés,
   `DisplaySettingsPanel` prop `view` (screen : thème/textes/composition ; pledge : page de
   don ; media : animation + son par défaut + galerie), `ConfigPanel` : identité par onglets
   de langue, renommage i18n des onglets (fr/en/he). Aucune fonctionnalité nouvelle.
@@ -117,7 +117,14 @@ En cas de reprise (crash, /clear, nouvelle session) :
 
 - S3 `387f8cd` — écran : palier + stop + audio stoppable (199 tests, run complète 27/27).
 - S4 `b95fe39` — /don : célébration par palier (gate complet vert).
+- S5 `3049f7d` — refonte onglets admin (gate complet vert).
+- Diagnostic affiné du crash vitest : le fichier qui meurt est
+  `tests/security/rate-limit.test.ts` (verdicts mockés, pas de scrypt réel) et la cause est le
+  POOL DE PROCESSUS (tinypool forks, défaut vitest) qui meurt sur cette machine Windows sous
+  charge — `npx vitest run --pool=threads` est passé 27/27 (199 tests) DEUX fois de suite
+  pendant que le pool forks crashait systématiquement. Gate de secours du sprint : la run
+  threads complète. À proposer (reste-a-faire) : épingler `pool: 'threads'` côté Windows.
 
 ## État courant
 
-S5 (refonte onglets admin) prêt : ce commit le porte. Prochaine action : S6.
+S6 (galerie pilotée par paliers + stop admin) prêt : ce commit le porte. Prochaine action : S7.
